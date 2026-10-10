@@ -112,12 +112,12 @@ function Register() {
       <QueryState query={reg}>
         <Table rowKey="worker_id" size="small" pagination={false} dataSource={reg.payload?.rows || []} scroll={{ x: 'max-content', y: 480 }}
           columns={[
-            { title: 'Worker', key: 'w', fixed: 'left', width: 170, render: (_, r) => <>{r.name} <span style={{ color: '#828ea8' }}>{r.emp_code}</span></> },
+            { title: 'Worker', key: 'w', fixed: 'left', width: 170, render: (_, r) => <>{r.name} <span style={{ color: '#8C948E' }}>{r.emp_code}</span></> },
             ...days.map((d) => ({ title: d.slice(8), key: d, width: 42, align: 'center', render: (_, r) => { const c = r.cells[d]; return c ? <span style={{ color: c.startsWith('A') ? '#cf1322' : c.startsWith('P') ? '#389e0d' : undefined, fontWeight: 600 }}>{c.replace('+OT', '*')}</span> : ''; } })),
             { title: 'Days', key: 'days', fixed: 'right', width: 70, align: 'right', render: (_, r) => r.totals.days_worked },
             { title: 'OT h', key: 'ot', fixed: 'right', width: 60, align: 'right', render: (_, r) => r.totals.ot_hours },
           ]} />
-        <p style={{ marginTop: 8, color: '#828ea8', fontSize: 12 }}>P present · L late · H half day · A absent · V leave · W weekly off · O holiday · * overtime</p>
+        <p style={{ marginTop: 8, color: '#8C948E', fontSize: 12 }}>P present · L late · H half day · A absent · V leave · W weekly off · O holiday · * overtime</p>
       </QueryState>
     </>
   );

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Alert, Button, Drawer } from 'antd';
+import Icon from '@/components/Icons';
 import NotificationBell from '@/components/NotificationBell';
 import { useSession } from '@/context/Session';
 
@@ -16,41 +17,41 @@ export function LogoWeaveIcon({ size = 26 }) {
 
 // An entry shows when the person holds any one of its permissions. `perms: null` = everyone.
 const NAV = [
-  { items: [{ to: '/app', label: 'Dashboard', end: true }] },
+  { items: [{ to: '/app', label: 'Dashboard', icon: 'home', end: true }] },
   { caption: 'SALES', items: [
-    { to: '/app/orders', label: 'Orders', perms: ['orders.view'] },
-    { to: '/app/contacts', label: 'Buyers & suppliers', perms: ['contacts.view'] },
+    { to: '/app/orders', label: 'Orders', icon: 'orders', perms: ['orders.view'] },
+    { to: '/app/contacts', label: 'Buyers & suppliers', icon: 'people', perms: ['contacts.view'] },
   ] },
   { caption: 'STORES', items: [
-    { to: '/app/stock', label: 'Inventory', perms: ['stock.view'] },
-    { to: '/app/receipts', label: 'Goods receipts', perms: ['receipt.view', 'receipt.create'] },
-    { to: '/app/items', label: 'Items', perms: ['items.view'] },
-    { to: '/app/boms', label: 'Recipes (BOM)', perms: ['bom.view'] },
+    { to: '/app/stock', label: 'Inventory', icon: 'box', perms: ['stock.view'] },
+    { to: '/app/receipts', label: 'Goods receipts', icon: 'receipt', perms: ['receipt.view', 'receipt.create'] },
+    { to: '/app/items', label: 'Items', icon: 'box', perms: ['items.view'] },
+    { to: '/app/boms', label: 'Recipes (BOM)', icon: 'layers', perms: ['bom.view'] },
   ] },
   { caption: 'PRODUCTION', items: [
-    { to: '/app/production', label: 'Machine board', perms: ['production.view'] },
-    { to: '/app/work-orders', label: 'Work orders', perms: ['production.view'] },
-    { to: '/app/assignments', label: 'Assignments', perms: ['assignment.view', 'assignment.create'] },
-    { to: '/app/maintenance', label: 'Maintenance', perms: ['breakdown.report', 'maintenance.fix', 'breakdown.close'] },
-    { to: '/app/machines', label: 'Machines', perms: ['machines.view'] },
+    { to: '/app/production', label: 'Machine board', icon: 'loom', perms: ['production.view'] },
+    { to: '/app/work-orders', label: 'Work orders', icon: 'clipboard', perms: ['production.view'] },
+    { to: '/app/assignments', label: 'Assignments', icon: 'people', perms: ['assignment.view', 'assignment.create'] },
+    { to: '/app/maintenance', label: 'Maintenance', icon: 'wrench', perms: ['breakdown.report', 'maintenance.fix', 'breakdown.close'] },
+    { to: '/app/machines', label: 'Machines', icon: 'gear', perms: ['machines.view'] },
   ] },
   { caption: 'QUALITY & DISPATCH', items: [
-    { to: '/app/quality', label: 'Quality control', perms: ['qc.view'] },
-    { to: '/app/dispatch', label: 'Dispatch', perms: ['dispatch.view'] },
+    { to: '/app/quality', label: 'Quality control', icon: 'check', perms: ['qc.view'] },
+    { to: '/app/dispatch', label: 'Dispatch', icon: 'truck', perms: ['dispatch.view'] },
   ] },
   { caption: 'PEOPLE', items: [
-    { to: '/app/attendance', label: 'Attendance', perms: ['attendance.view'] },
-    { to: '/app/workers', label: 'Workers', perms: ['workers.view'] },
-    { to: '/app/wages', label: 'Wages', perms: ['wages.view'] },
+    { to: '/app/attendance', label: 'Attendance', icon: 'calendar', perms: ['attendance.view'] },
+    { to: '/app/workers', label: 'Workers', icon: 'person', perms: ['workers.view'] },
+    { to: '/app/wages', label: 'Wages', icon: 'wallet', perms: ['wages.view'] },
   ] },
   { caption: 'MONEY', items: [
-    { to: '/app/finance', label: 'Accounts', perms: ['invoice.view', 'payment.view', 'expense.view'] },
-    { to: '/app/reports', label: 'Reports', perms: ['reports.cost', 'reports.pnl', 'reports.production', 'reports.qc', 'reports.attendance', 'wages.view'] },
+    { to: '/app/finance', label: 'Accounts', icon: 'bank', perms: ['invoice.view', 'payment.view', 'expense.view'] },
+    { to: '/app/reports', label: 'Reports', icon: 'chart', perms: ['reports.cost', 'reports.pnl', 'reports.production', 'reports.qc', 'reports.attendance', 'wages.view'] },
   ] },
   { caption: 'ADMIN', items: [
-    { to: '/app/staff', label: 'Staff', perms: ['staff.view'] },
-    { to: '/app/roles', label: 'Roles & permissions', perms: ['roles.view'] },
-    { to: '/app/settings', label: 'Mill settings', perms: ['settings.update', 'settings.create'] },
+    { to: '/app/staff', label: 'Staff', icon: 'people', perms: ['staff.view'] },
+    { to: '/app/roles', label: 'Roles & permissions', icon: 'shield', perms: ['roles.view'] },
+    { to: '/app/settings', label: 'Mill settings', icon: 'sliders', perms: ['settings.update', 'settings.create'] },
   ] },
 ];
 
@@ -62,25 +63,30 @@ export default function AppLayout() {
   const allowed = (item) => !item.perms || item.perms.some((p) => session.can(p));
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length);
 
+  const user = session.context.user;
+  const name = user?.full_name || user?.email || session.context.role.name;
+  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+  const signOut = async () => { try { await session.signOut(); } catch (err) { setError(err.message); } };
+
   const nav = (
     <>
-      <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <LogoWeaveIcon size={28} />
-        <span style={{ color: '#ffffff', letterSpacing: '-0.5px' }}>sameta</span>
+      <div className="brand">
+        <LogoWeaveIcon size={34} />
+        <span>sameta</span>
       </div>
       {groups.map((g, i) => (
-        <div key={g.caption || i}>
+        <div key={g.caption || i} className="nav-group">
           {g.caption && <div className="nav-caption">{g.caption}</div>}
           <nav aria-label={g.caption || 'Main navigation'}>
-            {g.items.map((item) => <NavLink key={item.to} to={item.to} end={item.end} onClick={close}>{item.label}</NavLink>)}
+            {g.items.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end} onClick={close}>
+                <Icon name={item.icon} size={19} />{item.label}
+              </NavLink>
+            ))}
           </nav>
         </div>
       ))}
-      <div className="sidebar-footer">
-        CONNECTED MILL OPERATIONS
-        <br />
-        <strong>From yarn to delivery.</strong>
-      </div>
+      <div className="sidebar-footer"><i aria-hidden="true" />Mill operations, in sync.</div>
     </>
   );
 
@@ -88,29 +94,26 @@ export default function AppLayout() {
     <div className="app-shell">
       <aside className="sidebar">{nav}</aside>
 
-      <Drawer placement="left" open={open} onClose={close} title="Sameta navigation">
+      <Drawer placement="left" open={open} onClose={close} title="Sameta navigation" rootClassName="nav-drawer">
         {nav}
       </Drawer>
 
       <div className="workspace">
         <header className="topbar">
-          <Button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation">Menu</Button>
+          <Button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation" icon={<Icon name="menu" size={18} />} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, fontWeight: 600, color: '#192A51' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
-              <path d="M9 22v-4h6v4" />
-              <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
-            </svg>
-            {session.context.mill.name}
+          <div className="mill-chip">
+            <span className="mill-chip-icon"><Icon name="factory" size={18} /></span>
+            <span className="mill-chip-name">{session.context.mill.name}</span>
           </div>
 
           <div className="topbar-right">
             <NotificationBell />
-            <Link to="/app/profile" className="role-label" title="My profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {session.context.user?.full_name || session.context.user?.email} · {session.context.role.name}
+            <Link to="/app/profile" className="user-chip" title="My profile">
+              <span className="avatar">{initials}</span>
+              <span className="user-chip-text">{name} · {session.context.role.name}</span>
             </Link>
-            <Button style={{ borderRadius: 8, height: 36, borderColor: '#e5e7eb' }} onClick={async () => { try { await session.signOut(); } catch (err) { setError(err.message); } }}>Sign out</Button>
+            <Button className="signout-btn" icon={<Icon name="logout" size={17} />} onClick={signOut}>Sign out</Button>
           </div>
         </header>
 
@@ -118,8 +121,6 @@ export default function AppLayout() {
           {error && <Alert type="error" message={error} closable onClose={() => setError(null)} />}
           <Outlet />
         </main>
-
-        <footer className="workspace-footer">SAMETA <span>Mill operations, in sync.</span></footer>
       </div>
     </div>
   );

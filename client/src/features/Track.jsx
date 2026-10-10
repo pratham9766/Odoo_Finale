@@ -23,7 +23,7 @@ export default function Track() {
 
   return (
     <div className="center" style={{ alignItems: 'flex-start', padding: 24 }}>
-      <Card title={<><span style={{ color: '#828ea8', fontSize: 12, display: 'block' }}>{t.mill}</span>Order {t.order_no}</>} style={{ maxWidth: 640, width: '100%' }}>
+      <Card title={<><span style={{ color: '#8C948E', fontSize: 12, display: 'block' }}>{t.mill}</span>Order {t.order_no}</>} style={{ maxWidth: 640, width: '100%' }}>
         <Descriptions column={1} items={[
           { key: 's', label: 'Status', children: <Status value={t.status} /> },
           { key: 'st', label: 'Now at', children: t.current_stage || '–' },
@@ -34,7 +34,7 @@ export default function Track() {
         <Table size="small" rowKey={(r, i) => i} pagination={false} dataSource={t.lines || []}
           columns={[{ title: 'Fabric', dataIndex: 'description' }, { title: 'Colour', dataIndex: 'colour' }, { title: 'Quantity', dataIndex: 'qty', align: 'right', render: (v, r) => `${quantity(v)} ${r.uom}` }]} />
         <h3 style={{ marginTop: 20 }}>Updates</h3>
-        <Timeline items={(t.events || []).map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> <span style={{ color: '#828ea8', fontSize: 12 }}>{new Date(e.at).toLocaleString('en-IN')}</span></> }))} />
+        <Timeline items={(t.events || []).map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> <span style={{ color: '#8C948E', fontSize: 12 }}>{new Date(e.at).toLocaleString('en-IN')}</span></> }))} />
       </Card>
     </div>
   );

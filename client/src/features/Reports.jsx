@@ -40,7 +40,7 @@ function ReportView({ report }) {
 
   return (
     <>
-      <p style={{ color: '#58637e' }}>{report.description}</p>
+      <p style={{ color: '#5F6B63' }}>{report.description}</p>
       <Space wrap style={{ marginBottom: 12 }}>
         {report.kind === 'range'
           ? <><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} /><span>to</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} /></>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Badge, Button, Empty, List, Popover } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import Icon from '@/components/Icons';
 import { useAction, useGet } from '@/lib/hooks';
 
 const where = (link) => (!link ? null : /^\/(app|floor)\b/.test(link) ? link : `/app${link.startsWith('/') ? '' : '/'}${link}`);
@@ -37,9 +38,9 @@ export default function NotificationBell() {
 
   return (
     <Popover content={content} title="Notifications" trigger="click" open={open} onOpenChange={setOpen} placement="bottomRight">
-      <button type="button" aria-label="Notifications" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, color: '#4b5563' }}>
+      <button type="button" aria-label="Notifications" className="bell-btn">
         <Badge count={unread} size="small" overflowCount={99}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+          <Icon name="bell" size={21} />
         </Badge>
       </button>
     </Popover>

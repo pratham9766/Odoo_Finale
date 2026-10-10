@@ -85,7 +85,7 @@ export default function OrderDetail() {
             </div>
 
             <section className="panel"><h3>History</h3>
-              <Timeline items={(o.events || []).map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> <span style={{ color: '#828ea8', fontSize: 12 }}>{new Date(e.created_at).toLocaleString('en-IN')}</span></> }))} />
+              <Timeline items={(o.events || []).map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> <span style={{ color: '#8C948E', fontSize: 12 }}>{new Date(e.created_at).toLocaleString('en-IN')}</span></> }))} />
             </section>
           </>
         )}

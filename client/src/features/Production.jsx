@@ -93,7 +93,7 @@ export function WorkOrders() {
                 : v || '–') },
               { title: 'Progress', render: (_, r) => <><Progress percent={Math.min(100, Number(r.pct) || 0)} size="small" style={{ width: 120 }} /><div style={{ fontSize: 12 }}>{quantity(r.produced_qty)} / {quantity(r.target_qty)} {r.uom}</div></> },
               { title: 'Status', dataIndex: 'status', render: (v) => <Status value={v === 'done' ? 'delivered' : v === 'planned' ? 'draft' : v} /> },
-              { title: '', key: 'a', render: (_, r) => (r.machine_id ? <WorkOrderActions compact id={r.id} uom={r.uom} status={r.status} /> : r.status === 'planned' ? <span style={{ color: '#828ea8' }}>Choose a machine</span> : null) },
+              { title: '', key: 'a', render: (_, r) => (r.machine_id ? <WorkOrderActions compact id={r.id} uom={r.uom} status={r.status} /> : r.status === 'planned' ? <span style={{ color: '#8C948E' }}>Choose a machine</span> : null) },
             ]} />
         </QueryState>
       </section>
