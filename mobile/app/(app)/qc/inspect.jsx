@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Text, Card, useTheme, Button, TextInput, Chip, Snackbar } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from '../../../../src/context/Session';
+import { useSession } from '../../../src/context/Session';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 export default function QCInspectScreen() {

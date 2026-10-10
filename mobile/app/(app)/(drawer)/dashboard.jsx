@@ -35,15 +35,15 @@ export default function DashboardScreen() {
 
   // Calculate metrics
   const activeOrders = ordersData?.meta?.total || '—';
-  const machines = boardData?.data || [];
-  const machinesRunning = machines.filter(m => m.status === 'running').length;
+  const machines = Array.isArray(boardData?.data) ? boardData.data : [];
+  const machinesRunning = machines.filter(m => m?.status === 'running').length;
   const totalMachines = machines.length;
   const machineMetric = totalMachines > 0 ? `${machinesRunning}/${totalMachines}` : '—';
   
-  const awaitingQc = qcData?.data?.length || '—';
+  const awaitingQc = Array.isArray(qcData?.data) ? qcData.data.length : '—';
 
   // Find alerts (e.g. machine breakdowns)
-  const breakdowns = machines.filter(m => m.status === 'breakdown');
+  const breakdowns = machines.filter(m => m?.status === 'breakdown');
 
   const renderMetric = (title, value, icon, color, loading) => (
     <Card style={styles.metricCard}>

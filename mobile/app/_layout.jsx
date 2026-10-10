@@ -5,10 +5,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { theme } from '../src/theme/theme';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { SessionProvider } from '../src/context/Session';
+import { PreviewSessionProvider } from '../src/preview/PreviewSession';
 
 const queryClient = new QueryClient();
+const isPreview = process.env.EXPO_PUBLIC_PREVIEW === '1';
 
 export default function RootLayout() {
+  const Provider = isPreview ? PreviewSessionProvider : SessionProvider;
   return (
     <QueryClientProvider client={queryClient}>
       <PaperProvider 
@@ -16,9 +19,9 @@ export default function RootLayout() {
         settings={{ icon: props => <MaterialCommunityIcons {...props} /> }}
       >
         <SafeAreaProvider>
-          <SessionProvider>
+          <Provider>
             <Slot />
-          </SessionProvider>
+          </Provider>
         </SafeAreaProvider>
       </PaperProvider>
     </QueryClientProvider>

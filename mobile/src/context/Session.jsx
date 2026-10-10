@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 import { request } from '../services/api/client';
 import { organizations } from '../utils/contracts';
 
-const SessionContext = createContext(null);
+export const SessionContext = createContext(null);
 export const useSession = () => useContext(SessionContext);
 
 export function SessionProvider({ children }) {
@@ -85,26 +85,16 @@ export function SessionProvider({ children }) {
 }
 
 function TenantSession({ session, children }) {
-  const [orgId, setOrgId] = useState(null);
   const cache = useQueryClient();
   const token = session.access_token;
   const userId = session.user.id;
   
-  // Create an api helper inside the context, similar to web
-  const api = (path, options = {}) => request(path, { ...options, token, orgId });
+  const api = (path, options = {}) => request(path, { ...options, token });
   
-  const orgs = useQuery({ 
-    queryKey: [userId, 'orgs'], 
-    queryFn: ({ signal }) => api('/me/orgs', { signal }) 
-  });
-  
-  const list = organizations(orgs.data?.data || []);
-  const selected = list.find(org => org.id === orgId)?.id || list[0]?.id;
-  
-  const context = useQuery({ 
-    queryKey: [userId, selected, 'context'], 
-    queryFn: ({ signal }) => api(`/me/orgs/${selected}/context`, { signal }), 
-    enabled: !!selected 
+  const access = useQuery({ 
+    queryKey: [userId, 'access'], 
+    queryFn: ({ signal }) => api('/me/access', { signal }),
+    retry: false 
   });
   
   const signOut = async () => { 
@@ -113,28 +103,17 @@ function TenantSession({ session, children }) {
     cache.clear(); 
   };
   
-  const value = { 
-    userId, 
-    orgId: selected, 
-    orgs: list, 
-    context: context.data?.data, 
-    signOut,
-    can: permission => (context.data?.data?.permissions || []).includes(permission),
-    switchOrg: id => { setOrgId(id); cache.clear(); },
-  };
+  const data = access.data?.data;
 
-  // Bind the selected tenant explicitly
-  value.api = (path, options = {}) => request(path, { ...options, token, orgId: selected });
-
-  if (orgs.isPending || orgs.isError) {
+  if (access.isPending || access.isError) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        {orgs.isPending ? (
+        {access.isPending ? (
           <ActivityIndicator size="large" />
         ) : (
           <>
-            <Text style={{ marginBottom: 16 }}>Failed to load organizations.</Text>
-            <Button mode="contained" onPress={() => orgs.refetch()}>Retry</Button>
+            <Text style={{ marginBottom: 16 }}>Failed to load access info.</Text>
+            <Button mode="contained" onPress={() => access.refetch()}>Retry</Button>
             <Button mode="text" onPress={signOut} style={{ marginTop: 8 }}>Sign out</Button>
           </>
         )}
@@ -142,36 +121,41 @@ function TenantSession({ session, children }) {
     );
   }
 
-  if (!list.length) {
+  if (!data?.staff) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text variant="titleMedium" style={{ marginBottom: 16 }}>No Workspace Found</Text>
-        <Text style={{ marginBottom: 24, textAlign: 'center' }}>Your account is not connected to any SAMETA workspace. Please accept an invite or create a workspace on the web platform.</Text>
-        <Button mode="contained" onPress={() => orgs.refetch()}>Refresh</Button>
+        <Text variant="titleMedium" style={{ marginBottom: 16 }}>Waiting for access</Text>
+        <Text style={{ marginBottom: 24, textAlign: 'center' }}>Your account has no role yet. Ask the mill owner to invite you, then sign in again.</Text>
+        <Button mode="contained" onPress={() => access.refetch()}>Refresh</Button>
+        <Button mode="text" onPress={signOut} style={{ marginTop: 8 }}>Sign out</Button>
+      </View>
+    );
+  }
+  
+  if (data.status !== 'active') {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Text variant="titleMedium" style={{ marginBottom: 16 }}>Account disabled</Text>
+        <Text style={{ marginBottom: 24, textAlign: 'center' }}>Your account has been disabled. Contact the mill owner.</Text>
         <Button mode="text" onPress={signOut} style={{ marginTop: 8 }}>Sign out</Button>
       </View>
     );
   }
 
-  if (context.isPending || context.isError) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        {context.isPending ? (
-          <ActivityIndicator size="large" />
-        ) : (
-          <>
-            <Text style={{ marginBottom: 16 }}>Failed to load workspace context.</Text>
-            <Button mode="contained" onPress={() => context.refetch()}>Retry</Button>
-            <Button mode="text" onPress={signOut} style={{ marginTop: 8 }}>Sign out</Button>
-          </>
-        )}
-      </View>
-    );
-  }
+  const permissions = data.permissions || [];
+  
+  const value = { 
+    userId, 
+    api, 
+    signOut,
+    context: { mill: data.mill, role: data.role, user: data.user, permissions, scope: data.scope || {} },
+    can: permission => permissions.includes(permission),
+    refreshAccess: () => access.refetch(),
+  };
 
   return (
     <SessionContext.Provider value={value}>
-      <View style={{ flex: 1 }} key={selected}>
+      <View style={{ flex: 1 }}>
         {children}
       </View>
     </SessionContext.Provider>
