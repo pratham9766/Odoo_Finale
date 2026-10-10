@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Dropdown, Input, Select, Table } from 'antd';
 import { Link, useSearchParams } from 'react-router-dom';
+import Icon from '@/components/Icons';
 import { useSession } from '@/context/Session';
-import { NoData, QueryState } from '@/components/States';
+import { NoData, PageTitle, QueryState } from '@/components/States';
 import { date, quantity } from '@/lib/format';
 import '@/styles/orders.css';
 
@@ -112,7 +112,6 @@ export default function Orders() {
   const status = params.get('status') || '';
   const priority = params.get('priority') || '';
   const q = params.get('q') || '';
-  const [lastRefreshed] = useState(() => new Date());
 
   const query = useQuery({
     queryKey: [session.userId, 'orders', page, status, q, priority],
@@ -120,9 +119,10 @@ export default function Orders() {
       const searchParams = new URLSearchParams({ page: String(page), limit: '25' });
       if (status) searchParams.set('status', status);
       if (q) searchParams.set('q', q);
+      if (priority) searchParams.set('priority', priority === 'medium' ? 'normal' : priority);
       return session.api(`/orders?${searchParams}`, { signal });
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 
   function update(values) {
@@ -130,51 +130,36 @@ export default function Orders() {
     setParams(next);
   }
 
-  const rows = (query.data?.data || []).filter(row => {
-    if (!priority) return true;
-    if (priority === 'medium') return row.priority === 'normal' || row.priority === 'medium';
-    return row.priority === priority;
-  });
-
+  const rows = query.data?.data || [];
   const totalCount = query.data?.meta?.total ?? rows.length;
 
-  /* Dynamically calculate KPI values based on live incoming data */
-  const openOrdersCount = rows.filter(r =>
-    ['draft', 'waiting_material', 'material_ready', 'confirmed'].includes(r.status)
-  ).length;
+  /* Cards and health ring: counted by the server across every order, not just this page */
+  const summaryQuery = useQuery({
+    queryKey: [session.userId, 'orders', 'summary'],
+    queryFn: ({ signal }) => session.api('/orders/summary', { signal }),
+    refetchInterval: 60000,
+  });
+  const summary = summaryQuery.data?.data || {};
+  const openOrdersCount = summary.open ?? 0;
+  const inProductionCount = summary.in_production ?? 0;
+  const readyToDispatchCount = summary.ready_to_dispatch ?? 0;
+  const delayedCount = summary.delayed ?? 0;
 
-  const inProductionCount = rows.filter(r =>
-    ['in_production', 'in_qc'].includes(r.status)
-  ).length;
+  /* Ready to dispatch: the first few, across all orders */
+  const readyQuery = useQuery({
+    queryKey: [session.userId, 'orders', 'ready'],
+    queryFn: ({ signal }) => session.api('/orders?page=1&limit=3&status=ready_to_ship,partially_dispatched', { signal }),
+    refetchInterval: 60000,
+  });
+  const dispatchCandidates = readyQuery.data?.data || [];
+  const dispatchQuantity = summary.ready_qty ?? 0;
 
-  const readyToDispatchCount = rows.filter(r =>
-    ['ready_to_ship', 'partially_dispatched'].includes(r.status)
-  ).length;
-
-  const delayedCount = rows.filter(r => {
-    if (r.status === 'delayed' || r.risk === 'red') return true;
-    if (!r.deadline) return false;
-    const d = new Date(r.deadline);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return d < today && !['delivered', 'cancelled'].includes(r.status);
-  }).length;
-
-  /* Dynamically calculate Today's Dispatch list */
-  const dispatchCandidates = rows.filter(r =>
-    ['ready_to_ship', 'partially_dispatched', 'dispatched'].includes(r.status)
-  );
-
-  const dispatchQuantity = dispatchCandidates.reduce(
-    (acc, r) => acc + Number(r.total_qty || 0),
-    0
-  );
-
-  /* Dynamically calculate Order Health percentages */
-  const totalForHealth = rows.length || 1;
+  /* Order health (active orders: not delivered or cancelled) */
+  const activeCount = summary.active ?? 0;
+  const totalForHealth = activeCount || 1;
   const healthDelayed = delayedCount;
-  const healthAtRisk = rows.filter(r => r.risk === 'amber').length;
-  const healthOnTrack = Math.max(0, rows.length - healthDelayed - healthAtRisk);
+  const healthAtRisk = summary.at_risk ?? 0;
+  const healthOnTrack = summary.on_track ?? 0;
 
   const pctOnTrack = Math.round((healthOnTrack / totalForHealth) * 100);
   const pctAtRisk = Math.round((healthAtRisk / totalForHealth) * 100);
@@ -288,23 +273,18 @@ export default function Orders() {
 
   return (
     <div className="orders-page-container">
-      {/* 1. Page Header */}
-      <header className="orders-page-header">
-        <div>
-          <div className="orders-header-eyebrow">MILL OPERATIONS</div>
-          <h1 className="orders-header-title">Orders</h1>
-          <p className="orders-header-subtitle">
-            Keep every commitment in view, from confirmation to dispatch.
-          </p>
-        </div>
-        {session.can('orders.create') && (
+      {/* 1. Page Header (title goes to the top bar) */}
+      <PageTitle
+        title="Orders"
+        description="Keep every commitment in view, from confirmation to dispatch."
+        action={session.can('orders.create') && (
           <Link to="/app/orders/new">
             <Button type="primary" size="large" className="btn-create-order-primary">
               + Create order
             </Button>
           </Link>
         )}
-      </header>
+      />
 
       {/* 2. Top 4 KPI Summary Cards */}
       <section className="kpi-summary-row" aria-label="Orders Summary Metrics">
@@ -312,12 +292,7 @@ export default function Orders() {
         <div className="kpi-card">
           <div className="kpi-card-top">
             <div className="kpi-icon-square green">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
+              <Icon name="orders" size={22} strokeWidth={2} />
             </div>
             <div className="kpi-numbers-wrap">
               <span className="kpi-value">{openOrdersCount}</span>
@@ -325,12 +300,7 @@ export default function Orders() {
             </div>
           </div>
           <div className="kpi-card-bottom">
-            <span className="kpi-trend-pill positive">
-              ↑ +17% <span className="kpi-trend-context">vs last month</span>
-            </span>
-            <svg className="kpi-sparkline" viewBox="0 0 60 20" fill="none">
-              <path d="M2 15 C 18 18, 32 6, 58 8" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <span className="kpi-trend-context">Draft, confirmed or waiting for material</span>
           </div>
         </div>
 
@@ -338,10 +308,7 @@ export default function Orders() {
         <div className="kpi-card">
           <div className="kpi-card-top">
             <div className="kpi-icon-square amber">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
+              <Icon name="loom" size={22} strokeWidth={2} />
             </div>
             <div className="kpi-numbers-wrap">
               <span className="kpi-value">{inProductionCount}</span>
@@ -349,12 +316,7 @@ export default function Orders() {
             </div>
           </div>
           <div className="kpi-card-bottom">
-            <span className="kpi-trend-pill positive">
-              ↑ +12% <span className="kpi-trend-context">vs last month</span>
-            </span>
-            <svg className="kpi-sparkline" viewBox="0 0 60 20" fill="none">
-              <path d="M2 17 C 22 15, 34 8, 58 6" stroke="#d97706" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <span className="kpi-trend-context">Being spun, woven, dyed or checked</span>
           </div>
         </div>
 
@@ -362,11 +324,7 @@ export default function Orders() {
         <div className="kpi-card">
           <div className="kpi-card-top">
             <div className="kpi-icon-square emerald">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
+              <Icon name="truck" size={22} strokeWidth={2} />
             </div>
             <div className="kpi-numbers-wrap">
               <span className="kpi-value">{readyToDispatchCount}</span>
@@ -374,12 +332,7 @@ export default function Orders() {
             </div>
           </div>
           <div className="kpi-card-bottom">
-            <span className="kpi-trend-pill positive">
-              ↑ +28% <span className="kpi-trend-context">vs last month</span>
-            </span>
-            <svg className="kpi-sparkline" viewBox="0 0 60 20" fill="none">
-              <path d="M2 16 C 18 19, 36 5, 58 7" stroke="#059669" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <span className="kpi-trend-context">Packed and ready for the truck</span>
           </div>
         </div>
 
@@ -387,11 +340,7 @@ export default function Orders() {
         <div className="kpi-card">
           <div className="kpi-card-top">
             <div className="kpi-icon-square red">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+              <Icon name="alert" size={22} strokeWidth={2} />
             </div>
             <div className="kpi-numbers-wrap">
               <span className="kpi-value">{delayedCount}</span>
@@ -399,12 +348,7 @@ export default function Orders() {
             </div>
           </div>
           <div className="kpi-card-bottom">
-            <span className="kpi-trend-pill warning">
-              ↑ +50% <span className="kpi-trend-context">vs last month</span>
-            </span>
-            <svg className="kpi-sparkline" viewBox="0 0 60 20" fill="none">
-              <path d="M2 14 C 20 18, 38 6, 58 12" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            <span className="kpi-trend-context">Past the deadline or flagged red</span>
           </div>
         </div>
       </section>
@@ -416,11 +360,8 @@ export default function Orders() {
           <div className="order-register-header">
             <h2 className="order-register-title">Order register</h2>
             <span className="order-register-updated">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              Updated {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <Icon name="clock" size={13} strokeWidth={2} />
+              Updated {new Date(Math.max(query.dataUpdatedAt, summaryQuery.dataUpdatedAt) || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
 
@@ -469,12 +410,7 @@ export default function Orders() {
               onClick={() => query.refetch()}
               loading={query.isFetching}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                <path d="M3 21v-5h5" />
-              </svg>
+              <Icon name="refresh" size={13} strokeWidth={2} />
               Refresh
             </Button>
           </div>
@@ -514,7 +450,7 @@ export default function Orders() {
 
             <div className="dispatch-summary-strip">
               <div className="dispatch-stat-col">
-                <span className="dispatch-stat-num">{dispatchCandidates.length}</span>
+                <span className="dispatch-stat-num">{readyToDispatchCount}</span>
                 <span className="dispatch-stat-lbl">Orders scheduled</span>
               </div>
               <div className="dispatch-stat-col">
@@ -534,12 +470,7 @@ export default function Orders() {
                     className="dispatch-item-card"
                   >
                     <div className="dispatch-truck-icon">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="1" y="3" width="15" height="13" />
-                        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-                        <circle cx="5.5" cy="18.5" r="2.5" />
-                        <circle cx="18.5" cy="18.5" r="2.5" />
-                      </svg>
+                      <Icon name="truck" size={17} strokeWidth={2} />
                     </div>
                     <div className="dispatch-item-mid">
                       <div className="dispatch-item-ord-no">{order.order_no}</div>
@@ -553,7 +484,7 @@ export default function Orders() {
                   </Link>
                 ))
               ) : (
-                <div style={{ textAlign: 'center', padding: '14px 0', color: '#9ca3af', fontSize: '12.5px' }}>
+                <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--text-muted)', fontSize: '12.5px' }}>
                   No dispatches scheduled for today
                 </div>
               )}
@@ -572,14 +503,14 @@ export default function Orders() {
             <div className="order-health-body">
               <div className="donut-chart-wrapper">
                 <svg className="donut-chart-svg" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                  <circle cx="50" cy="50" r="38" fill="none" style={{ stroke: "var(--c-pink-light)" }} strokeWidth="12" />
                   {/* On track arc (green) */}
                   <circle
                     cx="50"
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#16a34a"
+                    style={{ stroke: "var(--ok)" }}
                     strokeWidth="12"
                     strokeDasharray={`${strokeOnTrack} ${circ}`}
                     strokeDashoffset="0"
@@ -590,7 +521,7 @@ export default function Orders() {
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#d97706"
+                    style={{ stroke: "var(--risk)" }}
                     strokeWidth="12"
                     strokeDasharray={`${strokeAtRisk} ${circ}`}
                     strokeDashoffset={-strokeOnTrack}
@@ -601,14 +532,14 @@ export default function Orders() {
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#dc2626"
+                    style={{ stroke: "var(--danger)" }}
                     strokeWidth="12"
                     strokeDasharray={`${strokeDelayed} ${circ}`}
                     strokeDashoffset={-(strokeOnTrack + strokeAtRisk)}
                   />
                 </svg>
                 <div className="donut-center-text">
-                  <span className="donut-center-num">{totalCount}</span>
+                  <span className="donut-center-num">{activeCount}</span>
                   <span className="donut-center-lbl">Total orders</span>
                 </div>
               </div>
@@ -652,15 +583,11 @@ export default function Orders() {
             <div className="widget-card-header" style={{ marginBottom: 4 }}>
               <div className="attention-widget-head">
                 <span className="attention-icon-bulb">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
-                    <path d="M9 18h6" />
-                    <path d="M10 22h4" />
-                  </svg>
+                  <Icon name="warning" size={18} strokeWidth={2} />
                 </span>
                 <h4 className="attention-widget-title">Attention needed</h4>
               </div>
-              <Link to="/app/orders?status=delayed" className="widget-view-all-link" style={{ color: '#92400e' }}>
+              <Link to="/app/orders?status=delayed" className="widget-view-all-link" style={{ color: 'var(--risk)' }}>
                 View all →
               </Link>
             </div>

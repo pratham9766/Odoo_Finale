@@ -19,12 +19,12 @@ export async function insertPo(db, ctx, { supplier_contact_id = null, for_order_
   const poNo = await nextNumber(db, 'PO');
   const { rows: [po] } = await db.query(
     `insert into purchase_orders (po_no, supplier_contact_id, for_order_id, need_by, notes, created_by, created_at)
-     values ($1,$2,$3,$4,$5,$6,$7,$8, coalesce($9, now())) returning id, po_no`,
+     values ($1,$2,$3,$4,$5,$6, coalesce($7, now())) returning id, po_no`,
     [poNo, supplier_contact_id, for_order_id, need_by, notes, ctx.userId ?? null, at]);
   for (const l of lines) {
     await db.query(
       `insert into po_lines (po_id, item_id, description, supplier_item_ref, qty, uom, rate)
-       select $1,$2,$3,$4,$5,$6,$7, i.uom, $8 from items i where i.id = $4`,
+       select $1,$2,$3,$4,$5, i.uom, $6 from items i where i.id = $2`,
       [po.id, l.item_id, names.get(l.item_id), l.supplier_item_ref ?? null, l.qty, l.rate ?? 0]);
   }
   return po;
@@ -69,10 +69,12 @@ export const listPos = (ctx, q) =>
     const { rows, meta } = await paged(
       db,
       `select p.id, p.po_no, p.status, p.need_by, p.promise_date, p.created_at, p.for_order_id,
-              coalesce(so.name, c.name) as supplier_name, bo.name as buyer_name,
+              c.name as supplier_name, o.order_no as for_order_no,
               (select count(*)::int from po_lines l where l.po_id = p.id) as line_count,
               (select coalesce(sum(l.qty * l.rate), 0) from po_lines l where l.po_id = p.id) as total
-         from purchase_orders p left join contacts c on c.id = p.supplier_contact_id ${w.sql}`,
+         from purchase_orders p
+         left join contacts c on c.id = p.supplier_contact_id
+         left join orders o on o.id = p.for_order_id ${w.sql}`,
       w.params, q, 'created_at desc');
     return { data: rows.map((r) => hidePrices(ctx, r)), meta };
   });

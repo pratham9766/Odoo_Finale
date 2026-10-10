@@ -40,7 +40,7 @@ function Matrix({ permissions, value = [], onChange }) {
   };
   const box = (p) => p
     ? <Tooltip title={p.description}><Checkbox checked={picked.has(p.key)} onChange={(e) => set([p.key], e.target.checked)} /></Tooltip>
-    : <span style={{ color: '#c4c4c4' }}>–</span>;
+    : <span style={{ color: 'var(--text-muted)' }}>–</span>;
 
   const columns = [
     { title: 'Area', dataIndex: 'domain', width: 110, render: (v, r, i) => (i === 0 || rows[i - 1].domain !== v ? <strong>{title(v)}</strong> : null) },

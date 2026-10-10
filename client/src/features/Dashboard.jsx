@@ -2,7 +2,7 @@ import { Table, Tag } from 'antd';
 import { Link } from 'react-router-dom';
 import Icon from '@/components/Icons';
 import OperationsPanel from '@/components/operations/OperationsPanel';
-import { QueryState } from '@/components/States';
+import { PageTitle, QueryState } from '@/components/States';
 import { useSession } from '@/context/Session';
 import { useGet } from '@/lib/hooks';
 import { date, money, quantity } from '@/lib/format';
@@ -64,7 +64,7 @@ function Last7({ rows }) {
 
 export default function Dashboard() {
   const session = useSession();
-  const q = useGet('/reports/dashboard', {}, { refetchInterval: 30000 });
+  const q = useGet('/reports/dashboard', {}, { refetchInterval: 60000 });
   const d = q.payload;
   const a = d?.alerts || {};
   const alerts = [
@@ -80,11 +80,7 @@ export default function Dashboard() {
   return (
     <div className="dash-layout">
     <div className="dashboard">
-      <header className="dash-hero">
-        <div className="eyebrow">{session.context.mill.name}</div>
-        <h1>Dashboard</h1>
-        <p>Welcome, {name}. Here is the mill right now.</p>
-      </header>
+      <PageTitle title="Dashboard" description={`Welcome, ${name}. Here is the mill right now.`} />
       <QueryState query={q}>
         {d && (
           <>

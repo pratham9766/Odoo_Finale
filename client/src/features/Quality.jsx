@@ -27,7 +27,7 @@ function InspectModal({ roll, override = false, onClose }) {
 
   return (
     <Modal title={`${override ? 'Override' : 'Inspect'} roll ${roll.roll_no}`} open width={620} onCancel={onClose} onOk={() => form.submit()} confirmLoading={act.isPending} destroyOnClose>
-      <p style={{ color: '#5F6B63' }}>{roll.item} {roll.colour && `· ${roll.colour}`} · {quantity(roll.length_m)} m · {roll.order_no}</p>
+      <p style={{ color: 'var(--text-secondary)' }}>{roll.item} {roll.colour && `· ${roll.colour}`} · {quantity(roll.length_m)} m · {roll.order_no}</p>
       <Form form={form} layout="vertical" requiredMark={false} onFinish={submit} initialValues={{ result: 'pass', defects: [] }}>
         <Form.Item name="result" label="Result" rules={[{ required: true }]}>
           <Radio.Group optionType="button" buttonStyle="solid" options={[{ value: 'pass', label: 'Pass' }, { value: 'rework', label: 'Rework' }, { value: 'reject', label: 'Reject' }]} />
@@ -57,7 +57,7 @@ function InspectModal({ roll, override = false, onClose }) {
 function Queue({ status }) {
   const session = useSession();
   const [roll, setRoll] = useState(null);
-  const list = useGet('/qc/queue', { status, limit: 100 }, { refetchInterval: status === 'pending_qc' ? 20000 : undefined });
+  const list = useGet('/qc/queue', { status, limit: 100 }, { refetchInterval: status === 'pending_qc' ? 60000 : undefined });
   return (
     <>
       <QueryState query={list}>
@@ -76,7 +76,7 @@ function Queue({ status }) {
 
 export function Quality({ floor = false }) {
   const navigate = useNavigate();
-  const summary = useGet('/qc/summary', {}, { refetchInterval: 30000 });
+  const summary = useGet('/qc/summary', {}, { refetchInterval: 60000 });
   const s = summary.payload;
   return (
     <>
@@ -112,7 +112,7 @@ export function RollTrace() {
   return (
     <>
       <Link to="/app/quality">← Quality</Link>
-      <PageTitle eyebrow="TRACEABILITY" title={`Roll ${rollNo}`} description="From yarn lot to buyer." action={session.can('production.log') && <Button onClick={() => session.download(`/rolls/${encodeURIComponent(rollNo)}/label.pdf`, `label-${rollNo}.pdf`).catch(() => {})}>Print label</Button>} />
+      <PageTitle eyebrow="TRACEABILITY" title={`Roll ${rollNo}`} description="From yarn lot to buyer." action={session.can('production.log') && <Button onClick={() => session.download(`/rolls/${encodeURIComponent(rollNo)}/label.pdf`, `label-${rollNo}.pdf`)}>Print label</Button>} />
       <QueryState query={trace}>
         {t && (
           <>
@@ -126,7 +126,7 @@ export function RollTrace() {
             </section>
             <div className="grid-2">
               <section className="panel"><h3>History</h3>
-                <Timeline items={t.timeline.map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> {[e.stage, e.machine, e.shift, e.worker].filter(Boolean).join(' · ')}<div style={{ fontSize: 12, color: '#8C948E' }}>{new Date(e.at).toLocaleString('en-IN')}</div></> }))} />
+                <Timeline items={t.timeline.map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> {[e.stage, e.machine, e.shift, e.worker].filter(Boolean).join(' · ')}<div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(e.at).toLocaleString('en-IN')}</div></> }))} />
               </section>
               <section className="panel"><h3>Raw material</h3>
                 <Table size="small" rowKey={(r) => `${r.lot_no}-${r.item}`} pagination={false} dataSource={t.raw_material_lots} locale={{ emptyText: 'No lots recorded' }}

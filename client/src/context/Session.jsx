@@ -1,15 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Spin } from 'antd';
+import { Alert, Button, Card, Spin, message } from 'antd';
 import { supabase } from '@/lib/supabase';
-import { request, download } from '@/lib/api';
+import { request, download, API_URL as baseUrl } from '@/lib/api';
+import { useRealtime } from '@/lib/realtime';
 import { QueryState } from '@/components/States';
 import Login from '@/features/Login';
 
 const SessionContext = createContext(null);
 export const useSession = () => useContext(SessionContext);
-
-const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -43,18 +42,20 @@ function MillSession({ session, children }) {
   const access = useQuery({ queryKey: [userId, 'access'], queryFn: ({ signal }) => api('/me/access', { signal }), retry: false });
   const signOut = async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; cache.clear(); };
   const data = access.data?.data;
+  useRealtime(token, userId, !!data?.staff && data.status === 'active');   // live updates once the person is active staff
 
   const gate = (title, text) => (
-    <div className="center"><Card title={title} className="setup-card"><p>{text}</p><Button onClick={() => signOut().catch(() => {})}>Sign out</Button></Card></div>
+    <div className="center"><Card title={title} className="setup-card"><p>{text}</p><Button onClick={() => signOut().catch((err) => message.error(err.message))}>Sign out</Button></Card></div>
   );
-  if (access.isPending || access.isError) return <div className="center"><Card className="setup-card"><QueryState query={access} /><Button onClick={() => signOut().catch(() => {})}>Sign out</Button></Card></div>;
+  if (access.isPending || access.isError) return <div className="center"><Card className="setup-card"><QueryState query={access} /><Button onClick={() => signOut().catch((err) => message.error(err.message))}>Sign out</Button></Card></div>;
   if (!data.staff) return gate('Waiting for access', 'Your account has no role yet. Ask the mill owner to invite you, then sign in again.');
   if (data.status !== 'active') return gate('Account disabled', 'Your account has been disabled. Contact the mill owner.');
 
   const permissions = data.permissions || [];
   const value = {
     userId, api, signOut,
-    download: (path, filename) => download(path, { token, baseUrl, filename }),
+    // shows its own error (e.g. "No wage run for 2026-10 yet"), so a failed download is never silent
+    download: (path, filename) => download(path, { token, baseUrl, filename }).catch((err) => { message.error(err.message || 'Download failed'); }),
     context: { mill: data.mill, role: data.role, user: data.user, permissions, scope: data.scope || {} },
     can: permission => permissions.includes(permission),
     refreshAccess: () => access.refetch(),

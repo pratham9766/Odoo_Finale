@@ -238,6 +238,11 @@ body:has(.login-view-root)::-webkit-scrollbar-thumb:hover {
 }
 
 .forgot-link-text {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 12.5px;
   font-weight: 550;
   color: #4b5563;

@@ -43,7 +43,7 @@ function Invoices() {
             { title: 'Due', dataIndex: 'due_date', render: date }, { title: 'Status', dataIndex: 'status', render: (v) => <Tag color={INVOICE_COLOR[v]}>{v}</Tag> },
             { title: '', key: 'a', render: (_, r) => (
               <Space>
-                <Button size="small" onClick={() => session.download(`/invoices/${r.id}/pdf`, `${r.invoice_no}.pdf`).catch(() => {})}>PDF</Button>
+                <Button size="small" onClick={() => session.download(`/invoices/${r.id}/pdf`, `${r.invoice_no}.pdf`)}>PDF</Button>
                 {session.can('payment.create') && ['unpaid', 'partial'].includes(r.status) && <Button size="small" type="primary" onClick={() => setPaying(r)}>Record payment</Button>}
               </Space>) },
           ]} />
@@ -73,7 +73,7 @@ function Dues({ kind }) {
         <>
           <div className="kpi-row">
             <div className="kpi"><span>{kind === 'receivables' ? 'To collect' : 'To pay'}</span><strong>{money(d.kpis.outstanding)}</strong></div>
-            <div className="kpi"><span>Overdue</span><strong style={{ color: d.kpis.overdue > 0 ? '#cf1322' : undefined }}>{money(d.kpis.overdue)}</strong></div>
+            <div className="kpi"><span>Overdue</span><strong style={{ color: d.kpis.overdue > 0 ? 'var(--danger)' : undefined }}>{money(d.kpis.overdue)}</strong></div>
             <div className="kpi"><span>{kind === 'receivables' ? 'Collected' : 'Paid'} this month</span><strong>{money(d.kpis.collected_this_month)}</strong></div>
             {Object.entries(d.ageing).map(([bucket, v]) => <div className="kpi" key={bucket}><span>{bucket} days late</span><strong>{money(v.amount)}</strong><small>{v.count} invoices</small></div>)}
           </div>

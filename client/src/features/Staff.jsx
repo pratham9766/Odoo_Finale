@@ -5,35 +5,6 @@ import { useSession } from '@/context/Session';
 import { PageTitle, QueryState } from '@/components/States';
 import { date } from '@/lib/format';
 
-const SCOPES = [
-  { name: 'stage_ids', label: 'Only these stages', path: '/stages', text: 'name' },
-  { name: 'machine_ids', label: 'Only these machines', path: '/machines', text: 'code' },
-  { name: 'shift_ids', label: 'Only these shifts', path: '/shifts', text: 'name' },
-  { name: 'warehouse_ids', label: 'Only these warehouses', path: '/warehouses', text: 'name' },
-];
-
-/** Optional limits: a role can be restricted to some stages, machines, shifts or warehouses. Empty = the whole mill. */
-function ScopeFields({ enabled }) {
-  const session = useSession();
-  const queries = SCOPES.map((s) => ({
-    ...s,
-    // fixed-length list, so hook order never changes
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    q: useQuery({ queryKey: [session.userId, 'scope', s.path], queryFn: ({ signal }) => session.api(`${s.path}?limit=100`, { signal }), enabled }),
-  }));
-  return (
-    <>
-      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Optional: leave empty to give access to the whole mill.</Typography.Text>
-      {queries.map((s) => (
-        <Form.Item key={s.name} name={['scope', s.name]} label={s.label}>
-          <Select mode="multiple" allowClear loading={s.q.isLoading} optionFilterProp="label"
-            options={(s.q.data?.data || []).map((x) => ({ value: x.id, label: x[s.text] }))} />
-        </Form.Item>
-      ))}
-    </>
-  );
-}
-
 export default function Staff() {
   const session = useSession();
   const cache = useQueryClient();
@@ -77,7 +48,7 @@ export default function Staff() {
 
   const openEdit = (m) => {
     setEditing(m);
-    editForm.setFieldsValue({ role_id: m.role_id, status: m.status, worker_id: m.worker_id ?? null, scope: m.scope ?? {} });
+    editForm.setFieldsValue({ role_id: m.role_id, status: m.status, worker_id: m.worker_id ?? null });
   };
 
   const memberColumns = [
@@ -151,12 +122,11 @@ export default function Staff() {
           >
             <Select loading={roles.isLoading} options={grantable.map((r) => ({ value: r.id, label: `${r.name} (${r.permissions.length} permissions)` }))} />
           </Form.Item>
-          <ScopeFields enabled={inviteOpen} />
         </Form>
       </Modal>
 
       <Modal title={editing ? `Edit ${editing.full_name || editing.email}` : ''} open={!!editing} onCancel={() => setEditing(null)} onOk={() => editForm.submit()} okText="Save" confirmLoading={patch.isPending} destroyOnClose>
-        <Form form={editForm} layout="vertical" requiredMark={false} onFinish={(v) => patch.mutate({ id: editing.id, ...v })}>
+        <Form form={editForm} layout="vertical" requiredMark={false} onFinish={(v) => patch.mutate({ id: editing.id, ...v, scope: {} })}>
           <Form.Item name="role_id" label="Role"><Select options={grantable.map((r) => ({ value: r.id, label: r.name }))} /></Form.Item>
           <Form.Item name="status" label="Status"><Select options={[{ value: 'active', label: 'Active' }, { value: 'disabled', label: 'Disabled (cannot log in)' }]} /></Form.Item>
           {session.can('workers.view') && (
@@ -164,7 +134,6 @@ export default function Staff() {
               <Select allowClear showSearch optionFilterProp="label" loading={workers.isLoading} options={(workers.data?.data || []).map((w) => ({ value: w.id, label: `${w.name} (${w.emp_code})` }))} />
             </Form.Item>
           )}
-          <ScopeFields enabled={!!editing} />
         </Form>
       </Modal>
 

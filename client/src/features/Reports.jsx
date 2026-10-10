@@ -40,13 +40,13 @@ function ReportView({ report }) {
 
   return (
     <>
-      <p style={{ color: '#5F6B63' }}>{report.description}</p>
+      <p style={{ color: 'var(--text-secondary)' }}>{report.description}</p>
       <Space wrap style={{ marginBottom: 12 }}>
         {report.kind === 'range'
           ? <><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} /><span>to</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} /></>
           : <Input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ width: 160 }} />}
         {report.groups && <Select value={group} onChange={setGroup} style={{ width: 160 }} options={report.groups.map(([value, label]) => ({ value, label }))} />}
-        <Button onClick={() => session.download(`/reports/${report.name}/export.csv${qs(params)}`, `${report.name}.csv`).catch(() => {})}>Download CSV</Button>
+        <Button onClick={() => session.download(`/reports/${report.name}/export.csv${qs(params)}`, `${report.name}.csv`)}>Download CSV</Button>
       </Space>
       <QueryState query={q}>
         {data?.statement && (

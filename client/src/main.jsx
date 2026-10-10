@@ -9,6 +9,7 @@ import '@/styles/index.css';
 import '@/styles/screens.css';
 const AcceptInvite = lazy(() => import('@/features/AcceptInvite'));
 const Track = lazy(() => import('@/features/Track'));
+const ResetPassword = lazy(() => import('@/features/ResetPassword'));
 const cache = new QueryClient({ defaultOptions: { queries: { staleTime: 15000, retry: (count,error) => error.status >= 500 && count < 1 }, mutations: { retry: false } } });
 class ErrorBoundary extends React.Component { state = { failed: false }; static getDerivedStateFromError() { return { failed: true }; } render() { return this.state.failed ? <Result status="error" title="Something went wrong" subTitle="Reload the page to recover. Unsaved changes may need to be entered again." /> : this.props.children; } }
 const theme = {
@@ -69,6 +70,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Routes>
                 <Route path="/invite/staff/:token" element={<AcceptInvite />} />
                 <Route path="/track/:token" element={<Track />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<SessionProvider><AppRoutes /></SessionProvider>} />
               </Routes>
             </Suspense>

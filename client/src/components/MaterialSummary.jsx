@@ -1,8 +1,11 @@
-import { Alert, Table } from 'antd';
+import { Alert, Button, Table } from 'antd';
+import { Link } from 'react-router-dom';
+import { useSession } from '@/context/Session';
 import { money, quantity } from '@/lib/format';
 
 /** "Do we have enough?": what must still be bought, and what must be made first, after netting off the stock */
-export default function MaterialSummary({ summary }) {
+export default function MaterialSummary({ summary, orderId }) {
+  const session = useSession();
   if (!summary) return null;
   const buy = summary.buy_list || [];
   const make = summary.produce_list || [];
@@ -11,7 +14,8 @@ export default function MaterialSummary({ summary }) {
     <>
       {buy.length === 0
         ? <Alert type="success" showIcon message="Enough material in stock" description="Everything needed is on hand or already reserved." style={{ marginBottom: 12 }} />
-        : <Alert type="warning" showIcon message={`${buy.length} material${buy.length > 1 ? 's' : ''} short`} description="Buy these before production can start." style={{ marginBottom: 12 }} />}
+        : <Alert type="warning" showIcon message={`${buy.length} material${buy.length > 1 ? 's' : ''} short`} description="Buy these before production can start." style={{ marginBottom: 12 }}
+            action={orderId && session.can('po.create') && <Link to={`/app/purchases?new=1&order=${orderId}`}><Button type="primary" size="small">Create purchase order</Button></Link>} />}
       {buy.length > 0 && (
         <Table size="small" rowKey="item_id" pagination={false} dataSource={buy} style={{ marginBottom: 12 }}
           columns={[

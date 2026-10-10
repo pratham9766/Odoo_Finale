@@ -13,7 +13,7 @@ function RunDrawer({ id, onClose }) {
   const q = useGet(`/wages/runs/${id}`, {}, { enabled: !!id });
   const run = q.payload;
   const month = run?.month?.slice(0, 7);
-  const slip = (l) => session.download(`/wages/payslips/${l.worker_id}?month=${month}`, `payslip-${l.emp_code}-${month}.pdf`).catch(() => {});
+  const slip = (l) => session.download(`/wages/payslips/${l.worker_id}?month=${month}`, `payslip-${l.emp_code}-${month}.pdf`);
   return (
     <Drawer open={!!id} onClose={onClose} width={860} title={run ? `Wages for ${month}` : 'Wage run'}
       extra={run && (

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Alert, Button, Drawer } from 'antd';
 import Icon from '@/components/Icons';
 import NotificationBell from '@/components/NotificationBell';
 import { useSession } from '@/context/Session';
+import { TitleSlot } from '@/components/States';
 
 export function LogoWeaveIcon({ size = 26 }) {
   return (
@@ -17,7 +18,10 @@ export function LogoWeaveIcon({ size = 26 }) {
 
 // An entry shows when the person holds any one of its permissions. `perms: null` = everyone.
 const NAV = [
-  { items: [{ to: '/app', label: 'Dashboard', icon: 'home', end: true }] },
+  { items: [
+    { to: '/app', label: 'Dashboard', icon: 'home', end: true },
+    { to: '/app/my-work', label: 'My work', icon: 'person' },
+  ] },
   { caption: 'SALES', items: [
     { to: '/app/orders', label: 'Orders', icon: 'orders', perms: ['orders.view'] },
     { to: '/app/contacts', label: 'Buyers & suppliers', icon: 'people', perms: ['contacts.view'] },
@@ -25,6 +29,7 @@ const NAV = [
   { caption: 'STORES', items: [
     { to: '/app/stock', label: 'Inventory', icon: 'box', perms: ['stock.view'] },
     { to: '/app/receipts', label: 'Goods receipts', icon: 'receipt', perms: ['receipt.view', 'receipt.create'] },
+    { to: '/app/purchases', label: 'Purchase orders', icon: 'clipboard', perms: ['po.view'] },
     { to: '/app/items', label: 'Items', icon: 'box', perms: ['items.view'] },
     { to: '/app/boms', label: 'Recipes (BOM)', icon: 'layers', perms: ['bom.view'] },
   ] },
@@ -59,6 +64,8 @@ export default function AppLayout() {
   const session = useSession();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(null);
+  const [titleNode, setTitleNode] = useState(null);   // the top-bar element pages put their title into
+  const titleSlot = useMemo(() => ({ node: titleNode }), [titleNode]);
   const close = () => setOpen(false);
   const allowed = (item) => !item.perms || item.perms.some((p) => session.can(p));
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length);
@@ -74,6 +81,7 @@ export default function AppLayout() {
         <LogoWeaveIcon size={34} />
         <span>sameta</span>
       </div>
+      <div className="sidebar-mill"><Icon name="factory" size={15} />{session.context.mill.name}</div>
       {groups.map((g, i) => (
         <div key={g.caption || i} className="nav-group">
           {g.caption && <div className="nav-caption">{g.caption}</div>}
@@ -102,10 +110,7 @@ export default function AppLayout() {
         <header className="topbar">
           <Button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation" icon={<Icon name="menu" size={18} />} />
 
-          <div className="mill-chip">
-            <span className="mill-chip-icon"><Icon name="factory" size={18} /></span>
-            <span className="mill-chip-name">{session.context.mill.name}</span>
-          </div>
+          <div className="topbar-title-slot" ref={setTitleNode} />
 
           <div className="topbar-right">
             <NotificationBell />
@@ -119,7 +124,7 @@ export default function AppLayout() {
 
         <main className="main-content">
           {error && <Alert type="error" message={error} closable onClose={() => setError(null)} />}
-          <Outlet />
+          <TitleSlot.Provider value={titleSlot}><Outlet /></TitleSlot.Provider>
         </main>
       </div>
     </div>

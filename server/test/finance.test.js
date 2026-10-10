@@ -43,9 +43,9 @@ test('report helpers: totals, percentage, column descriptors', () => {
 });
 
 test('P&L statement: costs are shown as negatives and the lines add up to the net profit', () => {
-  const month = { revenue: 426000, material: 213000, wages: 78000, overhead: 21000.5, freight: 9000, expenses: 25000, net_profit: 79999.5 };
+  const month = { revenue: 426000, material: 213000, wages: 78000, overhead: 21000.5, expenses: 25000, net_profit: 88999.5 };
   const lines = statementOf(month);
-  assert.deepEqual(lines.map((l) => l.line), ['Revenue', 'Raw material', 'Wages', 'Machine overhead', 'Freight', 'Expenses', 'Net profit']);
+  assert.deepEqual(lines.map((l) => l.line), ['Revenue', 'Raw material', 'Wages', 'Machine overhead', 'Expenses', 'Net profit']);
   assert.equal(lines[1].amount, -213000);
   assert.equal(lines.slice(0, -1).reduce((n, l) => n + l.amount, 0), lines.at(-1).amount);
   assert.equal(lines.at(-1).total, true);
