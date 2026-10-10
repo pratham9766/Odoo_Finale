@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Form, Input } from 'antd';
 import { supabase } from '@/lib/supabase';
+import { request } from '@/lib/api';
 import '@/styles/login.css';
 
 /* Symmetrical woven lattice logo icon */
@@ -72,9 +74,43 @@ function OrdersDocumentIcon() {
   );
 }
 
+// The preview on the right shows the mill's real numbers (GET /public/mill-stats: counts only, no login needed).
+const STAGE_COLOURS = ['#34d399', '#38bdf8', '#d0af71', '#a78bfa'];
+
+/** a smooth line through the values, scaled to a w×h box (each series on its own scale) */
+function linePath(values, w, h) {
+  const max = Math.max(...values, 1);
+  const step = w / Math.max(values.length - 1, 1);
+  const pts = values.map((v, i) => [i * step, h - 4 - (v / max) * (h - 8)]);
+  return pts.map(([x, y], i) => {
+    if (i === 0) return `M${x.toFixed(1)},${y.toFixed(1)}`;
+    const [px, py] = pts[i - 1];
+    const mx = ((px + x) / 2).toFixed(1);
+    return `C${mx},${py.toFixed(1)} ${mx},${y.toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+function ChangePill({ pct }) {
+  if (pct == null) return null;
+  return <span className={pct >= 0 ? 'metric-positive-trend' : 'metric-negative-trend'}>{pct >= 0 ? '↑ +' : '↓ '}{pct}%</span>;
+}
+
+function MiniChart({ lines, colours }) {
+  return (
+    <div className="mini-chart-card">
+      <svg className="spline-chart" viewBox="0 0 160 55" preserveAspectRatio="none" role="img" aria-label={lines.map((l) => l.label).join(' and ')}>
+        {lines.map((l, i) => (
+          <path key={l.label} d={linePath(l.values, 160, 55)} fill="none" stroke={colours[i]} strokeWidth={i ? 1.5 : 2} strokeDasharray={i ? '3 2' : undefined} opacity={i ? 0.85 : 1} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export default function Login({ initialError }) {
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
+  const { data: stats } = useQuery({ queryKey: ['mill-stats'], queryFn: ({ signal }) => request('/public/mill-stats', { signal }).then((r) => r.data), retry: false, staleTime: 60000 });
 
   async function submit(values) {
     setBusy(true);
@@ -209,10 +245,10 @@ export default function Login({ initialError }) {
                   </div>
                   <span className="metric-label-title">Production</span>
                 </div>
-                <div className="metric-highlight-value">24</div>
+                <div className="metric-highlight-value">{stats ? stats.active_lines : '–'}</div>
                 <div className="metric-footer-part">
-                  <span className="metric-sub-detail">Active lines</span>
-                  <span className="metric-positive-trend">↑ +12%</span>
+                  <span className="metric-sub-detail">Machines running</span>
+                  <ChangePill pct={stats?.output_change_pct} />
                 </div>
               </div>
 
@@ -224,10 +260,10 @@ export default function Login({ initialError }) {
                   </div>
                   <span className="metric-label-title">Inventory</span>
                 </div>
-                <div className="metric-highlight-value">428</div>
+                <div className="metric-highlight-value">{stats ? stats.skus_in_stock : '–'}</div>
                 <div className="metric-footer-part">
-                  <span className="metric-sub-detail">SKUs in stock</span>
-                  <span className="metric-positive-trend">↑ +8%</span>
+                  <span className="metric-sub-detail">Items in stock</span>
+                  {stats?.low_stock > 0 && <span className="metric-negative-trend">{stats.low_stock} low</span>}
                 </div>
               </div>
 
@@ -239,10 +275,10 @@ export default function Login({ initialError }) {
                   </div>
                   <span className="metric-label-title">Orders</span>
                 </div>
-                <div className="metric-highlight-value">36</div>
+                <div className="metric-highlight-value">{stats ? stats.open_orders : '–'}</div>
                 <div className="metric-footer-part">
                   <span className="metric-sub-detail">Open orders</span>
-                  <span className="metric-positive-trend">↑ +17%</span>
+                  <ChangePill pct={stats?.orders_change_pct} />
                 </div>
               </div>
             </div>
@@ -310,51 +346,25 @@ export default function Login({ initialError }) {
                         <h4>Production Overview</h4>
                       </div>
 
-                      <div className="tablet-graphs-row">
-                        <div className="mini-chart-card">
-                          <svg className="spline-chart" viewBox="0 0 160 55" preserveAspectRatio="none">
-                            <path d="M0,38 C30,15 50,45 80,20 C110,-2 130,35 160,12" fill="none" stroke="#34d399" strokeWidth="2" />
-                            <path d="M0,45 C35,32 60,50 95,38 C125,25 140,42 160,28" fill="none" stroke="#d0af71" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.85" />
-                          </svg>
+                      {stats && (
+                        <div className="tablet-graphs-row">
+                          <MiniChart lines={stats.series.slice(0, 2)} colours={STAGE_COLOURS.slice(0, 2)} />
+                          <MiniChart lines={stats.series.slice(2, 4)} colours={STAGE_COLOURS.slice(2, 4)} />
                         </div>
-                        <div className="mini-chart-card">
-                          <svg className="spline-chart" viewBox="0 0 160 55" preserveAspectRatio="none">
-                            <path d="M0,30 C35,48 70,12 105,35 C135,55 145,18 160,25" fill="none" stroke="#38bdf8" strokeWidth="2" />
-                            <path d="M0,42 C40,25 70,38 110,18 C140,32 150,15 160,20" fill="none" stroke="#a78bfa" strokeWidth="1.5" opacity="0.8" />
-                          </svg>
-                        </div>
-                      </div>
+                      )}
 
                       <div className="tablet-progress-trio">
-                        <div className="progress-unit-item">
-                          <div className="progress-unit-labels">
-                            <span>Rolling</span>
-                            <strong>78%</strong>
+                        {(stats?.stages ?? []).map((st, i) => (
+                          <div key={st.name} className="progress-unit-item" title={`${st.running} of ${st.total} machines running`}>
+                            <div className="progress-unit-labels">
+                              <span>{st.name}</span>
+                              <strong>{st.pct}%</strong>
+                            </div>
+                            <div className="progress-track-rail">
+                              <div className="progress-fill-bar" style={{ width: `${st.pct}%`, background: STAGE_COLOURS[i] }} />
+                            </div>
                           </div>
-                          <div className="progress-track-rail">
-                            <div className="progress-fill-bar" style={{ width: '78%', background: '#34d399' }} />
-                          </div>
-                        </div>
-
-                        <div className="progress-unit-item">
-                          <div className="progress-unit-labels">
-                            <span>Weaving</span>
-                            <strong>62%</strong>
-                          </div>
-                          <div className="progress-track-rail">
-                            <div className="progress-fill-bar" style={{ width: '62%', background: '#38bdf8' }} />
-                          </div>
-                        </div>
-
-                        <div className="progress-unit-item">
-                          <div className="progress-unit-labels">
-                            <span>Processing</span>
-                            <strong>91%</strong>
-                          </div>
-                          <div className="progress-track-rail">
-                            <div className="progress-fill-bar" style={{ width: '91%', background: '#d0af71' }} />
-                          </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>

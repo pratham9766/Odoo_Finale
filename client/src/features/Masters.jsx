@@ -11,7 +11,7 @@ const KINDS = ['fibre', 'yarn', 'grey_fabric', 'finished_fabric', 'garment', 'dy
 export function Contacts() {
   return (
     <CrudPage
-      eyebrow="MASTER DATA" title="Buyers & suppliers" description="Who the mill sells to and buys from. Used on orders, goods receipts and invoices."
+      title="Buyers & suppliers" description="Who the mill sells to and buys from. Used on orders, goods receipts and invoices."
       noun="contact" path="/contacts" updateMethod="PUT" search
       perms={{ create: 'contacts.create', update: 'contacts.update', remove: 'contacts.delete' }}
       columns={[
@@ -34,7 +34,7 @@ export function Items() {
   const session = useSession();
   return (
     <CrudPage
-      eyebrow="MASTER DATA" title="Items" description="Fibre, yarn, grey and finished fabric, dyes and packing material. Reorder levels drive the low-stock alert."
+      title="Items" description="Fibre, yarn, grey and finished fabric, dyes and packing material. Reorder levels drive the low-stock alert."
       noun="item" path="/items" updateMethod="PUT" search
       perms={{ create: 'items.create', update: 'items.update', remove: 'items.delete' }}
       columns={[
@@ -64,7 +64,7 @@ export function Items() {
 export function Machines() {
   return (
     <CrudPage
-      eyebrow="MASTER DATA" title="Machines" description="The looms, spinning frames and other machines on the floor. Status changes only through work orders and breakdowns."
+      title="Machines" description="The looms, spinning frames and other machines on the floor. Status changes only through work orders and breakdowns."
       noun="machine" path="/machines"
       perms={{ create: 'machines.create', update: 'machines.update', remove: 'machines.delete' }}
       columns={[
@@ -90,7 +90,7 @@ export function Workers() {
   const session = useSession();
   return (
     <CrudPage
-      eyebrow="WORKFORCE" title="Workers" description="Everyone on the payroll. Attendance and wages are worked out from these records."
+      title="Workers" description="Everyone on the payroll. Attendance and wages are worked out from these records."
       noun="worker" path="/workers" search
       perms={{ create: 'workers.create', update: 'workers.update', remove: 'workers.delete' }}
       columns={[

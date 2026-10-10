@@ -9,8 +9,6 @@ import Login from '@/features/Login';
 const SessionContext = createContext(null);
 export const useSession = () => useContext(SessionContext);
 
-const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-
 export function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +37,7 @@ function MillSession({ session, children }) {
   const cache = useQueryClient();
   const token = session.access_token;
   const userId = session.user.id;
-  const api = (path, options = {}) => request(path, { baseUrl, ...options, token });
+  const api = (path, options = {}) => request(path, { ...options, token });
   const access = useQuery({ queryKey: [userId, 'access'], queryFn: ({ signal }) => api('/me/access', { signal }), retry: false });
   const signOut = async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; cache.clear(); };
   const data = access.data?.data;
@@ -54,7 +52,7 @@ function MillSession({ session, children }) {
   const permissions = data.permissions || [];
   const value = {
     userId, api, signOut,
-    download: (path, filename) => download(path, { token, baseUrl, filename }),
+    download: (path, filename) => download(path, { token, filename }),
     context: { mill: data.mill, role: data.role, user: data.user, permissions, scope: data.scope || {} },
     can: permission => permissions.includes(permission),
     refreshAccess: () => access.refetch(),

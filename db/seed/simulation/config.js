@@ -55,10 +55,11 @@ export const BUYERS = {
   'Ludhiana Garments Co.': { weight: 0.25, pays: [['late', 0.3], ['never', 0.7]] },
 };
 
-// every action in the history is done by the owner: it is the only login the seed creates
-const OWNER = 'owner@everest.demo';
+// who does what in the history: the team the seed creates (generators/team.js), so audit trails show different people
+// (wages are prepared by one person and approved by another, as the app insists)
+const OWNER = 'owner@everest.demo', MANAGER = 'manager@everest.demo', QC = 'qc@everest.demo', ACCOUNTS = 'accounts@everest.demo';
 export const ACTORS = {
-  prod: OWNER, qc: OWNER, dispatch: OWNER, accounts: OWNER, hr: OWNER, maint: OWNER, store: OWNER, purchase: OWNER, sales: OWNER,
+  prod: MANAGER, qc: QC, dispatch: MANAGER, accounts: ACCOUNTS, hr: MANAGER, maint: MANAGER, store: OWNER, purchase: OWNER, sales: OWNER,
 };
 
 // the worker who runs W-3 on the morning shift (a worker record, not a login)

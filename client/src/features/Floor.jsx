@@ -9,7 +9,7 @@ export default function FloorSupervisor() {
   const session = useSession();
   return (
     <>
-      <PageTitle eyebrow="SUPERVISOR" title="My shift" description="Put workers on machines, then mark attendance." />
+      <PageTitle title="My shift" description="Put workers on machines, then mark attendance." />
       <Tabs items={[
         ...(session.can('assignment.create') ? [{ key: 'assign', label: 'Assign workers', children: <Assignments embedded /> }] : []),
         { key: 'attendance', label: 'Attendance', children: <Attendance floor /> },

@@ -16,7 +16,7 @@ export function Dispatches({ floor = false }) {
   const base = floor ? '/floor/dispatch' : '/app/dispatch';
   return (
     <>
-      <PageTitle eyebrow={floor ? 'LOADING BAY' : 'DISPATCH'} title="Dispatch" description="Load finished rolls onto a truck. Each roll can go out only once, and the invoice is made from the rolls you scan."
+      <PageTitle title="Dispatch" description="Load finished rolls onto a truck. Each roll can go out only once, and the invoice is made from the rolls you scan."
         action={session.can('dispatch.create') && <Link to={`${base}/new`}><Button type="primary">New dispatch</Button></Link>} />
       <section className="panel">
         <Select allowClear placeholder="All statuses" value={status} onChange={setStatus} style={{ width: 180, marginBottom: 12 }} options={['packing', 'confirmed', 'in_transit', 'delivered', 'cancelled'].map((v) => ({ value: v, label: v.replace('_', ' ') }))} />
@@ -41,7 +41,7 @@ export function NewDispatch({ floor = false }) {
   const orders = useGet('/orders', { limit: 100, status: 'ready_to_ship,partially_dispatched,in_production,in_qc' });
   return (
     <>
-      <PageTitle eyebrow="DISPATCH" title="New dispatch" description="Pick the order that is going out. You will scan the rolls on the next screen." />
+      <PageTitle title="New dispatch" description="Pick the order that is going out. You will scan the rolls on the next screen." />
       <section className="panel form-panel">
         <Form layout="vertical" requiredMark={false} onFinish={(v) => act.mutate({ path: '/dispatches', body: Object.fromEntries(Object.entries(v).filter(([, x]) => x)) }, { onSuccess: (res) => navigate(`${base}/${res.data.id}`) })}>
           <div className="form-grid">
@@ -88,7 +88,7 @@ export function DispatchDetail({ floor = false }) {
   return (
     <>
       <Link to={base}>← All dispatches</Link>
-      <PageTitle eyebrow="DISPATCH" title={d?.dispatch_no || 'Dispatch'} description={d ? `${d.order_no} · ${d.to_party}` : ''}
+      <PageTitle title={d?.dispatch_no || 'Dispatch'} description={d ? `${d.order_no} · ${d.to_party}` : ''}
         action={d && (
           <Space wrap>
             <Button onClick={() => session.download(`/dispatches/${id}/packing-list.pdf`, `packing-list-${d.dispatch_no}.pdf`).catch(() => {})}>Packing list (PDF)</Button>

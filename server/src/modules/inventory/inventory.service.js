@@ -118,7 +118,7 @@ export async function postReceipt(ctx, id, { at = null } = {}) {
     for (const l of live) {
       const { rows: [lot] } = await db.query(
         `insert into stock_lots (item_id, warehouse_id, lot_no, unit_cost, supplier_contact_id, receipt_id, dye_batch, created_by, received_at, created_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9, coalesce($10, now()), coalesce($10, now()))
+         values ($1,$2,$3,$4,$5,$6,$7,$8, coalesce($9, now()), coalesce($9, now()))
          on conflict (item_id, lot_no) do update set
            unit_cost = case when stock_lots.unit_cost = 0 then excluded.unit_cost else stock_lots.unit_cost end
          returning id`,

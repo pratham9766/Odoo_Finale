@@ -70,7 +70,7 @@ const crud = { create: 'settings.create', update: 'settings.update', remove: 'se
 export default function Settings() {
   return (
     <>
-      <PageTitle eyebrow="SETUP" title="Mill settings" description="Your mill's details, production stages, shifts, defect types and warehouses." />
+      <PageTitle title="Mill settings" description="Your mill's details, production stages, shifts, defect types and warehouses." />
       <Tabs items={[
         { key: 'profile', label: 'Mill profile', children: <MillProfile /> },
         {

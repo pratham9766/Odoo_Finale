@@ -67,11 +67,15 @@ a.kpi:hover { border-color: var(--c-mauve-primary); }
 /* ---------- dashboard ---------- */
 .dashboard { position: relative; }
 
-/* page heading with the yarn photo fading in from the right */
+/* page heading with the yarn photo fading in from the right; stays pinned under the top bar while the page scrolls */
 .dash-hero {
-  position: relative;
-  margin: 0 0 20px;
-  padding: 4px 0 8px;
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 10;
+  margin: 0 0 16px;
+  padding: 8px 0 10px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-main);
   overflow: hidden;
   isolation: isolate;
 }
@@ -87,8 +91,8 @@ a.kpi:hover { border-color: var(--c-mauve-primary); }
   mask-image: linear-gradient(to right, transparent, #000 70%);
   z-index: -1;
 }
-.dash-hero h1 { font-size: 46px; line-height: 1.1; margin-bottom: 10px; color: var(--c-ink); }
-.dash-hero p { font-size: 17px; margin: 0; color: var(--text-secondary); }
+.dash-hero h1 { font-size: 28px; line-height: 1.15; margin: 0 0 2px; color: var(--c-ink); }
+.dash-hero p { font-size: 14px; margin: 0; color: var(--text-secondary); }
 
 /* attention banners */
 .dash-alerts { display: grid; gap: 10px; margin-bottom: 22px; }
@@ -160,8 +164,9 @@ a.dash-alert:hover { color: var(--c-ink); box-shadow: 0 4px 14px rgba(16, 60, 50
 
 @media (max-width: 760px) {
   .dash-hero::before { width: 70%; opacity: 0.18; }
-  .dash-hero h1 { font-size: 34px; }
-  .dash-hero p { font-size: 15px; }
+  .dash-hero { padding: 6px 0 8px; margin-bottom: 12px; }
+  .dash-hero h1 { font-size: 22px; }
+  .dash-hero p { font-size: 13px; }
   .dash-alert { font-size: 15px; padding: 12px 14px; }
   .dash-section-head { flex-wrap: wrap; gap: 12px; }
   .dash-section-link { font-size: 14px; }
@@ -173,7 +178,7 @@ a.dash-alert:hover { color: var(--c-ink); box-shadow: 0 4px 14px rgba(16, 60, 50
 /* ---------- dashboard + operations panel ---------- */
 .dash-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 24px;
   align-items: start;
 }
@@ -183,8 +188,9 @@ a.dash-alert:hover { color: var(--c-ink); box-shadow: 0 4px 14px rgba(16, 60, 50
   display: grid;
   gap: 16px;
   position: sticky;
-  top: 96px;               /* below the sticky top bar */
-  max-height: calc(100dvh - 112px);
+  top: calc(var(--topbar-h) + 24px);   /* below the sticky top bar */
+  max-height: calc(100dvh - var(--topbar-h) - 40px);
+  margin-right: -14px;     /* reaches a little further into the right gutter */
   overflow-y: auto;
   scrollbar-width: thin;
   animation: ops-enter 240ms ease-out both;
@@ -282,7 +288,7 @@ a.task-row:hover, a.activity-row:hover { background: #F6F4EE; color: var(--c-ink
 @media (max-width: 1280px) {
   .dash-layout { grid-template-columns: minmax(0, 1fr); }
   .ops-panel {
-    position: static; max-height: none; overflow: visible;
+    position: static; max-height: none; overflow: visible; margin-right: 0;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     align-items: start;
   }

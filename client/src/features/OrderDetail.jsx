@@ -32,7 +32,7 @@ export default function OrderDetail() {
   return (
     <>
       <Link to="/app/orders">← All orders</Link>
-      <PageTitle eyebrow="ORDER" title={o?.order_no || 'Order details'} description="One record, from the request through production and delivery."
+      <PageTitle title={o?.order_no || 'Order details'} description="One record, from the request through production and delivery."
         action={o && (
           <Space wrap>
             {o.status === 'draft' && session.can('orders.confirm') && (

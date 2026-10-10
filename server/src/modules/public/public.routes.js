@@ -5,6 +5,7 @@ import { notFound } from '../../utils/errors.js';
 import { validate } from '../../middleware/validate.js';
 import { publicLimiter, authLimiter } from '../../middleware/rateLimit.js';
 import { send } from '../../utils/http.js';
+import { millStats } from './millStats.js';
 import { previewInvite, joinWithInvite } from '../auth/me.service.js';
 import { tokenParam, joinInviteSchema } from '../auth/me.schema.js';
 
@@ -18,6 +19,9 @@ r.get('/track/:token', publicLimiter, validate({ params: z.object({ token: z.str
     if (!data) throw notFound('Tracking link');
     return data;
   }));
+
+// login-screen preview: aggregate counts only
+r.get('/mill-stats', publicLimiter, send(() => millStats()));
 
 // staff invite link: the person has no account yet, so these two need no login
 r.get('/invites/:token', authLimiter, validate({ params: tokenParam }), send((req) => previewInvite(req.valid.params.token)));

@@ -24,6 +24,8 @@ export const orderQuery = z.object({
   ...pageQuery,
   status: z.string().regex(/^[a-z_,]+$/).optional(),
   risk: z.enum(['green', 'amber', 'red']).optional(),
+  bucket: z.enum(['open', 'in_production', 'ready_to_dispatch', 'delayed']).optional(),   // the Orders page KPI groups
+  priority: z.string().regex(/^[a-z,]+$/).optional(),
   q: z.string().trim().max(60).optional(),
 });
 
