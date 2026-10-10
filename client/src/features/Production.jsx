@@ -126,7 +126,7 @@ export function Assignments({ embedded = false }) {
       <Space wrap style={{ marginBottom: 12 }}>
         <Input type="date" value={day} onChange={(e) => { setDay(e.target.value); setPicks({}); }} style={{ width: 160 }} />
         <Select placeholder="Choose a shift" value={shift} onChange={(v) => { setShift(v); setPicks({}); }} style={{ width: 200 }} options={(shifts.payload || []).map((s) => ({ value: s.id, label: `${s.name} (${s.start_time?.slice(0, 5)}–${s.end_time?.slice(0, 5)})` }))} />
-        {canSave && <Button type="primary" disabled={!shift || Object.keys(picks).length === 0} loading={act.isPending} onClick={save}>Save assignments</Button>}
+        {canSave && <Button type="primary" disabled={!shift || Object.keys(picks).length === 0} loading={act.isPending} onClick={save}>{shift ? 'Save assignments' : 'Select shift'}</Button>}
       </Space>
       {!shift ? <NoData description="Choose a shift to see and set who runs which machine." /> : (
         <QueryState query={workers}>

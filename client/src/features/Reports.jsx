@@ -6,12 +6,12 @@ import { monthISO, qs, todayISO, useGet } from '@/lib/hooks';
 import { money, quantity } from '@/lib/format';
 
 // money columns are shown as rupees; everything else numeric as a plain number
-const MONEY = /revenue|material|labour|machine_cost|overhead|wages|expenses|profit|cost|gross|net|deductions|amount|rate/i;
+const MONEY = /revenue|material|labour|machine_cost|overhead|freight|wages|expenses|profit|cost|gross|net|deductions|amount|rate/i;
 const isNumber = (v) => typeof v === 'number' || (typeof v === 'string' && v !== '' && !Number.isNaN(Number(v)) && /^-?\d+(\.\d+)?$/.test(v));
 
 const REPORTS = [
   { name: 'order-cost', title: 'Cost per order', permission: 'reports.cost', kind: 'range', description: 'Revenue, material, labour and machine cost for each order, and the margin.' },
-  { name: 'pnl', title: 'Monthly profit & loss', permission: 'reports.pnl', kind: 'month', description: 'Revenue against material, wages, overhead and expenses, month by month.' },
+  { name: 'pnl', title: 'Monthly profit & loss', permission: 'reports.pnl', kind: 'month', description: 'Revenue against material, wages, overhead, freight and expenses, month by month.' },
   { name: 'machines', title: 'Machine production', permission: 'reports.production', kind: 'range', description: 'Output, running and breakdown hours and utilisation for every machine.' },
   { name: 'wastage', title: 'Wastage', permission: 'reports.production', kind: 'range', groups: [['stage', 'By stage'], ['machine', 'By machine'], ['order', 'By order']], description: 'Material lost in production.' },
   { name: 'qc', title: 'Defects by machine', permission: 'reports.qc', kind: 'range', description: 'Where the defects come from.' },
@@ -46,7 +46,7 @@ function ReportView({ report }) {
           ? <><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} /><span>to</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} /></>
           : <Input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ width: 160 }} />}
         {report.groups && <Select value={group} onChange={setGroup} style={{ width: 160 }} options={report.groups.map(([value, label]) => ({ value, label }))} />}
-        <Button onClick={() => session.download(`/reports/${report.name}/export.csv${qs(params)}`, `${report.name}.csv`).catch(() => {})}>Download CSV</Button>
+        <Button onClick={() => session.download(`/reports/${report.name}/export.csv${qs(params)}`, `${report.name}.csv`)}>Download CSV</Button>
       </Space>
       <QueryState query={q}>
         {data?.statement && (

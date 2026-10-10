@@ -33,7 +33,7 @@ function summarise(rows, collected) {
 const withDaysOverdue = (rows, today) => rows.map((r) => ({ ...r, days_overdue: Math.max(0, daysBetween(String(r.due_date).slice(0, 10), today)) }));
 
 /** What buyers owe us: unpaid and partly paid sales invoices. */
-export function receivables(ctx) {
+export function receivables(_ctx) {
   const today = todayIST();
   return withTx(async (db) => {
     const { rows } = await db.query(
@@ -47,7 +47,7 @@ export function receivables(ctx) {
 }
 
 /** What we owe: unpaid supplier bills (expenses with category 'supplier_bill'). */
-export function payables(ctx) {
+export function payables(_ctx) {
   const today = todayIST();
   return withTx(async (db) => {
     const { rows: bills } = await db.query(

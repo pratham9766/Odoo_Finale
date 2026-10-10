@@ -4,11 +4,13 @@ import { useParams } from 'react-router-dom';
 import { request } from '@/lib/api';
 import { Status } from '@/components/States';
 import { date, quantity } from '@/lib/format';
+import { usePageTitle } from '@/lib/title';
 
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 /** The buyer's page: opened from the link the mill sends. No login, no prices. */
 export default function Track() {
+  usePageTitle('Order tracking');
   const { token } = useParams();
   const q = useQuery({
     queryKey: ['track', token],

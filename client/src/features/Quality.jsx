@@ -112,7 +112,7 @@ export function RollTrace() {
   return (
     <>
       <Link to="/app/quality">← Quality</Link>
-      <PageTitle eyebrow="TRACEABILITY" title={`Roll ${rollNo}`} description="From yarn lot to buyer." action={session.can('production.log') && <Button onClick={() => session.download(`/rolls/${encodeURIComponent(rollNo)}/label.pdf`, `label-${rollNo}.pdf`).catch(() => {})}>Print label</Button>} />
+      <PageTitle eyebrow="TRACEABILITY" title={`Roll ${rollNo}`} description="From yarn lot to buyer." action={session.can('production.log') && <Button onClick={() => session.download(`/rolls/${encodeURIComponent(rollNo)}/label.pdf`, `label-${rollNo}.pdf`)}>Print label</Button>} />
       <QueryState query={trace}>
         {t && (
           <>

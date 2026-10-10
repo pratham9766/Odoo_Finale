@@ -10,6 +10,7 @@ import { errorHandler, notFoundRoute } from './middleware/errorHandler.js';
 import publicRoutes from './modules/public/public.routes.js';
 import meRoutes from './modules/auth/me.routes.js';
 import apiRouter from './modules/index.js';
+import iotRoutes from './modules/rfid/iot.routes.js';
 
 export const app = express();
 app.set('trust proxy', 1); // behind Render/Railway proxies (rate limiter needs the real IP)
@@ -22,6 +23,7 @@ if (env.NODE_ENV !== 'test') app.use(morgan('dev'));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/v1/public', publicRoutes); // no auth (tracking link)
 
+app.use('/api/v1/iot', iotRoutes); // physical RFID scanners: device key, no user session
 app.use('/api/v1/me', auth, meRoutes); // logged in, maybe not staff yet (profile, my access, accept an invite)
 app.use('/api/v1', auth, staff, apiRouter); // everything else: logged-in mill staff
 app.use(notFoundRoute);

@@ -24,6 +24,9 @@ const schema = z.object({
   EMAIL_FROM: z.string().default('Everest Textile Mills <no-reply@example.com>'),
   PUBLIC_TRACK_BASE_URL: z.string().url(),
   JOBS_ENABLED: bool(true),
+  // RFID: the virtual scanner is a demo / development tool; unset = on everywhere except NODE_ENV=production
+  RFID_SIMULATOR_ENABLED: z.enum(['true', 'false', '1', '0', '']).optional(),
+  RFID_DUPLICATE_WINDOW_SEC: z.coerce.number().int().min(1).max(3600).default(3),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -39,3 +42,4 @@ for (const k of ['SUPABASE_JWT_SECRET', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS']) 
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
+env.RFID_SIMULATOR_ENABLED = env.RFID_SIMULATOR_ENABLED ? ['true', '1'].includes(env.RFID_SIMULATOR_ENABLED) : !isProd;

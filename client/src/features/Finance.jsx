@@ -7,7 +7,7 @@ import { todayISO, useAction, useGet } from '@/lib/hooks';
 import { date, money } from '@/lib/format';
 
 const INVOICE_COLOR = { draft: 'default', unpaid: 'red', partial: 'orange', paid: 'green', cancelled: 'default' };
-const CATEGORIES = ['power', 'maintenance', 'rent', 'salary_staff', 'supplier_bill', 'other'].map((v) => ({ value: v, label: v.replaceAll('_', ' ') }));
+const CATEGORIES = ['power', 'maintenance', 'rent', 'salary_staff', 'supplier_bill', 'freight', 'other'].map((v) => ({ value: v, label: v.replaceAll('_', ' ') }));
 
 function RecordPayment({ invoice, onClose }) {
   const act = useAction({ success: 'Payment recorded' });
@@ -43,7 +43,7 @@ function Invoices() {
             { title: 'Due', dataIndex: 'due_date', render: date }, { title: 'Status', dataIndex: 'status', render: (v) => <Tag color={INVOICE_COLOR[v]}>{v}</Tag> },
             { title: '', key: 'a', render: (_, r) => (
               <Space>
-                <Button size="small" onClick={() => session.download(`/invoices/${r.id}/pdf`, `${r.invoice_no}.pdf`).catch(() => {})}>PDF</Button>
+                <Button size="small" onClick={() => session.download(`/invoices/${r.id}/pdf`, `${r.invoice_no}.pdf`)}>PDF</Button>
                 {session.can('payment.create') && ['unpaid', 'partial'].includes(r.status) && <Button size="small" type="primary" onClick={() => setPaying(r)}>Record payment</Button>}
               </Space>) },
           ]} />

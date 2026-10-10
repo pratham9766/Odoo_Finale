@@ -5,6 +5,7 @@ import OperationsPanel from '@/components/operations/OperationsPanel';
 import { QueryState } from '@/components/States';
 import { useSession } from '@/context/Session';
 import { useGet } from '@/lib/hooks';
+import { usePageTitle } from '@/lib/title';
 import { date, money, quantity } from '@/lib/format';
 
 const RISK = { red: 'red', amber: 'orange', green: 'green' };
@@ -63,6 +64,7 @@ function Last7({ rows }) {
 }
 
 export default function Dashboard() {
+  usePageTitle('Dashboard');
   const session = useSession();
   const q = useGet('/reports/dashboard', {}, { refetchInterval: 30000 });
   const d = q.payload;

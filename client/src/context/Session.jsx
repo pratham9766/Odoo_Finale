@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Card, Spin } from 'antd';
+import { Alert, Button, Card, Spin, message } from 'antd';
 import { supabase } from '@/lib/supabase';
 import { request, download } from '@/lib/api';
 import { QueryState } from '@/components/States';
@@ -54,7 +54,15 @@ function MillSession({ session, children }) {
   const permissions = data.permissions || [];
   const value = {
     userId, api, signOut,
-    download: (path, filename) => download(path, { token, baseUrl, filename }),
+    download: async (path, filename) => {
+      try {
+        await download(path, { token, baseUrl, filename });
+        return true;
+      } catch (err) {
+        message.error(err.message || 'The file could not be downloaded.');
+        return false;
+      }
+    },
     context: { mill: data.mill, role: data.role, user: data.user, permissions, scope: data.scope || {} },
     can: permission => permissions.includes(permission),
     refreshAccess: () => access.refetch(),

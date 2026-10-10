@@ -15,6 +15,7 @@ const Stock = lazy(() => import('@/features/Stock'));
 const Boms = lazy(() => import('@/features/Boms'));
 const Settings = lazy(() => import('@/features/Settings'));
 const Attendance = lazy(() => import('@/features/Attendance'));
+const Rfid = lazy(() => import('@/features/Rfid'));
 const Wages = lazy(() => import('@/features/Wages'));
 const Finance = lazy(() => import('@/features/Finance'));
 const Reports = lazy(() => import('@/features/Reports'));
@@ -91,6 +92,7 @@ export default function AppRoutes() {
         <Route path="dispatch/new" element={G('dispatch.create', <NewDispatch />)} />
         <Route path="dispatch/:id" element={G('dispatch.view', <DispatchDetail />)} />
         <Route path="attendance" element={G('attendance.view', <Attendance />)} />
+        <Route path="rfid" element={G('rfid.view', <Rfid />)} />
         <Route path="workers" element={G(['workers.view', 'attendance.view'], <Workers />)} />
         <Route path="wages" element={G('wages.view', <Wages />)} />
         <Route path="finance" element={G(['invoice.view', 'payment.view', 'expense.view'], <Finance />)} />

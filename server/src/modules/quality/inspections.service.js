@@ -27,7 +27,32 @@ async function scrapRoll(db, ctx, roll) {
     `select id from items where kind = 'scrap' order by (name ilike '%fabric%') desc, name limit 1`);
   const { rows: [item] } = await db.query(`select width_m, gsm from items where id = $1`, [roll.item_id]);
   const kg = roll.weight_kg ?? (item.width_m && item.gsm ? fabricMetresToKg(roll.length_m, item.width_m, item.gsm) : null);
-  if (scrap && kg) await produce(db, ctx, { itemId: scrap.id, qty: kg, lotNo: roll.roll_no, refType: 'roll', refId: roll.id });
+  if (scrap && kg) await produce(db, ctx, {
+    itemId: scrap.id, qty: kg, lotNo: roll.roll_no, refType: 'roll', refId: roll.id, type: 'scrap',
+  });
+}
+
+/**
+ * Remove the net scrap stock created by an earlier rejection. Older builds recorded this as
+ * `produce`, so both movement types are included. Summing the ledger makes this idempotent:
+ * after one reversal a repeated override has nothing left to reverse.
+ */
+export async function reverseRejectedScrap(db, ctx, roll) {
+  const { rows } = await db.query(
+    `select item_id, lot_id, sum(qty)::numeric as qty
+       from stock_movements
+      where ref_type = 'roll' and ref_id = $1 and type in ('produce', 'scrap', 'return')
+      group by item_id, lot_id
+     having sum(qty) > 0.0005`,
+    [roll.id],
+  );
+  for (const movement of rows) {
+    await db.query(
+      `insert into stock_movements (item_id, lot_id, type, qty, ref_type, ref_id, reason, created_by)
+       values ($1, $2, 'return', $3, 'roll', $4, 'QC result overridden', $5)`,
+      [movement.item_id, movement.lot_id, -Number(movement.qty), roll.id, ctx.userId],
+    );
+  }
 }
 
 /** Record the inspection and move the roll: pass → passed, rework → rework (+ rework work order), reject → rejected (+ scrap). */
@@ -90,6 +115,7 @@ export async function overrideResult(ctx, inspectionId, input, { at = new Date()
     if (!(await cancelOpenRework(db, roll.id))) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `Roll ${roll.roll_no} is being reworked right now; finish or pause that work order first`);
     }
+    if (roll.status === 'rejected') await reverseRejectedScrap(db, ctx, roll);
     assertUploadPath(input.photo_path, 'photo_path');
     await checkDefects(db, ctx, input.result, input.defects);
     const newInspectionId = await applyResult(db, ctx, roll, { ...input, is_override: true, override_reason: input.reason }, at);

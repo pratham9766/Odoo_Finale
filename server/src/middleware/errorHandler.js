@@ -13,6 +13,8 @@ const PG_MAP = {
 // unique constraints with a business meaning
 const CONSTRAINT_MAP = {
   dispatch_rolls_roll_unique: [409, 'ROLL_ALREADY_DISPATCHED', 'This roll is already in another dispatch'],
+  rfid_credentials_active_uid: [409, 'CARD_IN_USE', 'This card is already assigned to another worker'],
+  rfid_credentials_active_worker: [409, 'CARD_ALREADY_ASSIGNED', 'This worker already has an active card'],
 };
 
 export function notFoundRoute(req, _res, next) {

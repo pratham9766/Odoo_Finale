@@ -3,7 +3,7 @@
 
 import { createCrud } from '../../utils/crud/index.js';
 
-export const CATEGORIES = ['power', 'maintenance', 'rent', 'salary_staff', 'supplier_bill', 'other'];
+export const CATEGORIES = ['power', 'maintenance', 'rent', 'salary_staff', 'supplier_bill', 'freight', 'other'];
 
 export const expenses = createCrud({
   table: 'expenses', label: 'Expense',

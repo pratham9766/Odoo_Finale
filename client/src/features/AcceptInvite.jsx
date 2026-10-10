@@ -4,12 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Card, Divider, Form, Input, Result, Skeleton } from 'antd';
 import { request } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import { usePageTitle } from '@/lib/title';
 
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const PHONE = /^\+?[0-9 ()-]{7,20}$/;
 
 /** Public page (no login): the person invited by email enters their details and picks a password. */
 export default function AcceptInvite() {
+  usePageTitle('Join your mill');
   const { token } = useParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);

@@ -99,7 +99,7 @@ Supabase Postgres (via Supavisor pooler) + Supabase Storage (files)
 │   │   └── utils/          pdf, csv, email, storage, numbering, money, time …
 │   └── test/
 ├── db/
-│   ├── migrations/         001–018 numbered SQL files, applied once each
+│   ├── migrations/         001–019 numbered SQL files, applied once each
 │   └── seed/               masters + simulated history, run through the real services
 └── docs/                   plans, contracts and verification notes
 ```
@@ -186,6 +186,7 @@ Use the Supavisor pooler hosts (`aws-0-<region>.pooler.supabase.com`). The direc
 | `VITE_API_URL` | API origin, for example `http://localhost:4000`. |
 | `VITE_SUPABASE_URL` | Supabase project URL. |
 | `VITE_SUPABASE_ANON_KEY` | Public anon key. Only this key belongs in the frontend. |
+| `VITE_PASSWORD_RESET_URL` | Public reset-password route registered in Supabase Auth, for example `http://localhost:5173/reset-password`. |
 
 Without the Supabase values, the app shows setup instructions instead of the login screen.
 

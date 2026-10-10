@@ -150,7 +150,7 @@ async function combinedSummary(db, trees) {
 // what the order needs, ignoring the order's own reservations (computed in a rolled-back savepoint)
 export const requirements = (ctx, id) =>
   withTx(async (db) => {
-    const o = await loadOrderRow(db, id);
+    await loadOrderRow(db, id);
     await db.query('savepoint preview');
     try {
       await releaseReservations(db, id);

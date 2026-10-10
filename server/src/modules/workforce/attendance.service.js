@@ -1,15 +1,14 @@
 // Attendance: the supervisor's grid, the today board, the monthly register, OT approval.
 
 import { withTx } from '../../db/tx.js';
-import { bus } from '../../events/bus.js';
 import { isInScope } from '../../middleware/rbac.js';
 import { Filter, assertExists, invalid } from '../../utils/crud/index.js';
 import { AppError } from '../../utils/errors.js';
 import { publish } from '../../utils/publish.js';
-import { resolveShift, shiftWindow } from '../../utils/shifts.js';
+import { shiftWindow } from '../../utils/shifts.js';
 import { todayIST } from '../../utils/time.js';
 import { loadShifts } from '../mill/mill.service.js';
-import { checkInResult, checkOutResult, dayFromTimes } from './attendance.rules.js';
+import { dayFromTimes } from './attendance.rules.js';
 import { buildRegister } from './register.js';
 
 const WORKED = ['present', 'late', 'half_day'];
@@ -49,17 +48,25 @@ export async function saveAttendance(ctx, { date, shift_id: shiftId, entries }) 
     const { rows: [shift] } = await db.query(`select id, name, start_time, end_time, grace_min from shifts where id = $1`, [shiftId]);
     await checkWorkers(db, ctx, entries.map((e) => e.worker_id));
     const { start } = shiftWindow(shift, date);
+    // a card scan already recorded the real arrival time: re-saving the grid without times must not move it to the shift start
+    const { rows: scanned } = await db.query(
+      `select worker_id, check_in, source from attendance
+        where date = $1 and shift_id = $2 and worker_id = any($3::uuid[]) and source <> 'manual' and check_in is not null`,
+      [date, shiftId, entries.map((e) => e.worker_id)]);
+    const scannedBy = new Map(scanned.map((a) => [a.worker_id, a]));
 
     for (const e of entries) {
-      const checkIn = e.check_in ?? (WORKED.includes(e.status) ? start : null);
+      const scan = !e.check_in && WORKED.includes(e.status) ? scannedBy.get(e.worker_id) : undefined;
+      const checkIn = e.check_in ?? scan?.check_in ?? (WORKED.includes(e.status) ? start : null);
       const day = dayFromTimes(shift, date, { check_in: checkIn, check_out: e.check_out, status: e.status });
       await db.query(
-        `insert into attendance (worker_id, date, shift_id, check_in, check_out, worked_hours, late_min, early_leave_min, ot_hours, status, needs_correction)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
+        `insert into attendance (worker_id, date, shift_id, check_in, check_out, worked_hours, late_min, early_leave_min, ot_hours, status, needs_correction, source)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)
          on conflict (worker_id, date, shift_id) do update set check_in = excluded.check_in, check_out = excluded.check_out, worked_hours = excluded.worked_hours,
            late_min = excluded.late_min, early_leave_min = excluded.early_leave_min, ot_hours = excluded.ot_hours, status = excluded.status,
-           needs_correction = case when excluded.check_out is not null then false else attendance.needs_correction end`,
-        [e.worker_id, date, shiftId, day.check_in, day.check_out, day.worked_hours, day.late_min, day.early_leave_min, day.ot_hours, day.status]);
+           needs_correction = case when excluded.check_out is not null then false else attendance.needs_correction end, source = excluded.source`,
+        [e.worker_id, date, shiftId, day.check_in, day.check_out, day.worked_hours, day.late_min, day.early_leave_min, day.ot_hours, day.status,
+          scan?.source ?? 'manual']);
     }
   });
   await publish('attendance.updated', (db) => todayCounts(db, date));

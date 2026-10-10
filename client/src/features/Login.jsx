@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Form, Input } from 'antd';
 import { supabase } from '@/lib/supabase';
 import '@/styles/login.css';
+import { usePageTitle } from '@/lib/title';
 
 /* Symmetrical woven lattice logo icon */
 function LogoWeaveIcon({ size = 28 }) {
@@ -73,8 +74,12 @@ function OrdersDocumentIcon() {
 }
 
 export default function Login({ initialError }) {
+  usePageTitle('Sign in');
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [form] = Form.useForm();
 
   async function submit(values) {
     setBusy(true);
@@ -86,6 +91,24 @@ export default function Login({ initialError }) {
       setError(err.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function resetPassword() {
+    setError(null);
+    setResetSent(false);
+    try {
+      const { email } = await form.validateFields(['email']);
+      setResetting(true);
+      const redirectTo = import.meta.env.VITE_PASSWORD_RESET_URL || `${window.location.origin}/reset-password`;
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (resetError) throw resetError;
+      setResetSent(true);
+    } catch (err) {
+      if (err?.errorFields) return;
+      setError(err.message || 'Could not send the password reset email.');
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -131,7 +154,9 @@ export default function Login({ initialError }) {
                 />
               )}
 
-              <Form layout="vertical" onFinish={submit} requiredMark={false}>
+              {resetSent && <Alert className="mb-4" type="success" showIcon message="Password reset email sent" description="Open the link in that email to choose a new password." />}
+
+              <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
                 <Form.Item
                   name="email"
                   label={<span className="form-label-title">Email address</span>}
@@ -141,7 +166,7 @@ export default function Login({ initialError }) {
                   <Input
                     size="large"
                     prefix={<MailIcon />}
-                    placeholder="admin@dayflow.local"
+                    placeholder="you@yourmill.com"
                     autoComplete="username"
                     className="form-input-pill"
                   />
@@ -163,9 +188,9 @@ export default function Login({ initialError }) {
                 </Form.Item>
 
                 <div className="forgot-password-link-wrapper">
-                  <a href="#forgot" className="forgot-link-text" onClick={e => e.preventDefault()}>
+                  <button type="button" className="forgot-link-text" onClick={resetPassword} disabled={resetting}>
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
 
                 <Button
@@ -209,10 +234,9 @@ export default function Login({ initialError }) {
                   </div>
                   <span className="metric-label-title">Production</span>
                 </div>
-                <div className="metric-highlight-value">24</div>
+                <div className="metric-highlight-value">Plan</div>
                 <div className="metric-footer-part">
-                  <span className="metric-sub-detail">Active lines</span>
-                  <span className="metric-positive-trend">↑ +12%</span>
+                  <span className="metric-sub-detail">Machines and work orders</span>
                 </div>
               </div>
 
@@ -224,10 +248,9 @@ export default function Login({ initialError }) {
                   </div>
                   <span className="metric-label-title">Inventory</span>
                 </div>
-                <div className="metric-highlight-value">428</div>
+                <div className="metric-highlight-value">Trace</div>
                 <div className="metric-footer-part">
-                  <span className="metric-sub-detail">SKUs in stock</span>
-                  <span className="metric-positive-trend">↑ +8%</span>
+                  <span className="metric-sub-detail">Lots, stock and rolls</span>
                 </div>
               </div>
 
@@ -239,16 +262,16 @@ export default function Login({ initialError }) {
                   </div>
                   <span className="metric-label-title">Orders</span>
                 </div>
-                <div className="metric-highlight-value">36</div>
+                <div className="metric-highlight-value">Deliver</div>
                 <div className="metric-footer-part">
-                  <span className="metric-sub-detail">Open orders</span>
-                  <span className="metric-positive-trend">↑ +17%</span>
+                  <span className="metric-sub-detail">Orders through dispatch</span>
                 </div>
               </div>
             </div>
 
             {/* Tablet Mockup with Dashboard Preview */}
-            <div className="tablet-preview-stage">
+            <div className="tablet-preview-stage" aria-label="Illustrative Sameta workspace preview">
+              <div className="preview-caption">Illustrative workspace preview</div>
               <div className="tablet-bezel">
                 <div className="tablet-display-surface">
                   <div className="tablet-inner-nav">

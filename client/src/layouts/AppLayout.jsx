@@ -41,6 +41,7 @@ const NAV = [
   ] },
   { caption: 'PEOPLE', items: [
     { to: '/app/attendance', label: 'Attendance', icon: 'calendar', perms: ['attendance.view'] },
+    { to: '/app/rfid', label: 'RFID attendance', icon: 'clock', perms: ['rfid.view'] },
     { to: '/app/workers', label: 'Workers', icon: 'person', perms: ['workers.view'] },
     { to: '/app/wages', label: 'Wages', icon: 'wallet', perms: ['wages.view'] },
   ] },

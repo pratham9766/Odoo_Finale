@@ -10,7 +10,7 @@ import { columns, pct } from './support.js';
 
 const COLUMNS = columns(
   ['month', 'Month'], ['revenue', 'Revenue'], ['material', 'Raw material'], ['wages', 'Wages'], ['overhead', 'Machine overhead'],
-  ['expenses', 'Expenses'], ['net_profit', 'Net profit'],
+  ['freight', 'Freight'], ['expenses', 'Expenses'], ['net_profit', 'Net profit'],
 );
 
 /** The statement lines of one month, in the order a P&L is read. */
@@ -20,6 +20,7 @@ export function statementOf(m) {
     { line: 'Raw material', amount: -m.material },
     { line: 'Wages', amount: -m.wages },
     { line: 'Machine overhead', amount: -m.overhead },
+    { line: 'Freight', amount: -m.freight },
     { line: 'Expenses', amount: -m.expenses },
     { line: 'Net profit', amount: m.net_profit, total: true },
   ].map((l) => ({ ...l, amount: round2(l.amount) }));
@@ -30,7 +31,7 @@ export default {
   query: z.object({ month: monthString.default(() => currentMonth()) }),
   run: (ctx, { month }) => withTx(async (db) => {
     const { rows } = await db.query(
-      `select month, revenue, material, wages, overhead, expenses, net_profit from v_monthly_pnl order by month`);
+      `select month, revenue, material, wages, overhead, freight, expenses, net_profit from v_monthly_pnl order by month`);
     const chosen = rows.find((r) => String(r.month).slice(0, 7) === month);
     return {
       month, columns: COLUMNS, rows,

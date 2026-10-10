@@ -4,7 +4,6 @@ import { audit } from '../../utils/audit.js';
 import { nextNumber } from '../../utils/numbering.js';
 import { paged, where } from '../../utils/paginate.js';
 import { hidePrices } from '../../middleware/rbac.js';
-import { bus } from '../../events/bus.js';
 
 const PO_STATUS_FLOW = { accept: 'accepted', partial: 'partially_accepted', reject: 'rejected' };
 

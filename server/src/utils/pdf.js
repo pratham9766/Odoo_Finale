@@ -282,6 +282,20 @@ export function rollLabel({ roll, item, order = {}, org = {} }) {
   });
 }
 
+/** Worker QR badge, 86 × 54 mm (standard ID-card size). */
+export function badge({ worker, org = {} }) {
+  const W = 86 * MM, H = 54 * MM, m = 5 * MM, qr = 35 * MM;
+  return render({ size: [W, H], margin: m, info: { Title: `Worker badge ${worker.emp_code}` } }, (doc) => {
+    doc.font('Helvetica-Bold').fontSize(13).text(org.name ?? 'Sameta', m, m, { width: W - 2 * m - qr - 4 * MM });
+    doc.font('Helvetica').fontSize(7).fillColor('#666').text('WORKER ID', { characterSpacing: 1.2 });
+    doc.fillColor('#000').font('Helvetica-Bold').fontSize(12)
+      .text(worker.name, m, 21 * MM, { width: W - 2 * m - qr - 4 * MM, height: 24, ellipsis: true });
+    doc.font('Helvetica').fontSize(9).text(worker.emp_code, m, 34 * MM, { width: W - 2 * m - qr - 4 * MM });
+    if (worker.stage) doc.fontSize(7).fillColor('#555').text(worker.stage, m, 40 * MM, { width: W - 2 * m - qr - 4 * MM, ellipsis: true });
+    drawQr(doc, worker.qr_token, W - m - qr, (H - qr) / 2, qr);
+  });
+}
+
 /**
  * Monthly payslip for one worker.
  * @param {{

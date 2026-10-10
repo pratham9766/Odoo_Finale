@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { dateString, monthString, optionalText, pageQuery, text, uuid } from '../../utils/crud/schema.js';
+import { dateString, monthString, uuid } from '../../utils/crud/schema.js';
 
 const status = z.enum(['present', 'late', 'half_day', 'absent', 'leave', 'weekly_off', 'holiday']);
 const WORKED = ['present', 'late', 'half_day'];

@@ -3,6 +3,7 @@ import { Button, Input, Popconfirm, Select, Space, Table, Tabs, Tag } from 'antd
 import { NoData, PageTitle, QueryState } from '@/components/States';
 import { useSession } from '@/context/Session';
 import { monthISO, todayISO, useAction, useGet } from '@/lib/hooks';
+import { RfidLive } from '@/features/Rfid';
 
 const STATUSES = [
   { value: 'present', label: 'Present' }, { value: 'late', label: 'Late' }, { value: 'half_day', label: 'Half day' }, { value: 'absent', label: 'Absent' },
@@ -131,6 +132,7 @@ export default function Attendance({ floor = false }) {
       <section className="panel">
         <Tabs items={[
           { key: 'today', label: 'Today', children: <Today /> },
+          ...(session.can('rfid.view') ? [{ key: 'rfid', label: 'RFID scans (live)', children: <RfidLive /> }] : []),
           ...(session.can('attendance.mark') ? [{ key: 'mark', label: 'Mark attendance', children: <Mark /> }] : []),
           { key: 'register', label: 'Monthly register', children: <Register /> },
         ]} />

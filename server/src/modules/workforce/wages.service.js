@@ -3,7 +3,7 @@
 
 import { withTx } from '../../db/tx.js';
 import { audit } from '../../utils/audit.js';
-import { createCrud, invalid, omit } from '../../utils/crud/index.js';
+import { createCrud, invalid } from '../../utils/crud/index.js';
 import { AppError } from '../../utils/errors.js';
 import { round2 } from '../../utils/money.js';
 import * as pdf from '../../utils/pdf.js';
@@ -21,15 +21,15 @@ const runs = createCrud({
 const monthFirst = (month) => `${month}-01`;
 
 /** Per worker: the month's days (half day = 0.5), hours, approved OT hours and pieces (production output) — everything grossPay needs. */
-async function monthTotals(db, from, to) {
+export async function monthTotals(db, from, to) {
   const { rows } = await db.query(
     `select w.id, w.wage_type, w.rate, w.ot_rate, w.piece_rate,
             coalesce(sum(case when a.status in ('present', 'late') then 1 when a.status = 'half_day' then 0.5 else 0 end), 0)::float as days,
             count(*) filter (where a.status = 'half_day')::int as half_days,
             coalesce(sum(a.worked_hours), 0)::float as hours,
             coalesce(sum(a.ot_hours) filter (where a.ot_approved), 0)::float as ot_hours,
-            (select coalesce(sum(l.qty), 0)::float from production_logs l where l.worker_id = w.id and l.logged_at >= $2::date and l.logged_at < $3::date) as pieces
-       from workers w left join attendance a on a.worker_id = w.id and a.date >= $2::date and a.date < $3::date
+            (select coalesce(sum(l.qty), 0)::float from production_logs l where l.worker_id = w.id and l.logged_at >= $1::date and l.logged_at < $2::date) as pieces
+       from workers w left join attendance a on a.worker_id = w.id and a.date >= $1::date and a.date < $2::date
       where (w.active or exists (select 1 from attendance x where x.worker_id = w.id and x.date >= $1::date and x.date < $2::date))
       group by w.id order by w.emp_code`, [from, to]);
   return rows;

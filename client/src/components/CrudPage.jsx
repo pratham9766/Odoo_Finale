@@ -11,30 +11,57 @@ export function RemoteSelect({ from, value, onChange, allowClear = true, ...rest
   return <Select showSearch optionFilterProp="label" allowClear={allowClear} loading={q.isLoading} options={options} value={value} onChange={onChange} {...rest} />;
 }
 
-function Control({ field }) {
-  if (field.from) return <RemoteSelect from={field.from} mode={field.multiple ? 'multiple' : undefined} />;
+/** one choice shown as a row of cards (label + short description) instead of a dropdown */
+function ChoiceCards({ options, value, onChange, id }) {
+  return (
+    <div className="choice-cards" role="radiogroup" id={id}>
+      {options.map((o) => (
+        <button key={o.value} type="button" role="radio" aria-checked={value === o.value}
+          className={`choice-card${value === o.value ? ' is-selected' : ''}`} onClick={() => onChange?.(o.value)}>
+          <span className="choice-card-radio" aria-hidden="true" />
+          <span className="choice-card-text"><strong>{o.label}</strong>{o.description && <small>{o.description}</small>}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// `id` and `value`/`onChange` arrive from Form.Item; pass them through so labels and validation stay wired up
+function Control({ field, ...item }) {
+  const text = { placeholder: field.placeholder, autoComplete: field.autoComplete, inputMode: field.inputMode };
+  if (field.from) return <RemoteSelect from={field.from} mode={field.multiple ? 'multiple' : undefined} placeholder={field.placeholder} {...item} />;
   switch (field.type) {
-    case 'textarea': return <Input.TextArea rows={2} />;
-    case 'number': return <InputNumber min={field.min} max={field.max} step={field.step} precision={field.precision} style={{ width: '100%' }} />;
-    case 'select': return <Select allowClear options={field.options} />;
-    case 'switch': return <Switch />;
-    case 'date': return <Input type="date" />;
-    default: return <Input maxLength={field.max} />;
+    case 'choice': return <ChoiceCards options={field.options} {...item} />;
+    case 'textarea': return <Input.TextArea rows={field.rows || 2} maxLength={field.max} showCount={!!field.max} {...text} {...item} />;
+    case 'number': return <InputNumber min={field.min} max={field.max} step={field.step} precision={field.precision} style={{ width: '100%' }} placeholder={field.placeholder} {...item} />;
+    case 'select': return <Select allowClear options={field.options} placeholder={field.placeholder} {...item} />;
+    case 'switch': return <Switch {...item} />;
+    case 'date': return <Input type="date" {...item} />;
+    default: return <Input maxLength={field.max} type={field.inputType} {...text} {...item} />;
   }
 }
+
+const fieldRules = (f) => [
+  ...(f.required ? [{ required: true, whitespace: true, message: `${f.label} is required` }] : []),
+  ...(f.rules || []),
+];
 
 /**
  * One master-data screen: a table plus an add / edit form, driven by config.
  *   path           list endpoint (create posts to it, edit sends to path/:id)
  *   perms          { create, update, remove } permission keys; an action without permission is not shown
  *   updateMethod   PATCH for the generic CRUD routes, PUT for items / contacts / BOMs
- *   fields         [{ name, label, type, required, options, from, help, initial, createOnly }]
+ *   fields         [{ name, label, type, required, options, from, help, initial, createOnly,
+ *                     section, half, placeholder, rules, normalize, max, inputType, inputMode, autoComplete }]
+ *                  type 'choice' shows options ({ value, label, description }) as cards; `section` starts a titled group;
+ *                  `half` puts the field in a two-column row with its neighbour
+ *   formNote       one line under the form title explaining what the record is used for
  *   body           (values, row?) => request body (default: the form values without empty strings)
  *   toForm         (row) => form values when editing
  */
 export default function CrudPage({
   eyebrow = 'SETUP', title, description, path, params, perms = {}, updateMethod = 'PATCH', columns, fields,
-  body, toForm, noun = 'record', search = false, extraActions, embedded = false,
+  body, toForm, noun = 'record', search = false, extraActions, embedded = false, formNote,
 }) {
   const session = useSession();
   const act = useAction();
@@ -85,13 +112,20 @@ export default function CrudPage({
         </QueryState>
       </section>
 
-      <Modal title={isNew ? `Add ${noun}` : `Edit ${noun}`} open={!!editing} onCancel={() => setEditing(null)} onOk={() => form.submit()} okText="Save" confirmLoading={act.isPending} destroyOnClose>
-        <Form form={form} layout="vertical" requiredMark={false} onFinish={submit}>
+      <Modal
+        className="crud-modal" width={600} centered maskClosable={!act.isPending} destroyOnHidden
+        title={<div className="crud-modal-title"><span>{isNew ? `Add ${noun}` : `Edit ${noun}`}</span>{formNote && <small>{formNote}</small>}</div>}
+        open={!!editing} onCancel={() => setEditing(null)} onOk={() => form.submit()}
+        okText={isNew ? `Add ${noun}` : 'Save changes'} confirmLoading={act.isPending}>
+        <Form form={form} layout="vertical" requiredMark="optional" onFinish={submit} className="crud-form" scrollToFirstError>
           {fields.filter((f) => !(f.createOnly && !isNew)).map((f) => (
-            <Form.Item key={f.name} name={f.name} label={f.label} extra={f.help} valuePropName={f.type === 'switch' ? 'checked' : 'value'}
-              rules={f.required ? [{ required: true, message: `${f.label} is required` }] : undefined}>
-              <Control field={f} />
-            </Form.Item>
+            <div key={f.name} className={f.half ? 'crud-field is-half' : 'crud-field'}>
+              {f.section && <h3 className="crud-section">{f.section}</h3>}
+              <Form.Item name={f.name} label={f.label} extra={f.help} valuePropName={f.type === 'switch' ? 'checked' : 'value'}
+                rules={fieldRules(f)} normalize={f.normalize} validateFirst>
+                <Control field={f} />
+              </Form.Item>
+            </div>
           ))}
         </Form>
       </Modal>

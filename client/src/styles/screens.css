@@ -297,3 +297,75 @@ a.task-row:hover, a.activity-row:hover { background: #F6F4EE; color: var(--c-ink
   .quick-tile, .task-row, .activity-row, .dashboard .kpi, .dash-alert { transition: none; }
   a.quick-tile:active, .dashboard a.kpi:hover { transform: none; }
 }
+
+/* ---------- add / edit form (CrudPage) ---------- */
+.crud-modal .ant-modal-content { padding: 0; border-radius: 16px; overflow: hidden; background: #fff; }
+.crud-modal .ant-modal-header { margin: 0; padding: 22px 24px 18px; background: var(--bg-app); border-bottom: 1px solid #ECE8DE; }
+.crud-modal .ant-modal-close { top: 20px; inset-inline-end: 18px; }
+.crud-modal-title { display: flex; flex-direction: column; gap: 4px; padding-right: 28px; }
+.crud-modal-title > span { font-family: var(--font-serif); font-size: 24px; font-weight: 650; line-height: 1.2; color: var(--c-ink); }
+.crud-modal-title small { font-size: 13px; font-weight: 400; line-height: 1.45; color: var(--text-secondary); }
+.crud-modal .ant-modal-body { padding: 20px 24px 4px; max-height: min(64vh, 620px); overflow-y: auto; }
+.crud-modal .ant-modal-footer { margin: 0; padding: 14px 24px; border-top: 1px solid #ECE8DE; background: #FCFBF8; display: flex; justify-content: flex-end; gap: 8px; }
+.crud-modal .ant-modal-footer .ant-btn { height: 40px; padding: 0 18px; border-radius: 10px; font-weight: 600; }
+.crud-modal .ant-modal-footer .ant-btn + .ant-btn { margin-inline-start: 0; }
+
+.crud-form { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+.crud-field { grid-column: 1 / -1; min-width: 0; }
+.crud-field.is-half { grid-column: span 1; }
+/* a section heading on a half-width field spans the row so its neighbour lines up beneath it */
+.crud-field.is-half:has(> .crud-section) { display: contents; }
+.crud-field.is-half:has(> .crud-section) > .crud-section { grid-column: 1 / -1; }
+.crud-section {
+  display: flex; align-items: center; gap: 10px;
+  margin: 6px 0 12px; font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--c-mauve-primary);
+}
+.crud-section::after { content: ""; flex: 1; height: 1px; background: #ECE8DE; }
+.crud-form .ant-form-item { margin-bottom: 16px; }
+.crud-form .ant-form-item-label > label { font-size: 13px; font-weight: 600; color: var(--c-ink); }
+.crud-form .ant-form-item-label > label .ant-form-item-optional { font-weight: 400; color: var(--text-muted); }
+.crud-form .ant-input, .crud-form .ant-input-number, .crud-form .ant-select-single .ant-select-selector { border-radius: 10px !important; }
+.crud-form .ant-input:not(textarea), .crud-form .ant-input-number-input, .crud-form .ant-select-single:not(.ant-select-sm) { min-height: 40px; }
+.crud-form .ant-select-single .ant-select-selector { align-items: center; }
+.crud-form .ant-input::placeholder, .crud-form textarea::placeholder { color: #A8AFA9; }
+
+/* card-style choice (e.g. Buyer / Supplier) */
+.choice-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.choice-card {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px; text-align: left;
+  border: 1px solid #E5E0D3; border-radius: 12px; background: #fff; cursor: pointer; font: inherit; color: var(--c-ink);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+.choice-card:hover { border-color: var(--c-gold-bright); }
+.choice-card:focus-visible { outline: 2px solid var(--c-gold-bright); outline-offset: 2px; }
+.choice-card.is-selected { border-color: var(--c-navy-deep); background: #F1F6F3; box-shadow: inset 0 0 0 1px var(--c-navy-deep); }
+.choice-card-radio { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 2px solid #C9CFCA; transition: border 160ms ease; }
+.choice-card.is-selected .choice-card-radio { border: 5px solid var(--c-navy-deep); }
+.choice-card-text { display: flex; flex-direction: column; gap: 2px; }
+.choice-card-text strong { font-size: 14px; font-weight: 700; }
+.choice-card-text small { font-size: 12px; line-height: 1.35; color: var(--text-secondary); }
+.ant-form-item-has-error .choice-card { border-color: var(--danger); }
+
+@media (max-width: 560px) {
+  .crud-form { grid-template-columns: minmax(0, 1fr); }
+  .crud-field.is-half { grid-column: 1 / -1; }
+  .crud-modal .ant-modal-header, .crud-modal .ant-modal-footer { padding-inline: 16px; }
+  .crud-modal .ant-modal-body { padding-inline: 16px; }
+  .crud-modal .ant-modal-footer .ant-btn { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .choice-card, .choice-card-radio { transition: none; }
+}
+
+/* RFID attendance: virtual scanner */
+.rfid-scanner { margin-bottom: 16px; border-style: dashed; }
+.rfid-scanner-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.rfid-scan-buttons { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.rfid-scan-buttons .ant-btn { height: auto; min-height: 64px; padding: 10px 12px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; white-space: normal; text-align: left; }
+.rfid-btn-title { font-weight: 600; }
+.rfid-btn-uid { font-family: monospace; font-size: 12px; color: var(--text-muted); }
+.rfid-feedback { display: grid; gap: 8px; margin-top: 12px; }
+.rfid-note { font-size: 12px; color: var(--text-muted); margin: 4px 0 12px; }
+@media (max-width: 640px) {
+  .rfid-scan-buttons { grid-template-columns: 1fr; }
+}

@@ -15,7 +15,7 @@ const getRole = async (db, id) => must((await db.query('select * from roles wher
 
 // ---------- staff + invites ----------
 
-export const listStaff = (ctx) =>
+export const listStaff = (_ctx) =>
   withTx(async (db) => {
     const { rows: members } = await db.query(
       `select p.id, p.email, p.full_name, p.phone, p.address, p.city, p.emergency_contact, p.status, p.scope, p.reports_to,
@@ -133,10 +133,10 @@ export const patchMember = (ctx, id, patch) =>
 
 // ---------- roles + permissions ----------
 
-export const listPermissions = (ctx) =>
+export const listPermissions = (_ctx) =>
   withTx(async (db) => (await db.query('select * from permissions order by domain, key')).rows);
 
-export const listRoles = (ctx) =>
+export const listRoles = (_ctx) =>
   withTx(async (db) => {
     const { rows } = await db.query(
       `select r.id, r.name, r.rank, r.is_system,

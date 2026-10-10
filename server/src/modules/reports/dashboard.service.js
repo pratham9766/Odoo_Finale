@@ -20,7 +20,7 @@ async function production(db, ctx, today) {
 }
 
 /** Orders by risk, and the ones that need attention first. */
-async function orders(db, ctx) {
+async function orders(db, _ctx) {
   const { rows: counts } = await db.query(
     `select coalesce(risk, 'green') as risk, count(*)::int as n from orders where status = any($1) group by 1`, [IN_PROGRESS]);
   const { rows: attention } = await db.query(

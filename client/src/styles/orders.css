@@ -77,7 +77,7 @@
 /* 4 KPI Summary Cards */
 .kpi-summary-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   margin-bottom: 24px;
 }
@@ -192,15 +192,18 @@
 }
 
 /* Two-Column Orders Layout */
+/* minmax(0, 1fr): the register may shrink below the table's width (the table scrolls inside it)
+   instead of pushing the page wider than the window */
 .orders-main-split {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 25%, 340px);
   gap: 22px;
   align-items: start;
 }
 
 /* Left Column: Order Register */
 .order-register-panel {
+  min-width: 0;
   background: #ffffff;
   border: 1px solid #eef0f3;
   border-radius: 14px;
@@ -276,6 +279,7 @@
 
 /* Table Specific Cell Styles */
 .order-id-link {
+  white-space: nowrap;
   font-weight: 700;
   color: #111827 !important;
   letter-spacing: -0.2px;
@@ -494,6 +498,7 @@
 
 /* Right Column: Widgets */
 .orders-widgets-column {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -775,16 +780,25 @@
 /* Responsive adjustments */
 @media (max-width: 1280px) {
   .kpi-summary-row {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* below this the register needs the full width; the widgets wrap underneath it */
+@media (max-width: 1440px) {
   .orders-main-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .orders-widgets-column {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    align-items: start;
   }
 }
 
 @media (max-width: 768px) {
   .kpi-summary-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .orders-page-header {
     flex-direction: column;
@@ -798,4 +812,10 @@
     max-width: none;
     width: 100%;
   }
+}
+
+/* tighter horizontal cell padding so all register columns fit beside the widgets on laptop screens */
+.order-register-panel .ant-table-thead > tr > th,
+.order-register-panel .ant-table-tbody > tr > td {
+  padding-inline: 10px;
 }

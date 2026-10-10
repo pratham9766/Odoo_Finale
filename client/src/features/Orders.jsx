@@ -6,6 +6,7 @@ import { useSession } from '@/context/Session';
 import { NoData, QueryState } from '@/components/States';
 import { date, quantity } from '@/lib/format';
 import '@/styles/orders.css';
+import { usePageTitle } from '@/lib/title';
 
 /* Helper to get buyer initials for the avatar circle */
 function getInitials(name) {
@@ -106,6 +107,7 @@ function formatPriority(priority) {
 }
 
 export default function Orders() {
+  usePageTitle('Orders');
   const session = useSession();
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get('page')) || 1);
@@ -489,7 +491,7 @@ export default function Orders() {
                   <NoData description="No orders match this view. Create an order to get started." />
                 ),
               }}
-              scroll={{ x: 800 }}
+              scroll={{ x: 760 }}
               pagination={{
                 current: page,
                 pageSize: 25,

@@ -669,6 +669,16 @@ nav a.active svg {
   border-color: #2B5242 !important;
 }
 
+/* disabled primary buttons must still read as a prompt ("Select shift"), not a blank dark block */
+.ant-btn-primary:disabled,
+.ant-btn-primary:disabled:hover {
+  background: #ECE8DE !important;
+  border-color: #DDD7C9 !important;
+  color: #5F6B63 !important;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .ant-btn-default {
   border-color: var(--border-main) !important;
   color: var(--c-navy-deep) !important;

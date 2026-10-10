@@ -47,7 +47,7 @@ export const listMovements = (ctx, q) =>
     return { data: rows, meta };
   });
 
-export const finishedStock = (ctx) =>
+export const finishedStock = (_ctx) =>
   withTx(async (db) => (await db.query('select * from v_finished_stock order by created_at')).rows);
 
 // ---------- goods receipts (GRN) ----------
