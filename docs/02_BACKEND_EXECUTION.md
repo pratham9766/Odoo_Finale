@@ -29,6 +29,7 @@
 19. [Deployment](#19-deployment)
 20. [Phase checklist](#20-phase-checklist)
 21. [Security checklist](#21-security-checklist)
+22. [Backend team split (Vipul + Hrishikesh)](#22-backend-team-split-vipul--hrishikesh)
 
 ---
 
@@ -2835,6 +2836,8 @@ Manual checklist before demo: every portal login works, socket updates appear on
 
 ## 20. Phase checklist
 
+> Who owns each item: see [§22 Backend team split](#22-backend-team-split-vipul--hrishikesh). The build order there replaces the phase order below for the backend.
+
 ### Phase 0 — Setup
 - [ ] `server/` initialised, ESM, scripts, lint
 - [ ] Supabase project, buckets, auth settings
@@ -2912,3 +2915,112 @@ Manual checklist before demo: every portal login works, socket updates appear on
 - [ ] Socket events carry no confidential fields
 - [ ] Confidential fields stripped in API responses without 🔒 permissions
 - [ ] AI SQL passes the guard, runs read-only with timeout, and the result is treated as data
+
+---
+
+## 22. Backend team split (Vipul + Hrishikesh)
+
+Two people build the whole backend. This section replaces the backend part of the four-person split in [01_OVERALL_PLAN.md §19](01_OVERALL_PLAN.md#19-team-split).
+
+| Member | Role | One-line ownership |
+|---|---|---|
+| **Vipul** | Backend lead | Platform foundation, security, tenancy, the order → stock → purchase chain, B2B partners and transport, status engine, realtime, AI, deployment, code review |
+| **Hrishikesh** | Backend developer | Factory floor: settings and masters, production, maintenance, QC and trace, dispatch and invoice, attendance and wages, finance, reports, PDFs, cron jobs, seed simulation |
+
+**Main idea:** build the full mill flow first, with offline buyers and suppliers stored as `contacts` (all six PDF scenes). Add the connected B2B portals (buyer, supplier, transporter) and AI after that. If time runs out, the demo still covers every PDF scene.
+
+### 22.1 Ownership by module
+
+Each person owns these folders and files. The owner writes the code; the other person changes them only through a PR the owner reviews.
+
+| Area | Vipul (lead) | Hrishikesh |
+|---|---|---|
+| Setup | `server/` skeleton, `config/env.js`, `app.js`, `index.js`, `modules/index.js` (router mount), `db/migrate.js`, Supabase project, buckets, DB roles | — |
+| DB core | `db/pool.js`, `db/aiPool.js`, `db/withTenant.js` | — |
+| Middleware | `auth`, `tenant`, `rbac` (`can`, `inScope`, `requireOrgType`, `requireModule`, `hidePrices`), `validate`, `errorHandler`, `rateLimit` | — |
+| Utils | `errors.js`, `numbering.js`, `audit.js`, `paginate.js`, `otp.js`, `storage.js` | `pdf.js`, `email.js`, `textile.js`, `money.js` |
+| Events / realtime | `events/bus.js`, `listeners/index.js`, `statusEngine.js`, `notifier.js`, `socketEmitter.js`, `inventoryReactions.js`, `realtime/socket.js` | `dispatchReactions.js`, `attendanceReactions.js` |
+| Migrations | `001`, `002`, `003`, `004`, `005`, `006`, `012`, `013`, `014`, `016`, `017` | `007`, `008`, `009`, `010`, `011`, `015` |
+| Modules | `auth` (`/me`), `staff`, `partners`, `catalog` (items, BOM, explode, convert), `inventory`, `procurement`, `orders`, `transport`, `public`, `platform`, `notifications`, `ai` | `orgs` (settings: stages, stage losses, shifts, defect types, warehouses), `production`, `maintenance`, `quality`, `gate`, `dispatch`, `workforce` (workers, kiosk, attendance, leave, wages), `finance`, `reports` |
+| Jobs | `jobs/index.js` (scheduler), `insights.js` | `lowStock.js`, `deadlineRisk.js`, `overduePayments.js`, `absentAlerts.js`, `missingCheckout.js`, `unmovedStock.js` |
+| Seed | `defaultRoles.js` (role → permission bundles) | `db/seed/*` (seed v1 + 90-day simulation), `reset.js` |
+| Tests | `rls.test.js`, `rbac.test.js`, `bom.test.js`, `status.test.js`, `sqlGuard.test.js` | `dispatch.test.js`, `attendance.test.js` |
+
+### 22.2 Contracts between the two (agree on Day 1)
+
+Hrishikesh's modules call these functions from Vipul's code. Agree on the signatures first. Vipul ships stubs on Day 1 so Hrishikesh is not blocked.
+
+| Function | Owner | Used for |
+|---|---|---|
+| `withTenant(ctx, fn)`, `withSystem(orgId, fn)` | Vipul | Every service |
+| `can(...)`, `inScope(kind, pick)`, `isInScope(ctx, kind, id)`, `hidePrices(ctx, row)` | Vipul | Every route; scope filters on board, work orders, attendance |
+| `validate({ body, query, params })` → data in `req.valid` | Vipul | Every route |
+| `nextNumber(db, orgId, prefix)`, `audit(db, ctx, {...})` | Vipul | WO, TKT, ROLL, DSP, INV numbers; audit on overrides and wage approvals |
+| `bus.emit(event, payload)` (after commit) | Vipul | `workorder.*`, `production.logged`, `machine.breakdown`, `roll.created`, `qc.done`, `dispatch.confirmed`, `attendance.*`, `payment.recorded` |
+| `emitTo(room, event, data)` | Vipul | `machine.updated`, `qc.queue_changed`, `attendance.updated` |
+| `recomputeOrderStatus(sellerOrgId, orderId)` | Vipul | Triggered by Hrishikesh's events; not called directly |
+| `inventory.issueForWorkOrder(db, ctx, { workOrderId, orderId, items })` → `material_issues` rows | Vipul | Work order start (FIFO from reservations) |
+| `inventory.produce(db, ctx, { itemId, qty, lotNo, refType, refId })` | Vipul | Work order finish (WIP lot), scrap on QC reject |
+| `explode(db, itemId, qty, opts)` | Vipul | `POST /orders/:id/plan`: Hrishikesh's production module creates work orders from the tree |
+| `notify(db, { orgId, userId?, requiredPermission?, type, title, body, link })` | Vipul | Absent alerts, breakdowns, overdue invoices |
+| `pdf.invoice()`, `pdf.packingList()`, `pdf.rollLabel()`, `pdf.badge()`, `pdf.payslip()` | Hrishikesh | Vipul's transport module (freight invoice PDF) |
+| `email.send({ to, template, data })` | Hrishikesh | Vipul's staff invite, partner invite, order status emails |
+
+Also agree on the JSON shape of each endpoint with the frontend team before building (see [§10](#10-api-reference)).
+
+### 22.3 Build order and parallel tracks
+
+Both people work at the same time. **Sync** rows are points where both must finish before moving on.
+
+| Step | Vipul (lead) | Hrishikesh | Done when |
+|---|---|---|---|
+| **0. Setup** | Repo skeleton, env, `migrate.js`, Supabase project, buckets, `app_user` / `ai_reader`, `/health` deployed; apply the pre-coding fixes in [§22.6](#226-pre-coding-fixes-vipul-step-0) | Write SQL for `007` (production, maintenance), `008` (quality), `010` (workforce); `utils/textile.js` (conversions from overall plan §12.4); `pdf.js` skeleton | `/health` live and connected to the DB as `app_user` |
+| **1. Foundation** | Migrations `001`–`003`, `013`, `014`, `016`, `017`; `withTenant`, all middleware; `/me`, `/me/orgs` (list, create with default roles), `/me/orgs/:id/context`; staff invites + rank rule; roles CRUD; audit log; contract stubs from §22.2 | `orgs` module: `/org`, `/org/modules`, stages, stage losses, shifts, defect types, warehouses CRUD (on Vipul's stubs); `email.js` with console fallback | `rls.test.js` and `rbac.test.js` pass |
+| **🔄 Sync 1** | Review Hrishikesh's settings module; merge to `dev` | Rebase on the real middleware | Two orgs isolated; scoped supervisor sees only their scope |
+| **2. Masters** | Migration `004`; items + BOM CRUD; `explode()` with stock netting; `/bom/explode`, `/bom/convert`; `bom.test.js` | Machines CRUD, workers CRUD with `qr_token`, kiosk devices; **seed v1** (Everest, second mill, 2–3 buyer / supplier / transporter contacts, demo users, all masters) | Everest fully configured from the seed; 1-shirt BOM gives ≈ 387 g fibre |
+| **3. Stock + orders** | Migrations `005`, `006`; stock views; GRN draft → post; orders (mill side, offline buyer): create, get, requirements, confirm (reserve FIFO or `waiting_material`), cancel; POs to offline suppliers; `issueForWorkOrder`, `produce`; bus + status engine v1; notifier | Low-stock job; `POST /orders/:id/plan` → work orders per stage; assignments; work order service skeleton (uses `issueForWorkOrder`) | Order → shortage → PO → GRN → order turns `material_ready` automatically |
+| **4. Production** | `realtime/socket.js` (org / order / user rooms); `socketEmitter` listener; status engine v2 (in_production, progress %, ETA, risk) | Work order start / log / pause / resume / finish (WIP lot, waste); breakdown → ticket → resolve; `machine_events` downtime; `/production/board` (scope-filtered); `deadlineRisk` job; emit events | Operator logs → board, order % and buyer view update live in a second browser |
+| **🔄 Sync 2** | End-to-end test: order → plan → production | Same | Production flow green on seed data |
+| **5. QC + trace** | Status engine v3 (in_qc, ready_to_ship); `public` module (`/public/track/:token`, tracking link) | Migration `008`; `POST /rolls` with genealogy; roll label PDF; QC queue, inspections, pass / rework / reject, override; `/rolls/:rollNo/trace`; QC views | Rejected roll traces to machine, shift, worker, yarn lot, supplier |
+| **6. Dispatch** | Status engine v4 (partially_dispatched, dispatched, delivered); review `scanRoll` for race conditions | Migrations `009` (dispatch tables) + `011`; create dispatch, scan, remove roll, confirm; invoice from scanned rolls; invoice + packing-list PDFs; mill-side dispatch status; `dispatch.test.js` | Duplicate scan blocked (`ROLL_ALREADY_DISPATCHED`); invoice qty = roll lengths |
+| **7. Attendance + wages** | Partners module: connect code, email invite, accept / reject / block, contacts, `/partners/:orgId/catalog` | Kiosk punch, supervisor bulk grid, today board, register, corrections, leave, OT approval; absent + missing-checkout jobs; wage run prepare → approve → pay, payslip; `attendance.test.js` | Kiosk punch → today board → absent alert |
+| **8. Finance + reports** | Buyer-placed orders (`REQ-` → `ORD-`), buyer view with prices hidden; supplier side: PO respond, supplier dispatch with lots | Payments, expenses, receivables / payables; migration `015` (all views); report endpoints + CSV; `/reports/dashboard`; overdue + unmoved-stock jobs | P&L ties out to invoices, material issues, wages and expenses |
+| **🔄 Sync 3 (core done)** | Full demo dry run of all six PDF scenes | Same | ⭐ flow runs end to end with seed data |
+| **9. B2B + transport** | Transport module: trips, fleet, driver status, OTP delivery (hashed, lock after 5 tries), freight invoice → order cost; platform admin routes | Gate module (entries, `/gate/expected`, GRN pre-filled from supplier dispatch); buyer receive endpoint | Buyer → supplier → transporter → gate → GRN works across orgs |
+| **10. Seed v2** | Review consistency checks; run status engine + insights at the end | 90-day simulation that calls the real service functions; planted patterns (overall plan §20); consistency checks | Dashboards look real; checks pass |
+| **11. AI** | `aiPool`, view → permission map, `sqlGuard` + test, chat service, history, rate limit, insight rules job | Verify the 10 demo questions against seed data; fix view columns the AI needs | 10 demo questions answered correctly |
+| **12. Polish** | Security checklist (§21), rate limits, deployment, demo reset run | Error messages, PDFs on phone, demo reset script, Postman / Bruno collection | Demo runs cleanly 3 times in a row |
+
+Rough size: about 7 working days each. The steps are balanced so neither person waits on the other for long.
+
+### 22.4 If time is short (cut in this order)
+
+1. Transporter portal + driver app (Vipul): keep vehicle / driver fields on the dispatch.
+2. Gate module (Hrishikesh).
+3. Supplier portal (Vipul): keep offline suppliers as contacts.
+4. AI chat (Vipul): keep insight cards with template text.
+5. Leave, corrections, payslip PDF (Hrishikesh).
+6. 90-day seed (Hrishikesh): use a 2-week seed instead.
+
+**Never cut:** RLS isolation, BOM explosion, live machine board, QC with trace, scan-to-dispatch with duplicate block, order cost and P&L.
+
+### 22.5 Working rules for the pair
+
+- **Branches:** `main` (always demo-able) ← `dev` ← `vipul/<domain>` and `hrishikesh/<domain>`. Small PRs into `dev`.
+- **Reviews:** Vipul reviews every PR from Hrishikesh. Hrishikesh reviews Vipul's PRs that touch the shared contracts (§22.2) or migrations he depends on.
+- **Migrations:** each person edits only their own numbered files (§22.1). A new table after a file is merged goes into a **new** file (`018_...`, `019_...`); say in chat which number you are taking.
+- **Shared files** (`app.js`, `modules/index.js`, `017_seed_permissions.sql`, `defaultRoles.js`, the event catalog in §12) are owned by Vipul. Hrishikesh adds his lines in his PR; Vipul merges.
+- **New permission or event:** add it to §6.5 / §12 of this doc in the same PR.
+- **Definition of done:** route + zod validation + permission check + scope filter where needed + RLS-safe (runs inside `withTenant`) + event emitted after commit + works on seed data + added to the API collection.
+- **Daily 15-minute sync:** what was merged, what is blocked, is the end-to-end flow still green?
+
+### 22.6 Pre-coding fixes (Vipul, Step 0)
+
+Fix these in the code (and in this doc) before building on them:
+
+1. **Express 5:** `req.query` is read-only. `validate()` must write to `req.valid = { body, query, params }`, not `req[part]`. Express 5 also forwards async errors, so controllers do not need `try/catch`.
+2. **zod v4:** use `z.flattenError(err)` instead of `err.flatten()` (or pin `zod@3`).
+3. **`/me/orgs`:** the `roles` RLS hides other orgs' roles when no org is set. Add a SECURITY DEFINER function `my_orgs(p_user uuid)` in `014_functions.sql` that returns org, role name, rank and types.
+4. **AI and trips:** add `select` policies for `ai_reader` on `trips` and `trip_events`; otherwise `v_trip_status` is always empty for the AI.
+5. **`list_active_orgs()`:** define it in `014_functions.sql`; every cron job needs it.
+6. **Cron on free hosting:** free Render instances sleep. Use Railway or a paid instance, or add a platform-admin route `POST /admin/jobs/:name/run` to trigger jobs before the demo.
