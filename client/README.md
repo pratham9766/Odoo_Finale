@@ -1,22 +1,32 @@
 # Sameta frontend
 
-Member B foundation: React/Vite/JavaScript with Ant Design, Tailwind utilities, Router and TanStack Query. See `../docs/04_HACKATHON_DELIVERY.md` for team scope and `../docs/05_FRONTEND_CONTRACT.md` for required API response shapes.
+React 18 + Vite single-page app for Sameta. See the [main README](../README.md) for the full setup, architecture and environment variables.
 
 ## Run
 
-1. Use Node 22.12 or newer; `npm ci` in this directory after the lockfile exists.
-2. Copy `.env.example` to `.env.local`; set your public Supabase URL/anon key and API origin. Never use a service role key in frontend variables.
-3. `npm run dev` then open http://localhost:5173.
-4. `npm test` and `npm run build` for local verification.
+```bash
+cp .env.example .env.local   # set VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+npm install
+npm run dev                  # http://localhost:5173
+```
 
-Without credentials the application displays setup instructions. With credentials it uses Supabase sign-in and live backend requests. There is no fake data fallback. Backend must implement the documented endpoints and seed a manufacturer membership, permissions, buyer contacts and items before the workflow can be exercised.
+Requires Node 22.12+. Only the public Supabase anon key belongs here; the service role key stays on the server.
 
-## Delivered screens
+## Structure
 
-Login, organization switching, permission gates, responsive shell, order search/filter/pagination, draft order form, order detail/confirm, paginated stock with low-stock highlights, machine board polling. Query keys isolate user/organization and requests capture the tenant header explicitly. Unauthorized HTTP responses are displayed; server permissions remain authoritative.
+- `src/main.jsx`: routes. `/invite/staff/:token` and `/track/:token` are public; everything under `/app` needs a signed-in staff member.
+- `src/context/Session.jsx`: Supabase session, then `GET /me/access` for the mill, role and permissions.
+- `src/layouts/AppLayout.jsx`: office layout with the sidebar navigation, filtered by permission. `FloorLayout.jsx` is the tablet layout for floor roles.
+- `src/features/`: one component per screen.
+- `src/lib/api.js`: fetch wrapper for `/api/v1` with the token, a 15 s timeout and a typed `ApiError`.
 
-## Remaining work
+## Checks
 
-DB/API integration and persistence proof; receipt entry, production mutation, QC, dispatch, costing/finance, buyer portal and deployment. This frontend alone does not satisfy the full project acceptance criteria. QR, charts, realtime sockets and AI are deferred until their core screens exist.
+```bash
+npm test
+npm run build
+```
 
-Vercel: root `client`, build `npm run build`, output `dist`; SPA rewrite included. Set API/Supabase environment variables and backend CORS/auth redirect URLs to deployed origins.
+## Deploy (Vercel)
+
+Root `client`, build `npm run build`, output `dist`. `vercel.json` rewrites every route to `index.html`. Set the three `VITE_*` variables, and set the server's `CLIENT_URL` to the deployed origin.
