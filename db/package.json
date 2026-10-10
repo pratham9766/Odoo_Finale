@@ -1,0 +1,6 @@
+{
+  "name": "texlink-db",
+  "private": true,
+  "type": "module",
+  "description": "Migrations and seed. Dependencies resolve from ../server/node_modules."
+}

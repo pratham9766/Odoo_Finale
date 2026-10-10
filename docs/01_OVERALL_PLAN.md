@@ -6,6 +6,7 @@
 > Related docs:
 > - [02_BACKEND_EXECUTION.md](02_BACKEND_EXECUTION.md) — Node.js + Express + Supabase PostgreSQL execution plan
 > - [03_FRONTEND_EXECUTION.md](03_FRONTEND_EXECUTION.md) — React + Vite execution plan
+> - [04_MOBILE_APP_EXECUTION.md](04_MOBILE_APP_EXECUTION.md) — React Native (Expo) app for buyers, suppliers, transporters, drivers, floor staff and owners
 
 ---
 
@@ -267,6 +268,8 @@ Cron (daily) → insight SQL rules → Claude writes 1–2 lines → ai_insights
 | Storage | Supabase Storage |
 | AI | Claude API via `@anthropic-ai/sdk` (model `claude-opus-5-5`; `claude-sonnet-5-5` if cost matters) |
 | Email | Resend or Nodemailer |
+| Mobile app | Expo (React Native, JavaScript), Expo Router, React Native Paper, TanStack Query (persisted), expo-camera, expo-notifications, offline action queue |
+| Shared code | `packages/shared` (npm workspaces): API functions, query keys, status labels, formatters, permissions, textile maths |
 | Seed data | `@faker-js/faker` (en_IN) + custom 90-day simulation |
 | Deploy | Vercel (FE), Render/Railway (BE), Supabase (DB) |
 | Tooling | ESLint, Prettier, Git (main / dev / feature branches), Postman / Bruno collection |
@@ -842,6 +845,7 @@ INVOICE      unpaid → partial → paid ; overdue (past due date)
 | Transport / Driver | `/transport/*`, `/driver/*` | PortalLayout / DriverLayout | Desktop / phone | Transporter, driver |
 | Platform admin | `/admin/*` | AdminLayout | Desktop | TexLink team |
 | Public tracking | `/track/:token` | Minimal | Phone | Anyone with the link |
+| **Mobile app** (React Native) | App tabs per experience | Bottom tabs | Android / iOS | Buyer, supplier, transporter, driver, mill floor, owner (lite) — see [04_MOBILE_APP_EXECUTION.md](04_MOBILE_APP_EXECUTION.md) |
 
 After login: pick org (or auto-select) → portal chosen by org type + role (operator → `/floor/machine`, driver → `/driver/trips`, buyer → `/buyer/orders`).
 
@@ -867,6 +871,8 @@ Full routes, components and screen specs: see [03_FRONTEND_EXECUTION.md](03_FRON
 | 11. Polish + demo | States, mobile QA, notifications, demo accounts, script, backup video, README | Demo runs cleanly 3 times in a row |
 
 **Rule:** don't start ➕ features until the ⭐ flow runs end to end with seed data.
+
+**Mobile app (M0–M7):** starts after web Phases 0–7 work, because it reuses the same APIs. Order if time is short: shell → driver + transporter → buyer → floor (operator, QC) → supplier → owner lite. Details: [04_MOBILE_APP_EXECUTION.md](04_MOBILE_APP_EXECUTION.md) §19.
 
 ---
 
