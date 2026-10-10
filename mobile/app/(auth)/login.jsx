@@ -88,10 +88,6 @@ export default function LoginScreen() {
             </Button>
 
             <View style={styles.footer}>
-              <Text variant="bodyMedium">New to SAMETA? </Text>
-              <Link href="/signup" asChild>
-                <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Create account</Text>
-              </Link>
             </View>
             
             <Text variant="bodySmall" style={styles.tagline}>
