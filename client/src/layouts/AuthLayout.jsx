@@ -21,10 +21,10 @@ export default function AuthLayout() {
             </div>
           </div>
           <h1 className="text-white text-4xl font-bold leading-tight mb-4">
-            Every partner connected.<br />Every order in view.
+            Every order in view.<br />Every roll accounted for.
           </h1>
           <p className="text-white/60 text-lg leading-relaxed">
-            One platform connecting vendors, customers, and commerce.
+            One system for the whole mill, from yarn to dispatch.
           </p>
         </div>
 
@@ -34,7 +34,7 @@ export default function AuthLayout() {
             'Live machine board & production logs',
             'Roll-level QC & full traceability',
             'Validated scan-to-dispatch',
-            'Buyer live status & OTP delivery',
+            'Buyer order tracking link',
             'Cost per order & monthly P&L',
           ].map(f => (
             <div key={f} className="flex items-center gap-3">

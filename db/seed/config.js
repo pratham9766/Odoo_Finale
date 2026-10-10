@@ -137,12 +137,9 @@ export const PROFILE = {
       { type: 'supplier', name: 'Dyechem Industries', city: 'Ahmedabad', phone: '+91 98790 66006', email: 'orders@dyechem.demo', gstin: '24AAACD6677P1Z9', address: 'Naroda GIDC' },
     ],
     // scope names are resolved to ids; empty / missing scope = the whole mill
+    // the only login: the owner. Everyone else is invited by email from Settings → Staff, with roles the owner creates.
     users: [
-      { email: 'owner@everest.demo', name: 'Ravi Mehta', role: 'Owner' },
-      { email: 'office@everest.demo', name: 'Sneha Kulkarni', role: 'Office' },
-      { email: 'store@everest.demo', name: 'Dilip Rathod', role: 'Store Keeper' },
-      { email: 'supervisor@everest.demo', name: 'Mahesh Patil', role: 'Supervisor' },
-      { email: 'operator@everest.demo', name: 'Anil Kumar', role: 'Operator', scope: { machines: ['W-3'] }, worker: 'Anil Kumar' },
-      { email: 'qc@everest.demo', name: 'Imran Sheikh', role: 'QC Inspector' },
+      { email: 'owner@everest.demo', name: 'Ravi Mehta', role: 'Owner',
+        phone: '+91 98765 43210', address: 'Plot 14, Textile Park, MIDC', city: 'Ichalkaranji' },
     ],
 };

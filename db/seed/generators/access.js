@@ -22,9 +22,10 @@ export async function seedAccess(db, profile, ids, { createUser, createDefaultRo
     if (!roleId) throw new Error(`Role "${u.role}" (for ${u.email}) does not exist. Roles created: ${[...roles.keys()].join(', ')}`);
     const userId = await createUser({ email: u.email, fullName: u.name });
     await db.query(
-      `insert into profiles (id, email, full_name, role_id, scope) values ($1, $2, $3, $4, $5)
-       on conflict (id) do update set email = excluded.email, full_name = excluded.full_name, role_id = excluded.role_id, scope = excluded.scope`,
-      [userId, u.email, u.name, roleId, JSON.stringify(resolveScope(u.scope, ids))]);
+      `insert into profiles (id, email, full_name, phone, address, city, role_id, scope) values ($1, $2, $3, $4, $5, $6, $7, $8)
+       on conflict (id) do update set email = excluded.email, full_name = excluded.full_name, phone = excluded.phone,
+         address = excluded.address, city = excluded.city, role_id = excluded.role_id, scope = excluded.scope`,
+      [userId, u.email, u.name, u.phone ?? null, u.address ?? null, u.city ?? null, roleId, JSON.stringify(resolveScope(u.scope, ids))]);
     if (u.worker) {   // an operator is both a login and a worker
       await db.query(`update workers set user_id = $1 where id = $2`, [userId, need(ids.workerId, u.worker, 'worker')]);
     }

@@ -3,8 +3,10 @@ import { z } from 'zod';
 import { withTx } from '../../db/tx.js';
 import { notFound } from '../../utils/errors.js';
 import { validate } from '../../middleware/validate.js';
-import { publicLimiter } from '../../middleware/rateLimit.js';
+import { publicLimiter, authLimiter } from '../../middleware/rateLimit.js';
 import { send } from '../../utils/http.js';
+import { previewInvite, joinWithInvite } from '../auth/me.service.js';
+import { tokenParam, joinInviteSchema } from '../auth/me.schema.js';
 
 const r = Router();
 
@@ -16,5 +18,10 @@ r.get('/track/:token', publicLimiter, validate({ params: z.object({ token: z.str
     if (!data) throw notFound('Tracking link');
     return data;
   }));
+
+// staff invite link: the person has no account yet, so these two need no login
+r.get('/invites/:token', authLimiter, validate({ params: tokenParam }), send((req) => previewInvite(req.valid.params.token)));
+r.post('/invites/:token/accept', authLimiter, validate({ params: tokenParam, body: joinInviteSchema }),
+  send((req) => joinWithInvite(req.valid.params.token, req.valid.body), 201));
 
 export default r;

@@ -25,6 +25,7 @@ export function buildCtx(user, s, mill) {
   return {
     userId: user.id,
     email: user.email ?? s.email,
+    fullName: s.full_name,
     millName: mill.name,
     roleId: s.role_id,
     role: s.role,

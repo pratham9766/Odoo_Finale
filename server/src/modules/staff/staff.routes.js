@@ -8,17 +8,18 @@ import { inviteSchema, memberPatchSchema, roleCreateSchema, roleUpdateSchema, au
 const r = Router();
 
 r.get('/staff', can('staff.view'), send((req) => s.listStaff(req.ctx)));
-r.post('/staff/invites', can('staff.invite'), validate({ body: inviteSchema }), send((req) => s.inviteStaff(req.ctx, req.valid.body), 201));
-r.delete('/staff/invites/:id', can('staff.invite'), validate({ params: idParam }), send((req) => s.revokeInvite(req.ctx, req.valid.params.id)));
-r.patch('/staff/:id', can('staff.edit_role'), validate({ params: idParam, body: memberPatchSchema }),
+r.post('/staff/invites', can('staff.create'), validate({ body: inviteSchema }), send((req) => s.inviteStaff(req.ctx, req.valid.body), 201));
+r.post('/staff/invites/:id/resend', can('staff.create'), validate({ params: idParam }), send((req) => s.resendInvite(req.ctx, req.valid.params.id), 201));
+r.delete('/staff/invites/:id', can('staff.delete'), validate({ params: idParam }), send((req) => s.revokeInvite(req.ctx, req.valid.params.id)));
+r.patch('/staff/:id', can('staff.update'), validate({ params: idParam, body: memberPatchSchema }),
   send((req) => s.patchMember(req.ctx, req.valid.params.id, req.valid.body)));
 
-r.get('/permissions', can('staff.view'), send((req) => s.listPermissions(req.ctx)));
-r.get('/roles', can('staff.view'), send((req) => s.listRoles(req.ctx)));
-r.post('/roles', can('roles.manage'), validate({ body: roleCreateSchema }), send((req) => s.createRole(req.ctx, req.valid.body), 201));
-r.put('/roles/:id', can('roles.manage'), validate({ params: idParam, body: roleUpdateSchema }), send((req) => s.updateRole(req.ctx, req.valid.params.id, req.valid.body)));
-r.delete('/roles/:id', can('roles.manage'), validate({ params: idParam }), send((req) => s.deleteRole(req.ctx, req.valid.params.id)));
+r.get('/permissions', can('roles.view', 'staff.view'), send((req) => s.listPermissions(req.ctx)));
+r.get('/roles', can('roles.view', 'staff.view'), send((req) => s.listRoles(req.ctx)));
+r.post('/roles', can('roles.create'), validate({ body: roleCreateSchema }), send((req) => s.createRole(req.ctx, req.valid.body), 201));
+r.put('/roles/:id', can('roles.update'), validate({ params: idParam, body: roleUpdateSchema }), send((req) => s.updateRole(req.ctx, req.valid.params.id, req.valid.body)));
+r.delete('/roles/:id', can('roles.delete'), validate({ params: idParam }), send((req) => s.deleteRole(req.ctx, req.valid.params.id)));
 
-r.get('/audit-logs', can('roles.manage'), validate({ query: auditQuery }), send((req) => s.listAuditLogs(req.ctx, req.valid.query)));
+r.get('/audit-logs', can('roles.view'), validate({ query: auditQuery }), send((req) => s.listAuditLogs(req.ctx, req.valid.query)));
 
 export default r;

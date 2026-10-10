@@ -1,40 +1,10 @@
-// The six default roles of a mill. Applied when the mill is created; the owner can edit them afterwards.
-// Owner always gets every permission.
+// The only built-in role: Owner, with every permission. Every other role is created by the owner in the app
+// (Settings → Roles), and staff join by email invite with one of those roles.
 
 const ALL = '*';
 
 export const ROLE_DEFS = [
   { name: 'Owner', rank: 100, perms: ALL },
-  {
-    // sales + accounts: buyers, orders, invoices, payments, bills, wages, money reports
-    name: 'Office', rank: 70,
-    perms: [
-      'staff.view', 'contacts.view', 'contacts.manage', 'items.view', 'bom.view', 'stock.view',
-      'po.view', 'po.create', 'po.approve', 'orders.view', 'orders.create', 'orders.confirm', 'orders.cancel', 'orders.view_price',
-      'production.view', 'qc.view', 'dispatch.view', 'invoice.view', 'invoice.create', 'payment.record', 'bill.manage',
-      'expense.manage', 'attendance.view', 'wages.view', 'wages.run', 'wages.pay',
-      'reports.production', 'reports.qc', 'reports.attendance', 'reports.cost', 'reports.pnl',
-    ],
-  },
-  {
-    // raw material in (GRN), finished rolls out (dispatch)
-    name: 'Store Keeper', rank: 40,
-    perms: [
-      'contacts.view', 'items.view', 'bom.view', 'stock.view', 'receipt.create', 'stock.adjust', 'po.view', 'orders.view',
-      'qc.view', 'dispatch.view', 'dispatch.create', 'dispatch.confirm',
-    ],
-  },
-  {
-    // runs the floor: plans work, assigns workers to machines, breakdowns, attendance
-    name: 'Supervisor', rank: 60,
-    perms: [
-      'items.view', 'bom.view', 'stock.view', 'orders.view', 'production.view', 'production.plan', 'production.log',
-      'machine.status', 'assignment.manage', 'breakdown.report', 'breakdown.close', 'maintenance.fix', 'qc.view',
-      'workers.manage', 'attendance.view', 'attendance.mark', 'attendance.approve', 'reports.production',
-    ],
-  },
-  { name: 'Operator', rank: 20, perms: ['production.view', 'production.log', 'machine.status', 'breakdown.report'] },
-  { name: 'QC Inspector', rank: 40, perms: ['production.view', 'qc.view', 'qc.inspect'] },
 ];
 
 // returns [{ name, rank, perms:Set<string> }]
@@ -47,7 +17,7 @@ export function defaultRolesFor(allPermissions) {
 }
 
 /**
- * Create the default roles and their permissions for a mill.
+ * Create the Owner role and its permissions.
  * @returns {Promise<Map<string, string>>} role name → role id
  */
 export async function createDefaultRoles(db) {

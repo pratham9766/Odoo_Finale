@@ -6,7 +6,7 @@ const REQUIRED_RATE = { daily: 'rate', hourly: 'rate', piece: 'piece_rate' };
 
 /** workers.manage sees everything. Everyone else with attendance.view gets no wage rates, unless wages.view. */
 function present(ctx, row) {
-  if (ctx.permissions.has('workers.manage') || ctx.permissions.has('wages.view')) return row;
+  if (ctx.permissions.has('workers.create') || ctx.permissions.has('workers.update') || ctx.permissions.has('wages.view')) return row;
   return omit(row, WAGE_FIELDS);
 }
 

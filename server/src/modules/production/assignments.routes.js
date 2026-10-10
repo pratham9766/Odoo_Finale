@@ -1,4 +1,4 @@
-// /assignments (backend plan §10.7). Read: production.view; write: assignment.manage.
+// /assignments (backend plan §10.7). Read: production.view or assignment.view; create / update / delete: assignment.create / update / delete.
 
 import { Router } from 'express';
 import { can } from '../../middleware/rbac.js';
@@ -9,14 +9,12 @@ import * as s from './assignments.schema.js';
 import { assignments } from './assignments.service.js';
 
 const r = Router();
-const write = [can('assignment.manage')];
-
-r.post('/', ...write, validate({ body: s.saveAssignmentsSchema }), c.save);
+r.post('/', can('assignment.create'), validate({ body: s.saveAssignmentsSchema }), c.save);
 mountCrud(r, '/', {
   handlers: crudHandlers(assignments),
   only: ['list', 'get', 'update', 'remove'],
-  read: [can('production.view', 'assignment.manage')],
-  write,
+  read: [can('production.view', 'assignment.view')],
+  update: [can('assignment.update')], remove: [can('assignment.delete')],
   schemas: { list: s.listAssignmentsQuery, update: s.updateAssignmentSchema },
 });
 export default r;

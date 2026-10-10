@@ -17,8 +17,11 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string(),
   SUPABASE_JWT_SECRET: z.string().optional(),
   DATABASE_URL: z.string(),
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('SAMETA <no-reply@sameta.app>'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().default('Everest Textile Mills <no-reply@example.com>'),
   PUBLIC_TRACK_BASE_URL: z.string().url(),
   JOBS_ENABLED: bool(true),
 });
@@ -30,7 +33,7 @@ if (!parsed.success) {
 }
 
 // empty strings in .env mean "not set"
-for (const k of ['SUPABASE_JWT_SECRET', 'RESEND_API_KEY']) {
+for (const k of ['SUPABASE_JWT_SECRET', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS']) {
   if (!parsed.data[k]) parsed.data[k] = undefined;
 }
 

@@ -1,10 +1,10 @@
-// Transactional email through Resend (backend plan §16).
+// Transactional email through nodemailer (SMTP, e.g. Gmail with an app password).
 //
 //   import * as email from '../utils/email.js';
 //   await email.send({ to: 'gm@everest.demo', template: 'staff_invite',
 //                      data: { mill_name: 'Everest', role_name: 'Supervisor', token } });
 //
-// Without RESEND_API_KEY the email is printed to the console instead, so invites still
+// Without SMTP_HOST / SMTP_USER / SMTP_PASS the email is printed to the console instead, so invites still
 // work locally. In production the body is never printed (it carries invite tokens).
 //
 // send() does not throw for delivery problems: it logs and resolves { sent: false, error },
@@ -24,9 +24,9 @@ const TEMPLATES = {
       heading: `Join ${d.mill_name}`,
       lines: [
         `${d.inviter_name ?? 'Your team'} invited you to join ${d.mill_name} as ${d.role_name}.`,
-        'Sign in or create an account with this email address to accept. The link expires in 7 days.',
+        'Open the link below to enter your details (name, phone, address) and choose a password. The link expires in 7 days.',
       ],
-      button: { label: 'Accept invite', url: appUrl(`/invite/staff/${encodeURIComponent(d.token)}`) },
+      button: { label: 'Set up my account', url: appUrl(`/invite/staff/${encodeURIComponent(d.token)}`) },
     }),
   },
 };
@@ -66,13 +66,17 @@ export function render(template, data = {}) {
   return { subject: parts.subject, ...layout(parts) };
 }
 
-let resend;
+let transport;
+const configured = () => !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
 async function client() {
-  if (!resend) {
-    const { Resend } = await import('resend');      // loaded only when a key is configured
-    resend = new Resend(env.RESEND_API_KEY);
+  if (!transport) {
+    const nodemailer = (await import('nodemailer')).default;   // loaded only when SMTP is configured
+    transport = nodemailer.createTransport({
+      host: env.SMTP_HOST, port: env.SMTP_PORT, secure: env.SMTP_PORT === 465,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    });
   }
-  return resend;
+  return transport;
 }
 
 /**
@@ -84,9 +88,9 @@ export async function send({ to, template, data = {} }) {
   if (!recipients.length) throw new Error(`email: no recipient for "${template}"`);
   const { subject, html, text } = render(template, data);
 
-  if (!env.RESEND_API_KEY) {
+  if (!configured()) {
     if (env.NODE_ENV === 'production') {
-      console.warn(`[email] RESEND_API_KEY is not set; "${template}" to ${recipients.join(', ')} was not sent`);
+      console.warn(`[email] SMTP is not configured; "${template}" to ${recipients.join(', ')} was not sent`);
     } else {
       console.info(`[email:console] to: ${recipients.join(', ')}\nsubject: ${subject}\n${text}\n`);
     }
@@ -94,11 +98,8 @@ export async function send({ to, template, data = {} }) {
   }
 
   try {
-    const { data: res, error } = await (await client()).emails.send({
-      from: env.EMAIL_FROM, to: recipients, subject, html, text,
-    });
-    if (error) throw error;
-    return { sent: true, id: res?.id };
+    const info = await (await client()).sendMail({ from: env.EMAIL_FROM, to: recipients, subject, html, text });
+    return { sent: true, id: info.messageId };
   } catch (err) {
     console.error(`[email] "${template}" to ${recipients.join(', ')} failed: ${err?.message ?? err}`);
     return { sent: false, error: err?.message ?? String(err) };

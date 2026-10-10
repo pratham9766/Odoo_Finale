@@ -13,3 +13,13 @@ alter default privileges in schema public grant usage, select on sequences to ap
 revoke all on public.schema_migrations from app_user;
 
 alter role app_user set statement_timeout = '15s';
+
+-- this app has no RLS policies (the Node API enforces permissions); Supabase can switch RLS on for new tables
+-- automatically, and a table with RLS on and no policy hides every row from app_user
+do $$
+declare t record;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('alter table public.%I disable row level security', t.tablename);
+  end loop;
+end $$;

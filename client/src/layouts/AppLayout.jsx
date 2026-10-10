@@ -83,11 +83,13 @@ export default function AppLayout() {
   const defaultOpenKeys = useMemo(() => getOpenKeys(visibleNav, location.pathname), [visibleNav, location.pathname]);
 
   const userMenu = [
+    { key: 'profile', icon: <UserOutlined />, label: 'My profile' },
     { key: 'signout', icon: <LogoutOutlined />, label: 'Sign out', danger: true },
   ];
 
   const handleUserMenu = ({ key }) => {
     if (key === 'signout') signOut();
+    if (key === 'profile') navigate('/app/profile');
   };
 
   const millName = mill?.name || 'Everest Textile Mills';

@@ -64,7 +64,7 @@ export default function LandingPage() {
             <Link to="/login">
               <Button type="text" style={{ color: '#182B45', fontWeight: 500 }}>Sign in</Button>
             </Link>
-            <Link to="/signup">
+            <Link to="/login">
               <Button type="primary" style={{ background: '#007780', fontWeight: 500 }}>Get started</Button>
             </Link>
           </div>
@@ -83,7 +83,7 @@ export default function LandingPage() {
           <a href="#roles" onClick={() => setMenuOpen(false)} className="text-lg font-medium text-[#182B45]">Who it serves</a>
           <div className="h-px bg-[#DCE4EA] w-full" />
           <Link to="/login" onClick={() => setMenuOpen(false)} className="text-lg font-medium text-[#182B45]">Sign in</Link>
-          <Link to="/signup" onClick={() => setMenuOpen(false)}>
+          <Link to="/login" onClick={() => setMenuOpen(false)}>
             <Button type="primary" size="large" block style={{ background: '#007780' }}>Get started</Button>
           </Link>
         </div>
@@ -109,7 +109,7 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <Link to="/signup">
+                <Link to="/login">
                   <Button type="primary" size="large" style={{ background: '#007780', height: 56, paddingInline: 32, fontSize: 16, fontWeight: 600 }}>
                     Get started
                   </Button>
@@ -254,7 +254,7 @@ export default function LandingPage() {
             Connect your partners and coordinate operations with SAMETA.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/signup">
+            <Link to="/login">
               <Button type="primary" size="large" style={{ background: '#007780', height: 56, paddingInline: 40, fontSize: 18, fontWeight: 600 }}>
                 Create account <ArrowRightOutlined />
               </Button>

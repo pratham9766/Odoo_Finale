@@ -55,12 +55,11 @@ export const BUYERS = {
   'Ludhiana Garments Co.': { weight: 0.25, pays: [['late', 0.3], ['never', 0.7]] },
 };
 
-// the people who do each thing in the story (demo logins of seed v1)
+// every action in the history is done by the owner: it is the only login the seed creates
+const OWNER = 'owner@everest.demo';
 export const ACTORS = {
-  prod: 'supervisor@everest.demo', qc: 'qc@everest.demo', dispatch: 'store@everest.demo', accounts: 'office@everest.demo',
-  hr: 'owner@everest.demo', maint: 'supervisor@everest.demo', store: 'store@everest.demo', purchase: 'office@everest.demo',
-  sales: 'office@everest.demo',
+  prod: OWNER, qc: OWNER, dispatch: OWNER, accounts: OWNER, hr: OWNER, maint: OWNER, store: OWNER, purchase: OWNER, sales: OWNER,
 };
 
-// the operator the demo logs in as drives W-3 on the morning shift
+// the worker who runs W-3 on the morning shift (a worker record, not a login)
 export const FIXED_OPERATORS = { 'W-3|A': 'Anil Kumar' };

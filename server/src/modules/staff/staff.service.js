@@ -6,10 +6,9 @@ import { audit } from '../../utils/audit.js';
 import { paged, where } from '../../utils/paginate.js';
 import email from '../../utils/email.js';
 
-// Rank rule: you may only hand out a role ranked below your own (an Owner may add another Owner)
+// Rank rule: you may only hand out a role ranked below your own. There is one Owner (rank 100), so nobody can hand that out.
 export function assertCanAssignRank(ctx, rank) {
-  const ok = rank < ctx.rank || (ctx.rank === 100 && rank === 100);
-  if (!ok) throw new AppError(403, 'RANK_TOO_HIGH', 'You cannot assign a role equal to or above your own');
+  if (rank >= ctx.rank) throw new AppError(403, 'RANK_TOO_HIGH', 'You cannot assign a role equal to or above your own');
 }
 
 const getRole = async (db, id) => must((await db.query('select * from roles where id = $1', [id])).rows[0], 'Role');
@@ -19,9 +18,11 @@ const getRole = async (db, id) => must((await db.query('select * from roles wher
 export const listStaff = (ctx) =>
   withTx(async (db) => {
     const { rows: members } = await db.query(
-      `select p.id, p.email, p.full_name, p.phone, p.status, p.scope, p.reports_to,
-              r.id as role_id, r.name as role, r.rank, p.created_at
+      `select p.id, p.email, p.full_name, p.phone, p.address, p.city, p.emergency_contact, p.status, p.scope, p.reports_to,
+              r.id as role_id, r.name as role, r.rank, p.created_at,
+              w.id as worker_id, w.name as worker_name
          from profiles p join roles r on r.id = p.role_id
+         left join workers w on w.user_id = p.id
         order by r.rank desc, p.full_name`);
     const { rows: invites } = await db.query(
       `select i.id, i.email, i.scope, i.expires_at, i.created_at, r.name as role
@@ -31,8 +32,16 @@ export const listStaff = (ctx) =>
     return { members, invites };
   });
 
-export const inviteStaff = (ctx, { email: to, role_id, scope }) =>
-  withTx(async (db) => {
+// the email goes out after the commit; a failed email must not lose the invite (the link is returned so it can be shared by hand)
+async function mailInvite(ctx, { to, role, token, inv }) {
+  const link = `${env.CLIENT_URL}/invite/staff/${token}`;
+  const mail = await email.send({ to, template: 'staff_invite', data: { mill_name: ctx.millName, role_name: role, token, inviter_name: ctx.fullName } })
+    .catch((e) => ({ sent: false, error: e.message }));
+  return { ...inv, role, link, email_sent: !!mail.sent };
+}
+
+export const inviteStaff = async (ctx, { email: to, role_id, scope }) =>
+  mailInvite(ctx, await withTx(async (db) => {
     const role = await getRole(db, role_id);
     assertCanAssignRank(ctx, role.rank);
     const { rowCount } = await db.query(`select 1 from profiles where role_id is not null and lower(email) = $1`, [to]);
@@ -46,11 +55,24 @@ export const inviteStaff = (ctx, { email: to, role_id, scope }) =>
       [to, role_id, scope ?? {}, sha256(token), ctx.userId],
     );
     await audit(db, ctx, { action: 'invite', table: 'staff_invites', id: inv.id, after: { email: to, role: role.name } });
-    const link = `${env.CLIENT_URL}/invite/staff/${token}`;
-    // email after the row exists; failures must not lose the invite (link is returned for manual sharing)
-    email.send({ to, template: 'staff_invite', data: { mill_name: ctx.millName, role_name: role.name, token } }).catch((e) => console.error('[invite email]', e.message));
-    return { ...inv, role: role.name, link };
-  });
+    return { to, role: role.name, token, inv };
+  }));
+
+export const resendInvite = async (ctx, id) =>
+  mailInvite(ctx, await withTx(async (db) => {
+    const { rows: [old] } = await db.query(`select email, role_id, scope from staff_invites where id = $1 and status = 'pending' for update`, [id]);
+    must(old, 'Invite');
+    await db.query(`update staff_invites set status = 'revoked' where id = $1`, [id]);
+    const role = await getRole(db, old.role_id);
+    assertCanAssignRank(ctx, role.rank);
+    const token = newToken();
+    const { rows: [inv] } = await db.query(
+      `insert into staff_invites (email, role_id, scope, token_hash, expires_at, created_by)
+       values ($1,$2,$3,$4, now() + interval '7 days', $5) returning id, email, expires_at`,
+      [old.email, old.role_id, old.scope, sha256(token), ctx.userId]);
+    await audit(db, ctx, { action: 'invite', table: 'staff_invites', id: inv.id, after: { email: old.email, role: role.name, resent: true } });
+    return { to: old.email, role: role.name, token, inv };
+  }));
 
 export const revokeInvite = (ctx, id) =>
   withTx(async (db) => {
@@ -86,6 +108,15 @@ export const patchMember = (ctx, id, patch) =>
       const { rowCount } = await db.query('select 1 from profiles where id = $1', [patch.reports_to]);
       if (!rowCount) throw notFound('Manager');
       if (patch.reports_to === id) throw new AppError(422, 'VALIDATION_FAILED', 'A person cannot report to themselves');
+    }
+    if ('worker_id' in patch) {
+      await db.query('update workers set user_id = null where user_id = $1', [id]);
+      if (patch.worker_id) {
+        const { rows: [w] } = await db.query('select id, user_id from workers where id = $1 for update', [patch.worker_id]);
+        must(w, 'Worker');
+        if (w.user_id) throw new AppError(409, 'DUPLICATE', 'That worker is already linked to another login');
+        await db.query('update workers set user_id = $2 where id = $1', [patch.worker_id, id]);
+      }
     }
     const { rows: [after] } = await db.query(
       `update profiles set role_id = coalesce($2, role_id), scope = coalesce($3, scope),
@@ -156,8 +187,8 @@ export const updateRole = (ctx, id, input) =>
     if (role.rank === 100) {
       if (input.rank !== undefined && input.rank !== 100) throw new AppError(422, 'VALIDATION_FAILED', 'The Owner rank is fixed');
       if (input.name && input.name !== role.name) throw new AppError(422, 'VALIDATION_FAILED', 'The Owner role cannot be renamed');
-      if (input.permissions && !input.permissions.includes('roles.manage')) {
-        throw new AppError(422, 'VALIDATION_FAILED', 'The Owner role must keep roles.manage');
+      if (input.permissions) {
+        throw new AppError(422, 'VALIDATION_FAILED', 'The Owner role always has every permission and cannot be edited');
       }
     }
     if (input.rank !== undefined && input.rank !== role.rank) assertCanAssignRank(ctx, input.rank);

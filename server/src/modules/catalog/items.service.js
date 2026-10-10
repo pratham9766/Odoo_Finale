@@ -4,7 +4,7 @@ import { audit } from '../../utils/audit.js';
 import { paged, where } from '../../utils/paginate.js';
 
 // std_rate is a cost: hide it unless the user can see prices or raise POs
-const canSeeCost = (ctx) => ctx.permissions.has('orders.view_price') || ctx.permissions.has('po.create') || ctx.permissions.has('items.manage');
+const canSeeCost = (ctx) => ctx.permissions.has('orders.view_price') || ctx.permissions.has('po.create') || ctx.permissions.has('items.create') || ctx.permissions.has('items.update');
 const strip = (ctx, row) => {
   if (!row || canSeeCost(ctx)) return row;
   const { std_rate: _cost, ...rest } = row;

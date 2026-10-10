@@ -103,7 +103,7 @@ async function main() {
       }
     }
 
-    console.log(`\nDemo logins use password ${DEMO_PASSWORD}: owner@everest.demo, office@everest.demo, store@everest.demo, supervisor@everest.demo, operator@everest.demo, qc@everest.demo`);
+    console.log(`\nLogin: owner@everest.demo / ${DEMO_PASSWORD}. Add everyone else from Settings → Roles and Settings → Staff (invites by email).`);
   } finally {
     await client.end();
     // the simulation used the server's own pool

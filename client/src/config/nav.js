@@ -93,8 +93,10 @@ export const millNav = [
     label: 'Settings',
     icon: SettingOutlined,
     to: '/app/settings/machines',
-    anyOf: ['production.view', 'settings.manage'],
+    anyOf: ['production.view', 'settings.manage', 'staff.view', 'roles.manage'],
     children: [
+      { key: 'staff',    label: 'Staff',                to: '/app/settings/staff',    anyOf: ['staff.view'] },
+      { key: 'roles',    label: 'Roles & permissions',  to: '/app/settings/roles',    anyOf: ['roles.manage'] },
       { key: 'machines', label: 'Machines', to: '/app/settings/machines', anyOf: ['production.view'] },
       { key: 'planning', label: 'Planning', to: '/app/settings/planning', anyOf: ['production.plan'] },
     ],

@@ -21,6 +21,7 @@ const LandingPage  = lazy(() => import('@/features/public/pages/LandingPage'));
 const LoginPage    = lazy(() => import('@/features/auth/pages/LoginPage'));
 const ForgotPage   = lazy(() => import('@/features/auth/pages/ForgotPage'));
 const AuthCallback = lazy(() => import('@/features/auth/pages/AuthCallback'));
+const AcceptInvitePage = lazy(() => import('@/features/auth/pages/AcceptInvitePage'));
 
 // Mill office
 const DashboardPage       = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
@@ -48,6 +49,9 @@ const MaintenancePage     = lazy(() => import('@/features/maintenance/pages/Main
 const AssignmentsPage     = lazy(() => import('@/features/production/pages/AssignmentsPage'));
 const PlanningPage        = lazy(() => import('@/features/production/pages/PlanningPage'));
 const MachinesPage        = lazy(() => import('@/features/production/pages/MachinesPage'));
+const RolesPage           = lazy(() => import('@/features/settings/pages/RolesPage'));
+const StaffPage           = lazy(() => import('@/features/settings/pages/StaffPage'));
+const ProfilePage         = lazy(() => import('@/features/settings/pages/ProfilePage'));
 
 // Floor
 const FloorMachinePage  = lazy(() => import('@/features/floor/pages/FloorMachinePage'));
@@ -91,6 +95,7 @@ export const router = createBrowserRouter([
       { path: '/login',         element: s(<LoginPage />) },
       { path: '/forgot',        element: s(<ForgotPage />) },
       { path: '/auth/callback', element: s(<AuthCallback />) },
+      { path: '/invite/staff/:token', element: s(<AcceptInvitePage />) },
     ],
   },
 
@@ -129,6 +134,9 @@ export const router = createBrowserRouter([
               // Settings / Setup items
               { path: 'settings/machines', element: guard(['production.view'], <MachinesPage />) },
               { path: 'settings/planning', element: guard(['production.plan'], <PlanningPage />) },
+              { path: 'settings/roles', element: guard(['roles.manage'], <RolesPage />) },
+              { path: 'settings/staff', element: guard(['staff.view'], <StaffPage />) },
+              { path: 'profile', element: s(<ProfilePage />) },
               { path: 'maintenance/tickets', element: guard(['breakdown.report', 'maintenance.fix'], <MaintenancePage />) },
 
               // Quality
