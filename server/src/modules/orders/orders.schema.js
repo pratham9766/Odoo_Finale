@@ -24,6 +24,7 @@ export const orderQuery = z.object({
   ...pageQuery,
   status: z.string().regex(/^[a-z_,]+$/).optional(),
   risk: z.enum(['green', 'amber', 'red']).optional(),
+  priority: z.string().regex(/^[a-z,]+$/).optional(),   // one or more of low,normal,high,urgent
   q: z.string().trim().max(60).optional(),
 });
 

@@ -22,6 +22,8 @@ const Staff = lazy(() => import('@/features/Staff'));
 const Roles = lazy(() => import('@/features/Roles'));
 const Profile = lazy(() => import('@/features/Profile'));
 const FloorSupervisor = lazy(() => import('@/features/Floor'));
+const MyWork = lazy(() => import('@/features/MyWork'));
+const Purchases = lazy(() => import('@/features/Purchases'));
 
 const Receipts = page(() => import('@/features/Receipts'), 'Receipts');
 const NewReceipt = page(() => import('@/features/Receipts'), 'NewReceipt');
@@ -49,7 +51,7 @@ function Gate({ permission, children }) {
     : <Result status="403" title="Access restricted" subTitle="Your role does not include this. Ask the mill owner to update your role in Roles & permissions." />;
 }
 
-/** after login: floor staff go to their tablet screen, everyone else to the dashboard */
+/** after login: office staff go to the dashboard, floor staff to their tablet screen, an employee with neither to My work */
 function Home() {
   const s = useSession();
   const office = s.can('orders.view') || s.can('stock.view') || s.can('invoice.view') || s.can('production.plan');
@@ -59,6 +61,7 @@ function Home() {
     else if (s.can('qc.inspect')) to = '/floor/qc';
     else if (s.can('assignment.create') || s.can('attendance.mark')) to = '/floor/supervisor';
     else if (s.can('dispatch.create')) to = '/floor/dispatch';
+    else to = '/floor/my-work';
   }
   return <Navigate to={to} replace />;
 }
@@ -71,13 +74,14 @@ export default function AppRoutes() {
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={G('orders.view', <Orders />)} />
-        <Route path="orders/new" element={G('orders.create', <CreateOrder />)} />
+        <Route path="orders/new" element={G('orders.create', <><Orders /><CreateOrder /></>)} />
         <Route path="orders/:id" element={G('orders.view', <OrderDetail />)} />
         <Route path="contacts" element={G('contacts.view', <Contacts />)} />
         <Route path="stock" element={G('stock.view', <Stock />)} />
         <Route path="receipts" element={G(['receipt.view', 'receipt.create', 'stock.view'], <Receipts />)} />
         <Route path="receipts/new" element={G('receipt.create', <NewReceipt />)} />
         <Route path="receipts/:id" element={G(['receipt.view', 'receipt.create', 'stock.view'], <ReceiptDetail />)} />
+        <Route path="purchases" element={G('po.view', <Purchases />)} />
         <Route path="items" element={G('items.view', <Items />)} />
         <Route path="boms" element={G('bom.view', <Boms />)} />
         <Route path="production" element={G('production.view', <MachineBoard />)} />
@@ -99,6 +103,7 @@ export default function AppRoutes() {
         <Route path="roles" element={G('roles.view', <Roles />)} />
         <Route path="settings" element={G(['settings.update', 'settings.create'], <Settings />)} />
         <Route path="profile" element={<Profile />} />
+        <Route path="my-work" element={<MyWork />} />
         <Route path="*" element={<Result status="404" title="Page not found" extra={<a href="/app">Back to the dashboard</a>} />} />
       </Route>
 
@@ -110,6 +115,7 @@ export default function AppRoutes() {
         <Route path="dispatch" element={G('dispatch.create', <Dispatches floor />)} />
         <Route path="dispatch/new" element={G('dispatch.create', <NewDispatch floor />)} />
         <Route path="dispatch/:id" element={G('dispatch.create', <DispatchDetail floor />)} />
+        <Route path="my-work" element={<MyWork />} />
       </Route>
 
       <Route path="/" element={<Home />} />

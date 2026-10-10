@@ -11,7 +11,7 @@ export default function NotificationBell() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const act = useAction();
-  const list = useGet('/notifications', { limit: 15 }, { refetchInterval: 30000 });
+  const list = useGet('/notifications', { limit: 15 }, { refetchInterval: 120000 });
   const rows = list.payload || [];
   const unread = list.meta?.unread ?? 0;
 

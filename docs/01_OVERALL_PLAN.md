@@ -1,5 +1,7 @@
 # Sameta — Overall Plan
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 > Multi-tenant B2B SaaS platform for the textile supply chain.
 > Built for the **Textile Manufacturing System** hackathon problem (Everest Textile Mills).
 >

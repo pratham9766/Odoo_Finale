@@ -297,3 +297,47 @@ a.task-row:hover, a.activity-row:hover { background: #F6F4EE; color: var(--c-ink
   .quick-tile, .task-row, .activity-row, .dashboard .kpi, .dash-alert { transition: none; }
   a.quick-tile:active, .dashboard a.kpi:hover { transform: none; }
 }
+
+/* ---------- my work (employee self view) ---------- */
+.my-work .panel { margin-bottom: 16px; }
+.my-id { display: flex; gap: 24px; align-items: center; }
+.my-id-avatar {
+  flex: none; width: 72px; height: 72px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 24px; font-weight: 700; color: #fff; background: var(--c-navy-deep);
+  box-shadow: 0 0 0 4px var(--c-pink-light), 0 0 0 5px var(--c-gold-bright);
+}
+.my-id-facts { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 24px; margin: 0; }
+.my-id-facts dt { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+.my-id-facts dd { margin: 0; font-weight: 600; color: var(--text-primary); }
+.my-id-facts small { font-weight: 400; color: var(--text-secondary); }
+.my-today { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.my-today-card { border: 1px solid var(--border-main); border-radius: 10px; padding: 14px 16px; background: var(--c-pink-light); }
+.my-today-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.my-today-top small { display: block; font-size: 12px; color: var(--text-secondary); }
+.my-today-top strong { font-size: 16px; }
+.my-today-line { font-size: 13px; color: var(--text-primary); margin-top: 4px; }
+.my-today-line.muted { color: var(--text-muted); }
+@media (max-width: 600px) {
+  .my-id { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .my-id-facts { grid-template-columns: 1fr 1fr; width: 100%; }
+}
+.my-note { margin-bottom: 16px; }
+.my-break { word-break: break-word; }
+.my-access { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.my-access-card { border: 1px solid var(--border-main); border-radius: 10px; padding: 14px 16px; }
+.my-access-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.my-access-head a { font-size: 13px; white-space: nowrap; }
+.my-access-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.my-access-card li { font-size: 13px; color: var(--text-secondary); padding-left: 18px; position: relative; }
+.my-access-card li::before { content: '✓'; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+
+/* ---------- create order popup ---------- */
+.order-modal-title { font-size: 20px; }
+.order-modal-title span { display: block; font-size: 13px; font-weight: 400; color: var(--text-secondary); margin-top: 2px; }
+.order-modal .ant-modal-body { max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
+.order-modal-actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--border-subtle); padding-top: 16px; }
+@media (max-width: 640px) {
+  .order-modal { max-width: calc(100vw - 16px); top: 8px; padding-bottom: 0; }
+  .order-modal .ant-modal-body { max-height: calc(100vh - 120px); }
+}

@@ -1,5 +1,7 @@
 # Scope Reduction Plan — solve only the PDF
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 > **Goal:** the product solves exactly what [Textile_Manufacturing_System.pdf](../Textile_Manufacturing_System.pdf) asks for — one mill (Everest Textile Mills) — and nothing else.
 > **Method:** freeze, hide, and simplify. **Do not delete working code.** Every step below is reversible with git.
 > This file replaces docs 01–04 as the **active plan**. Docs 01–04 stay as reference only.

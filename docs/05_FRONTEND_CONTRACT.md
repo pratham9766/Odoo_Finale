@@ -1,5 +1,7 @@
 # First frontend integration contract
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 This supplements backend §10 with exact consumed fields. Backend owner must confirm before integration. No endpoint in this document is claimed implemented.
 
 All responses use `{data: ...}`; lists add `meta:{page,limit,total}`. IDs are UUID strings; decimal values may be strings. Permissions are exact strings, not role-name checks.

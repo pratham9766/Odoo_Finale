@@ -74,7 +74,20 @@ function OrdersDocumentIcon() {
 
 export default function Login({ initialError }) {
   const [error, setError] = useState(initialError);
+  const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [form] = Form.useForm();
+
+  // email a password-reset link; the link opens /reset-password with a recovery session
+  async function forgot() {
+    setError(null);
+    setNotice(null);
+    const email = (form.getFieldValue('email') || '').trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) { setError('Enter your email address above, then click "Forgot password?" again.'); return; }
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+    if (resetError) setError(resetError.message);
+    else setNotice(`If ${email} has an account, a password reset link is on its way. Check your inbox.`);
+  }
 
   async function submit(values) {
     setBusy(true);
@@ -131,7 +144,9 @@ export default function Login({ initialError }) {
                 />
               )}
 
-              <Form layout="vertical" onFinish={submit} requiredMark={false}>
+              {notice && <Alert className="mb-4" type="success" showIcon message={notice} closable onClose={() => setNotice(null)} />}
+
+              <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
                 <Form.Item
                   name="email"
                   label={<span className="form-label-title">Email address</span>}
@@ -141,7 +156,7 @@ export default function Login({ initialError }) {
                   <Input
                     size="large"
                     prefix={<MailIcon />}
-                    placeholder="admin@dayflow.local"
+                    placeholder="you@yourmill.com"
                     autoComplete="username"
                     className="form-input-pill"
                   />
@@ -163,9 +178,9 @@ export default function Login({ initialError }) {
                 </Form.Item>
 
                 <div className="forgot-password-link-wrapper">
-                  <a href="#forgot" className="forgot-link-text" onClick={e => e.preventDefault()}>
+                  <button type="button" className="forgot-link-text" onClick={forgot}>
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
 
                 <Button

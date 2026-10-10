@@ -1,5 +1,7 @@
 # Frontend verification — 2026-10-10
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 Scope: Member B's first frontend slice. Backend is pending, confirmed by the user.
 
 | Check | Observed result |

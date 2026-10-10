@@ -1,5 +1,7 @@
 # Backend branch comparison — 2026-10-10
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 Compared fetched `vipul` at `3e2d48f` with `hrishi_1` at `e6790f4`. Integration selection: Vipul only, retaining the existing frontend and local Sameta edits. Hrishi's reverted implementation is not being restored.
 
 | Area | Vipul | Hrishi |

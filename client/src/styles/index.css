@@ -39,6 +39,11 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  overflow-x: clip;   /* never a page-wide bottom scrollbar; clip (not hidden) keeps the sticky top bar working */
+}
+
 body {
   margin: 0;
   background-color: var(--bg-app);
@@ -390,7 +395,11 @@ nav a.active svg {
 .main-content {
   padding: 36px;
   flex: 1;
+  min-width: 0;        /* let wide tables and grids shrink to the column instead of widening the page */
+  overflow-x: clip;
 }
+
+.main-content .ant-table-wrapper { max-width: 100%; }
 
 .page-title {
   display: flex;
@@ -862,4 +871,48 @@ nav a.active svg {
   .workspace-footer {
     padding: 20px 16px;
   }
+}
+
+/* ---------- page title in the sticky top bar (PageTitle portals into .topbar-title-slot) ---------- */
+.topbar-title-slot { flex: 1; min-width: 0; }
+.topbar-title h1 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  margin: 0;
+  color: var(--c-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-title p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.page-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.sidebar-mill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(213, 172, 100, 0.25);
+  color: #DCE5DF;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sidebar-mill svg { flex: none; color: var(--c-gold-bright); }
+@media (max-width: 760px) {
+  .topbar-title h1 { font-size: 19px; }
+  .topbar-title p { display: none; }
 }

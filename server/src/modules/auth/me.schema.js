@@ -10,6 +10,8 @@ export const updateProfileSchema = z.object({
   emergency_contact: z.string().trim().max(200).optional(),
 });
 
+export const myWorkQuery = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM').optional() });
+
 export const tokenParam = z.object({ token: z.string().min(20).max(100) });
 
 const password = z.string().min(8, 'At least 8 characters').max(72)

@@ -17,7 +17,7 @@ export default function OrderDetail() {
   const [link, setLink] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
-  const q = useGet(`/orders/${id}`, {}, { refetchInterval: 30000 });
+  const q = useGet(`/orders/${id}`, {}, { refetchInterval: 60000 });
   const o = q.payload;
   const needsCheck = o && !['cancelled', 'delivered', 'dispatched'].includes(o.status);
   const req = useGet(`/orders/${id}/requirements`, {}, { enabled: !!needsCheck && (session.can('orders.view') || session.can('bom.view')) });
@@ -62,7 +62,7 @@ export default function OrderDetail() {
             <section className="panel"><h3>Fabric requirements</h3><Table rowKey="id" size="small" columns={lineColumns} dataSource={o.lines || []} pagination={false} scroll={{ x: 500 }} /></section>
 
             {needsCheck && req.payload && (
-              <section className="panel"><h3>Do we have enough material?</h3><MaterialSummary summary={req.payload.summary} /></section>
+              <section className="panel"><h3>Do we have enough material?</h3><MaterialSummary summary={req.payload.summary} orderId={o.id} /></section>
             )}
 
             <div className="grid-2">
@@ -85,7 +85,7 @@ export default function OrderDetail() {
             </div>
 
             <section className="panel"><h3>History</h3>
-              <Timeline items={(o.events || []).map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> <span style={{ color: '#8C948E', fontSize: 12 }}>{new Date(e.created_at).toLocaleString('en-IN')}</span></> }))} />
+              <Timeline items={(o.events || []).map((e) => ({ children: <><strong>{e.event.replaceAll('_', ' ')}</strong> <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{new Date(e.created_at).toLocaleString('en-IN')}</span></> }))} />
             </section>
           </>
         )}

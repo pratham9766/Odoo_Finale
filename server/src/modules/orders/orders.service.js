@@ -79,6 +79,7 @@ export const listOrders = (ctx, q) =>
   withTx(async (db) => {
     const w = where().add('o.risk = ?', q.risk);
     if (q.status) w.raw('o.status = any(?::text[])', q.status.split(','));
+    if (q.priority) w.raw('o.priority = any(?::text[])', q.priority.split(','));
     if (q.q) w.raw('o.order_no ilike ?', `%${q.q}%`);
     const { rows, meta } = await paged(
       db,
@@ -91,6 +92,25 @@ export const listOrders = (ctx, q) =>
          from orders o left join contacts c on c.id = o.buyer_contact_id ${w.sql}`,
       w.params, q, 'deadline, created_at desc');
     return { data: rows.map((r) => hidePrices(ctx, r)), meta };
+  });
+
+/** Counts across every order (not one page): the Orders screen's cards and health ring. */
+export const orderSummary = () =>
+  withTx(async (db) => {
+    const { rows: [s] } = await db.query(
+      `with o as (
+         select o.*, (o.deadline < (now() at time zone 'Asia/Kolkata')::date) as overdue
+           from orders o where o.status not in ('cancelled', 'delivered'))
+       select count(*) filter (where status in ('draft', 'confirmed', 'waiting_material', 'material_ready'))::int as open,
+              count(*) filter (where status in ('in_production', 'in_qc'))::int as in_production,
+              count(*) filter (where status in ('ready_to_ship', 'partially_dispatched'))::int as ready_to_dispatch,
+              count(*) filter (where status = 'delayed' or risk = 'red' or (overdue and status <> 'dispatched'))::int as delayed,
+              count(*) filter (where risk = 'amber' and not (status = 'delayed' or risk = 'red' or (overdue and status <> 'dispatched')))::int as at_risk,
+              count(*)::int as active,
+              coalesce(sum((select sum(l.qty) from order_lines l where l.order_id = o.id))
+                filter (where status in ('ready_to_ship', 'partially_dispatched')), 0) as ready_qty
+         from o`);
+    return { ...s, on_track: Math.max(0, s.active - s.delayed - s.at_risk) };
   });
 
 export const getOrder = (ctx, id) =>

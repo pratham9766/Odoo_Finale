@@ -1,5 +1,7 @@
 # Sameta — Backend Execution Plan
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 > Node.js 20 + Express (JavaScript, ESM) + Supabase PostgreSQL.
 > Read [01_OVERALL_PLAN.md](01_OVERALL_PLAN.md) first for the product, domains, roles and workflows.
 > Frontend counterpart: [03_FRONTEND_EXECUTION.md](03_FRONTEND_EXECUTION.md).

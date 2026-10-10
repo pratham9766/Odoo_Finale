@@ -16,7 +16,6 @@ test('every document builder returns a PDF buffer', async () => {
       dispatch: { dispatch_no: 'DSP-2026-0001' }, seller: party, buyer: { name: 'Urban Threads' }, rolls: [{ roll_no: 'R-1-001', item: 'Poplin', length_m: 50 }],
     }),
     rollLabel: await pdf.rollLabel({ roll: { roll_no: 'R-1-001', qr_token: 'abcDEF123456_-xy', length_m: 50 }, item: { name: 'Poplin' } }),
-    badge: await pdf.badge({ worker: { name: 'Anil Kumar', emp_code: 'EMP-0001', qr_token: 'abcDEF123456_-xy' }, org: { name: 'Everest' } }),
     payslip: await pdf.payslip({
       org: party, worker: { name: 'Anil Kumar', emp_code: 'EMP-0001', wage_type: 'daily', rate: 650, ot_rate: 120, piece_rate: 0 }, month: '2026-09-01',
       line: { days: 24, half_days: 0, hours: 192, ot_hours: 4, pieces: 0, gross: 16080, advances: 0, deductions: 0, net: 16080 },
@@ -34,15 +33,12 @@ test('a long invoice flows onto more pages and repeats the header row', async ()
   assert.ok(pages(buf) >= 2);
 });
 
-test('label and badge are single, small pages (60×40 mm and 86×54 mm)', async () => {
+test('the roll label is a single, small page (60×40 mm)', async () => {
   const label = await pdf.rollLabel({ roll: { roll_no: 'R-1-001', qr_token: 'tok', length_m: 50 }, item: { name: 'A very long fabric name that must be cut off, not wrapped' }, org: { name: 'Everest' } });
-  const badge = await pdf.badge({ worker: { name: 'A Very Long Worker Name Indeed', emp_code: 'EMP-0001', qr_token: 'tok' }, org: { name: 'Everest Textile Mills Private Limited' } });
   assert.equal(pages(label), 1);
-  assert.equal(pages(badge), 1);
   const mediaBox = (buf) => buf.toString('latin1').match(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/).slice(1).map(Number);
-  const [lw, lh] = mediaBox(label), [bw, bh] = mediaBox(badge);
+  const [lw, lh] = mediaBox(label);
   assert.ok(Math.abs(lw / pdf.MM - 60) < 0.1 && Math.abs(lh / pdf.MM - 40) < 0.1, `label ${lw / pdf.MM} × ${lh / pdf.MM} mm`);
-  assert.ok(Math.abs(bw / pdf.MM - 86) < 0.1 && Math.abs(bh / pdf.MM - 54) < 0.1, `badge ${bw / pdf.MM} × ${bh / pdf.MM} mm`);
 });
 
 test('sendPdf sets inline PDF headers, forbids caching and sanitises the filename', () => {

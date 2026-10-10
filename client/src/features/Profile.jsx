@@ -3,9 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Divider, Form, Input, Tag, message } from 'antd';
 import { useSession } from '@/context/Session';
 import { supabase } from '@/lib/supabase';
+import { PHONE } from '@/lib/api';
 import { PageTitle, QueryState } from '@/components/States';
 
-const PHONE = /^\+?[0-9 ()-]{7,20}$/;
 
 export default function Profile() {
   const session = useSession();

@@ -67,7 +67,7 @@ export function DispatchDetail({ floor = false }) {
   const [code, setCode] = useState('');
   const [problem, setProblem] = useState(null);
   const input = useRef(null);
-  const q = useGet(`/dispatches/${id}`, {}, { refetchInterval: 15000 });
+  const q = useGet(`/dispatches/${id}`, {}, { refetchInterval: 30000 });
   const d = q.payload;
   const packing = d?.status === 'packing';
   const base = floor ? '/floor/dispatch' : '/app/dispatch';
@@ -91,7 +91,7 @@ export function DispatchDetail({ floor = false }) {
       <PageTitle eyebrow="DISPATCH" title={d?.dispatch_no || 'Dispatch'} description={d ? `${d.order_no} · ${d.to_party}` : ''}
         action={d && (
           <Space wrap>
-            <Button onClick={() => session.download(`/dispatches/${id}/packing-list.pdf`, `packing-list-${d.dispatch_no}.pdf`).catch(() => {})}>Packing list (PDF)</Button>
+            <Button onClick={() => session.download(`/dispatches/${id}/packing-list.pdf`, `packing-list-${d.dispatch_no}.pdf`)}>Packing list (PDF)</Button>
             {packing && session.can('dispatch.confirm') && <Popconfirm title={`Confirm ${d.rolls.length} rolls and create the invoice?`} disabled={d.rolls.length === 0} onConfirm={confirm}><Button type="primary" disabled={d.rolls.length === 0} loading={act.isPending}>Confirm and invoice</Button></Popconfirm>}
             {d.status === 'confirmed' && session.can('dispatch.confirm') && <Button onClick={() => move('in_transit')}>Mark in transit</Button>}
             {(d.status === 'confirmed' || d.status === 'in_transit') && session.can('dispatch.confirm') && <Button type="primary" onClick={() => move('delivered')}>Mark delivered</Button>}

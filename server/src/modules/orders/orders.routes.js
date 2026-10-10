@@ -8,6 +8,7 @@ import { createOrderSchema, orderQuery, confirmSchema, cancelSchema } from './or
 const r = Router();
 
 r.get('/orders', can('orders.view'), validate({ query: orderQuery }), send((req) => s.listOrders(req.ctx, req.valid.query)));
+r.get('/orders/summary', can('orders.view'), send(() => s.orderSummary()));   // before /orders/:id
 r.post('/orders', can('orders.create'), validate({ body: createOrderSchema }), send((req) => s.createOrder(req.ctx, req.valid.body), 201));
 r.get('/orders/:id', can('orders.view'), validate({ params: idParam }), send((req) => s.getOrder(req.ctx, req.valid.params.id)));
 r.get('/orders/:id/requirements', can('orders.view', 'bom.view'), validate({ params: idParam }), send((req) => s.requirements(req.ctx, req.valid.params.id)));

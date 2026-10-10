@@ -1,6 +1,6 @@
 # Local login and demo data
 
-The mill has **one built-in login: the owner**. There are no predefined staff roles and no demo role switcher.
+The seed creates **one login: the owner**, plus the built-in roles (Owner, Office, Supervisor, Store Keeper, QC Inspector, Operator, Employee). Other staff are invited by email.
 
 | | |
 |---|---|
@@ -10,9 +10,10 @@ The mill has **one built-in login: the owner**. There are no predefined staff ro
 ## Setting the mill up
 
 1. Sign in as the owner.
-2. **Roles & permissions**: create the roles the mill needs and tick, per module, what each may view, create, update and delete (plus the extra actions such as confirm, approve, pay).
+2. **Roles & permissions**: the built-in roles come with sensible permissions. Adjust them, or create new roles, by ticking per module what each may view, create, update and delete (plus extra actions such as confirm, approve, pay).
 3. **Staff**: invite people by email and pick their role. They open the link, fill in their details (name, phone, address, city) and choose their own password.
-4. Floor staff (a role that records output, inspects rolls, assigns workers or loads trucks, but does not plan or see orders) land on the tablet screens under `/floor`. Everyone else lands on the dashboard.
+4. Floor staff (a role that records output, inspects rolls, assigns workers or loads trucks, but does not plan or see orders) land on the tablet screens under `/floor`. An Employee (no permissions) lands on **My work**. Everyone else lands on the dashboard.
+5. To show a person's attendance, output and payslips on **My work**, link their login to a worker record: **Staff → Edit → Linked worker**.
 
 If SMTP is not configured (`SMTP_USER` / `SMTP_PASS` in `server/.env`), no email is sent. The invite screen then shows the link to copy and send by hand, and the server prints it too.
 

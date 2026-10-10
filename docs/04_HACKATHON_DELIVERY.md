@@ -1,5 +1,7 @@
 # Sameta: 24-hour delivery agreement
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 Activated 2026-10-10. Source: `01_OVERALL_PLAN.md` sections 2, 11–19 and the frontend/backend execution plans. The six scenes in that document are the requirements baseline; this is not independent verification of the PDF or event rules. H0 means implementation start, not an official deadline. Current assignment: Member B (frontend).
 
 ## Requirements and acceptance criteria

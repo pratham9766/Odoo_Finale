@@ -1,5 +1,7 @@
 # Sameta — Frontend Execution Plan
 
+> **Historical document.** Written for an earlier multi-mill design and kept for reference. The current system is a single mill; see the [README](../README.md) for what exists today.
+
 > React 18 + Vite (JavaScript, no TypeScript) · React Router v6 · TanStack Query v5 · Ant Design 5 + Tailwind CSS 3 · Recharts · Supabase Auth · Socket.io client.
 > Read [01_OVERALL_PLAN.md](01_OVERALL_PLAN.md) for product, roles and workflows, and [02_BACKEND_EXECUTION.md](02_BACKEND_EXECUTION.md) for the API.
 

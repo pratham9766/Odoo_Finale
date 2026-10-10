@@ -1,6 +1,7 @@
 // Built-in roles. Owner has every permission and is the only system role; the others are a starting set the owner can
 // edit or delete in the app (Settings → Roles), and staff join by email invite with one of them.
-// Keep the lists in sync with db/migrations/019_default_role_permissions.sql (which fills them in on an existing database).
+// Keep the lists in sync with db/migrations/019_default_role_permissions.sql and 020_employee_role.sql (which fill them in
+// on an existing database).
 
 const ALL = '*';
 
@@ -49,6 +50,8 @@ export const ROLE_DEFS = [
       'production.view', 'production.log', 'machine.status', 'machines.view', 'assignment.view', 'breakdown.report',
     ],
   },
+  // a plain employee: no permissions, only their own My work page (attendance, output, payslips) and profile
+  { name: 'Employee', rank: 10, perms: [] },
 ];
 
 // returns [{ name, rank, system, perms:Set<string> }]
