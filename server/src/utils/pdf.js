@@ -10,30 +10,36 @@
 // Skeleton status (backend plan §22.3): signatures and input shapes are fixed now.
 // Layouts are basic and get finished in their build steps: roll label (step 5),
 // invoice + packing list (step 6: GST layout, amount in words), payslip (step 7).
-// QR images need the `qrcode` package; until then labels and badges print the token text.
+// QR codes are drawn as vector squares from the `qrcode` package's module matrix, so they stay sharp at any print size.
 
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
+import { formatAmount, formatINR } from './money.js';
+import { formatQty } from './textile.js';
+import { formatDate, formatMonth } from './time.js';
 
 export const MM = 72 / 25.4;                 // pdfkit works in points
 const A4_MARGIN = 40;
-const TZ = 'Asia/Kolkata';
 
 // ---- formatting --------------------------------------------------------------
 
-const inr = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const num = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 });
-const dateFmt = new Intl.DateTimeFormat('en-IN', { timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric' });
-const monthFmt = new Intl.DateTimeFormat('en-IN', { timeZone: TZ, month: 'long', year: 'numeric' });
-
 export const fmt = {
-  money: (v) => `Rs. ${inr.format(Number(v ?? 0))}`,
-  amount: (v) => inr.format(Number(v ?? 0)),
-  qty: (v, uom) => `${num.format(Number(v ?? 0))}${uom ? ` ${uom}` : ''}`,
-  date: (v) => (v ? dateFmt.format(new Date(v)) : ''),
-  month: (v) => (v ? monthFmt.format(new Date(v)) : ''),
+  money: (v) => formatINR(v, 'Rs. '),
+  amount: formatAmount,
+  qty: formatQty,
+  date: formatDate,
+  month: formatMonth,
 };
 
 // ---- core --------------------------------------------------------------------
+
+/** Send a generated PDF to the browser (opens inline; the filename is only used if the user saves it). */
+export function sendPdf(res, buffer, filename) {
+  res.type('application/pdf')
+    .set('Content-Disposition', `inline; filename="${filename.replace(/[^\w.-]/g, '_')}"`)
+    .set('Cache-Control', 'private, no-store')      // badges carry QR tokens, invoices carry prices
+    .send(buffer);
+}
 
 /** Run `draw(doc)` on a fresh document and collect the output into a Buffer. */
 export function render(options, draw) {
@@ -162,10 +168,17 @@ function footer(doc, text) {
     .fillColor('#000');
 }
 
-/** Placeholder for a QR image: bordered square with the token printed inside. */
-function qrBox(doc, token, x, y, size) {
-  doc.rect(x, y, size, size).lineWidth(0.8).stroke();
-  doc.font('Helvetica').fontSize(6).text(token ?? '', x + 2, y + size / 2 - 4, { width: size - 4, align: 'center' });
+/** QR code for `text` in a `size`-point square at (x, y), including the 2-module quiet zone scanners need. */
+function drawQr(doc, text, x, y, size) {
+  const { modules } = QRCode.create(String(text), { errorCorrectionLevel: 'M' });
+  const quiet = 2;
+  const cell = size / (modules.size + 2 * quiet);
+  for (let row = 0; row < modules.size; row++) {
+    for (let col = 0; col < modules.size; col++) {
+      if (modules.get(row, col)) doc.rect(x + (col + quiet) * cell, y + (row + quiet) * cell, cell, cell);
+    }
+  }
+  doc.fill('#000');
 }
 
 // ---- documents ---------------------------------------------------------------
@@ -257,7 +270,7 @@ export function packingList({ dispatch, seller, buyer, order = {}, rolls }) {
 export function rollLabel({ roll, item, order = {}, org = {} }) {
   const W = 60 * MM, H = 40 * MM, m = 2.5 * MM, qr = H - 2 * m;
   return render({ size: [W, H], margin: m, info: { Title: `Roll ${roll.roll_no}` } }, (doc) => {
-    qrBox(doc, roll.qr_token, m, m, qr);
+    drawQr(doc, roll.qr_token, m, m, qr);
     const x = m + qr + 2 * MM, w = W - x - m;
     doc.font('Helvetica-Bold').fontSize(9).text(roll.roll_no, x, m, { width: w, lineBreak: false });
     doc.font('Helvetica').fontSize(6.5);
@@ -292,7 +305,7 @@ export function badge({ worker, org, photo }) {
     doc.font('Helvetica').fontSize(7.5).text(worker.emp_code, { width: w });
     if (worker.stage) doc.text(worker.stage, { width: w });
     if (worker.shift) doc.text(`Shift ${worker.shift}`, { width: w });
-    qrBox(doc, worker.qr_token, W - m - qr, top, qr);
+    drawQr(doc, worker.qr_token, W - m - qr, top, qr);
   });
 }
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   grossInput, netOutput, actualWastePct, inchesToMetres, fabricGramsPerMetre, fabricMetresToKg,
   fabricKgToMetres, yarnMetresPerKg, yarnKgToMetres, yarnMetresToKg, splitWarpWeft, dyeKg,
-  rollsToMetres, metresToRolls, rollsTotalMetres,
+  rollsToMetres, metresToRolls, rollsTotalMetres, convertQty, formatQty, round3,
 } from '../src/utils/textile.js';
 
 const near = (actual, expected, tol, msg) =>
@@ -71,4 +71,32 @@ test('rolls ↔ metres', () => {
   assert.equal(rollsTotalMetres([{ length_m: '50.10' }, { length_m: '49.90' }, { length_m: '0.20' }]), 100.2);
   assert.equal(rollsTotalMetres([10.1, 20.2]), 30.3);
   assert.equal(rollsTotalMetres([]), 0);
+});
+
+test('convertQty: same unit is untouched; rolls and kg become metres through the item', () => {
+  const fabric = { name: 'Poplin 58" Navy', uom: 'm', roll_length_m: 50, width_m: 1.47, gsm: 120 };
+  assert.equal(convertQty(1778, 'm', fabric), 1778);
+  assert.equal(convertQty(40, 'roll', fabric), 2000);
+  near(convertQty(176.4, 'kg', fabric), 1000, 1e-9, 'kg → m');
+  const byKg = { ...fabric, uom: 'kg' };
+  near(convertQty(1000, 'm', byKg), 176.4, 1e-9, 'm → kg');
+  near(convertQty(2, 'roll', byKg), 17.64, 1e-9, 'roll → kg via metres');
+  assert.equal(convertQty(100, 'm', { ...fabric, uom: 'roll' }), 2);
+});
+
+test('convertQty: a missing roll length or GSM is named in the error, not a silent NaN', () => {
+  const bare = { name: 'Poplin', uom: 'm' };
+  assert.throws(() => convertQty(5, 'roll', bare), /roll_length_m not set on the item/);
+  assert.throws(() => convertQty(5, 'kg', bare), /width_m and gsm not set/);
+  assert.throws(() => convertQty(5, 'm', { ...bare, uom: 'kg' }), /width_m and gsm not set/);
+  assert.throws(() => convertQty(5, 'pcs', bare), RangeError);
+  assert.throws(() => convertQty(5, 'm', { ...bare, uom: 'pcs' }), RangeError);
+});
+
+test('formatQty and round3', () => {
+  assert.equal(formatQty(1250.5, 'm'), '1,250.5 m');
+  assert.equal(formatQty(1234567.12345), '12,34,567.123');
+  assert.equal(formatQty(null, 'kg'), '0 kg');
+  assert.equal(round3(0.1 + 0.2), 0.3);
+  assert.equal(round3(66.6666667), 66.667);
 });
