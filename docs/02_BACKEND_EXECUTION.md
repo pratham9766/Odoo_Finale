@@ -594,11 +594,11 @@ create table machines (
   org_id uuid not null references organizations(id) on delete cascade,
   code text not null, name text,
   stage_id uuid not null references stages(id),
-  capacity_per_hour numeric(12,3) not null, capacity_uom text not null,
-  hourly_overhead numeric(12,2) not null default 0,
+  capacity_per_hour numeric(12,3) not null check (capacity_per_hour > 0), capacity_uom text not null,
+  hourly_overhead numeric(12,2) not null default 0 check (hourly_overhead >= 0),
   status text not null default 'idle' check (status in ('idle','running','breakdown','maintenance')),
   status_since timestamptz not null default now(),
-  current_work_order_id uuid,
+  current_work_order_id uuid,                     -- fk added below, after work_orders
   active boolean not null default true,
   unique (org_id, code)
 );
@@ -612,7 +612,7 @@ create table work_orders (
   stage_id uuid not null references stages(id),
   output_item_id uuid not null references items(id),
   machine_id uuid references machines(id),
-  target_qty numeric(14,3) not null, uom text not null,
+  target_qty numeric(14,3) not null check (target_qty > 0), uom text not null,
   produced_qty numeric(14,3) not null default 0,
   waste_qty numeric(14,3) not null default 0,
   is_rework boolean not null default false,
@@ -622,6 +622,12 @@ create table work_orders (
   created_at timestamptz not null default now(), created_by uuid,
   unique (org_id, wo_no)
 );
+create index work_orders_order_idx on work_orders(org_id, order_id);
+create index work_orders_status_idx on work_orders(org_id, status);
+create index work_orders_machine_idx on work_orders(org_id, machine_id);
+
+alter table machines add constraint machines_current_wo_fk
+  foreign key (current_work_order_id) references work_orders(id) on delete set null;
 
 create table material_issues (
   id uuid primary key default gen_random_uuid(),
@@ -633,6 +639,8 @@ create table material_issues (
   unit_cost numeric(14,4) not null,
   created_at timestamptz not null default now(), created_by uuid
 );
+create index material_issues_wo_idx on material_issues(work_order_id);
+create index material_issues_lot_idx on material_issues(org_id, lot_id);   -- lot → work orders (trace)
 
 create table production_logs (
   id uuid primary key default gen_random_uuid(),
@@ -645,26 +653,31 @@ create table production_logs (
   run_minutes int not null default 0 check (run_minutes >= 0),
   logged_at timestamptz not null default now(), created_by uuid
 );
-create index on production_logs(org_id, machine_id, logged_at);
+create index production_logs_machine_idx on production_logs(org_id, machine_id, logged_at);
+create index production_logs_wo_idx on production_logs(work_order_id);
+create index production_logs_worker_idx on production_logs(org_id, worker_id, logged_at);  -- piece wages
 
 create table work_order_outputs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   work_order_id uuid not null references work_orders(id),
-  good_qty numeric(14,3) not null, good_weight_kg numeric(14,3),
-  waste_qty numeric(14,3) not null default 0, waste_item_id uuid references items(id),
+  good_qty numeric(14,3) not null check (good_qty >= 0), good_weight_kg numeric(14,3),
+  waste_qty numeric(14,3) not null default 0 check (waste_qty >= 0), waste_item_id uuid references items(id),
   waste_type text,
   created_at timestamptz not null default now(), created_by uuid
 );
+create index work_order_outputs_wo_idx on work_order_outputs(work_order_id);
 
 create table assignments (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
-  date date not null, shift_id uuid not null,
-  worker_id uuid not null, machine_id uuid not null references machines(id),
+  date date not null, shift_id uuid not null,   -- fk in 010
+  worker_id uuid not null,                      -- fk in 010
+  machine_id uuid not null references machines(id),
   created_at timestamptz not null default now(), created_by uuid,
   unique (org_id, date, shift_id, worker_id)
 );
+create index assignments_machine_idx on assignments(org_id, date, shift_id, machine_id);  -- default worker for a log
 
 create table machine_events (
   id uuid primary key default gen_random_uuid(),
@@ -673,8 +686,12 @@ create table machine_events (
   status text not null check (status in ('idle','running','breakdown','maintenance')),
   reason text,
   started_at timestamptz not null default now(), ended_at timestamptz,
-  created_by uuid
+  created_by uuid,
+  check (ended_at is null or ended_at >= started_at)
 );
+create index machine_events_machine_idx on machine_events(org_id, machine_id, started_at);
+-- at most one open event per machine: close the previous event before opening the next
+create unique index machine_events_one_open on machine_events(machine_id) where ended_at is null;
 
 create table maintenance_tickets (
   id uuid primary key default gen_random_uuid(),
@@ -682,14 +699,17 @@ create table maintenance_tickets (
   ticket_no text not null,
   machine_id uuid not null references machines(id),
   machine_event_id uuid references machine_events(id),
-  reason text not null, priority text not null default 'high',
-  assigned_to uuid,                               -- membership id of technician
+  reason text not null,
+  priority text not null default 'high' check (priority in ('low','normal','high','urgent')),
+  assigned_to uuid references memberships(id) on delete set null,   -- technician
   status text not null default 'open' check (status in ('open','in_progress','resolved')),
   resolution text, parts_used text,
   opened_at timestamptz not null default now(), resolved_at timestamptz,
   created_by uuid,
   unique (org_id, ticket_no)
 );
+create index maintenance_tickets_status_idx on maintenance_tickets(org_id, status);
+create index maintenance_tickets_machine_idx on maintenance_tickets(machine_id);
 ```
 
 ### 5.8 `008_quality.sql`
@@ -704,24 +724,29 @@ create table rolls (
   order_line_id uuid not null references order_lines(id),
   item_id uuid not null references items(id),
   work_order_id uuid not null references work_orders(id),     -- final-stage work order
-  length_m numeric(10,2) not null, weight_kg numeric(10,3),
+  length_m numeric(10,2) not null check (length_m > 0), weight_kg numeric(10,3),
   dye_batch text,
   status text not null default 'pending_qc'
     check (status in ('produced','pending_qc','passed','rework','rejected','packed','dispatched','delivered')),
   created_at timestamptz not null default now(), created_by uuid,
   unique (org_id, roll_no)
 );
+create index rolls_order_idx on rolls(org_id, order_id);
+create index rolls_status_idx on rolls(org_id, status);      -- QC queue
+create index rolls_wo_idx on rolls(work_order_id);
 
 create table roll_history (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   roll_id uuid not null references rolls(id) on delete cascade,
   stage_id uuid references stages(id), machine_id uuid references machines(id),
-  shift_id uuid, worker_id uuid, work_order_id uuid references work_orders(id),
+  shift_id uuid, worker_id uuid,                 -- fks in 010
+  work_order_id uuid references work_orders(id),
   event text not null,           -- 'spun','woven','dyed','created','inspected','reworked','dispatched'
   data jsonb not null default '{}'::jsonb,
   at timestamptz not null default now()
 );
+create index roll_history_roll_idx on roll_history(roll_id, at);
 
 create table roll_yarn_lots (
   org_id uuid not null references organizations(id) on delete cascade,
@@ -729,6 +754,7 @@ create table roll_yarn_lots (
   lot_id uuid not null references stock_lots(id),
   primary key (roll_id, lot_id)
 );
+create index roll_yarn_lots_lot_idx on roll_yarn_lots(lot_id);   -- lot → rolls (bad supplier lot)
 
 create table qc_inspections (
   id uuid primary key default gen_random_uuid(),
@@ -738,8 +764,11 @@ create table qc_inspections (
   result text not null check (result in ('pass','rework','reject')),
   is_override boolean not null default false, override_reason text,
   remarks text, photo_path text,
-  inspected_at timestamptz not null default now()
+  inspected_at timestamptz not null default now(),
+  check (not is_override or nullif(btrim(override_reason), '') is not null)
 );
+create index qc_inspections_roll_idx on qc_inspections(roll_id, inspected_at);
+create index qc_inspections_day_idx on qc_inspections(org_id, inspected_at);
 
 create table qc_defects (
   id uuid primary key default gen_random_uuid(),
@@ -748,6 +777,7 @@ create table qc_defects (
   defect_type_id uuid not null references defect_types(id),
   count int not null check (count > 0), severity int not null default 1
 );
+create index qc_defects_inspection_idx on qc_defects(inspection_id);
 ```
 
 ### 5.9 `009_gate_dispatch_transport.sql`
@@ -848,9 +878,11 @@ create table shifts (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   name text not null, start_time time not null, end_time time not null,
-  grace_min int not null default 10,
-  crosses_midnight boolean not null default false,
-  unique (org_id, name)
+  grace_min int not null default 10 check (grace_min >= 0),
+  -- derived, so it can never disagree with the times (C shift 22:00–06:00 → true)
+  crosses_midnight boolean generated always as (end_time < start_time) stored,
+  unique (org_id, name),
+  check (start_time <> end_time)
 );
 
 create table workers (
@@ -860,9 +892,9 @@ create table workers (
   skill text, stage_id uuid references stages(id), default_shift_id uuid references shifts(id),
   employment_type text not null default 'permanent' check (employment_type in ('permanent','contract')),
   wage_type text not null check (wage_type in ('daily','hourly','piece')),
-  rate numeric(10,2) not null default 0,          -- per day or per hour
-  ot_rate numeric(10,2) not null default 0,       -- per OT hour
-  piece_rate numeric(10,4) not null default 0,    -- per uom produced
+  rate numeric(10,2) not null default 0 check (rate >= 0),             -- per day or per hour
+  ot_rate numeric(10,2) not null default 0 check (ot_rate >= 0),       -- per OT hour
+  piece_rate numeric(10,4) not null default 0 check (piece_rate >= 0), -- per uom produced
   qr_token text not null unique,
   user_id uuid references auth.users(id),
   active boolean not null default true,
@@ -874,6 +906,8 @@ alter table production_logs add constraint pl_shift_fk foreign key (shift_id) re
 alter table production_logs add constraint pl_worker_fk foreign key (worker_id) references workers(id);
 alter table assignments add constraint as_shift_fk foreign key (shift_id) references shifts(id);
 alter table assignments add constraint as_worker_fk foreign key (worker_id) references workers(id);
+alter table roll_history add constraint rh_shift_fk foreign key (shift_id) references shifts(id);
+alter table roll_history add constraint rh_worker_fk foreign key (worker_id) references workers(id);
 
 create table kiosk_devices (
   id uuid primary key default gen_random_uuid(),
@@ -893,12 +927,13 @@ create table attendance_punches (
   device_id uuid references kiosk_devices(id), photo_path text,
   created_by uuid
 );
+create index attendance_punches_worker_idx on attendance_punches(org_id, worker_id, punched_at);  -- 60 s duplicate check
 
 create table attendance (                       -- daily summary per worker per shift
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   worker_id uuid not null references workers(id),
-  date date not null, shift_id uuid not null references shifts(id),
+  date date not null, shift_id uuid not null references shifts(id),   -- night shift: date = shift start date
   check_in timestamptz, check_out timestamptz,
   worked_hours numeric(5,2) not null default 0,
   late_min int not null default 0, early_leave_min int not null default 0,
@@ -907,8 +942,10 @@ create table attendance (                       -- daily summary per worker per 
     check (status in ('present','late','half_day','absent','leave','weekly_off','holiday')),
   needs_correction boolean not null default false,
   approved_by uuid,
-  unique (worker_id, date, shift_id)
+  unique (worker_id, date, shift_id),
+  check (check_out is null or check_in is null or check_out >= check_in)
 );
+create index attendance_date_idx on attendance(org_id, date, shift_id);   -- today board, register
 
 create table attendance_corrections (
   id uuid primary key default gen_random_uuid(),
@@ -919,6 +956,7 @@ create table attendance_corrections (
   approved_by uuid, decided_at timestamptz,
   created_at timestamptz not null default now()
 );
+create index attendance_corrections_status_idx on attendance_corrections(org_id, status);
 
 create table leave_requests (
   id uuid primary key default gen_random_uuid(),
@@ -926,26 +964,20 @@ create table leave_requests (
   worker_id uuid not null references workers(id),
   from_date date not null, to_date date not null, type text not null, reason text,
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
-  approved_by uuid, created_at timestamptz not null default now()
+  approved_by uuid, created_at timestamptz not null default now(),
+  check (to_date >= from_date)
 );
+create index leave_requests_worker_idx on leave_requests(org_id, worker_id, from_date);
 
 create table holidays (
   org_id uuid not null references organizations(id) on delete cascade,
   date date not null, name text not null, primary key (org_id, date)
 );
 
-create table wage_advances (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
-  worker_id uuid not null references workers(id),
-  amount numeric(10,2) not null, date date not null,
-  recovered_in_run uuid
-);
-
 create table wage_runs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
-  month date not null,                         -- first day of month
+  month date not null check (extract(day from month) = 1),   -- first day of month
   status text not null default 'draft' check (status in ('draft','approved','paid')),
   total_gross numeric(14,2) not null default 0, total_net numeric(14,2) not null default 0,
   prepared_by uuid, approved_by uuid, paid_at timestamptz,
@@ -961,8 +993,18 @@ create table wage_lines (
   hours numeric(7,2) not null default 0, ot_hours numeric(6,2) not null default 0,
   pieces numeric(14,3) not null default 0,
   gross numeric(12,2) not null, advances numeric(12,2) not null default 0,
-  deductions numeric(12,2) not null default 0, net numeric(12,2) not null
+  deductions numeric(12,2) not null default 0, net numeric(12,2) not null,
+  unique (wage_run_id, worker_id)
 );
+
+create table wage_advances (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  worker_id uuid not null references workers(id),
+  amount numeric(10,2) not null check (amount > 0), date date not null,
+  recovered_in_run uuid references wage_runs(id) on delete set null
+);
+create index wage_advances_open_idx on wage_advances(org_id, worker_id) where recovered_in_run is null;
 ```
 
 ### 5.11 `011_finance.sql`
