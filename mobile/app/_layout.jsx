@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { theme } from '../src/theme/theme';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { SessionProvider } from '../src/context/Session';
 
 const queryClient = new QueryClient();
 
@@ -15,7 +16,9 @@ export default function RootLayout() {
         settings={{ icon: props => <MaterialCommunityIcons {...props} /> }}
       >
         <SafeAreaProvider>
-          <Slot />
+          <SessionProvider>
+            <Slot />
+          </SessionProvider>
         </SafeAreaProvider>
       </PaperProvider>
     </QueryClientProvider>

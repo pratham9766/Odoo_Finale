@@ -4,22 +4,23 @@ export const theme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#007780', // Teal
-    secondary: '#14243E', // Navy
-    background: '#F5F7F9', // Light neutral background
-    surface: '#FFFFFF',
-    error: '#E53935',
-    text: '#182B45',
-    onSurface: '#182B45',
-    onPrimary: '#FFFFFF',
-    onSecondary: '#FFFFFF',
+    primary: '#216457',
+    secondary: '#182d2a',
+    background: '#f5f6f2',
+    surface: '#ffffff',
+    error: '#B42318', // Used standard error color
+    text: '#233b37',
+    onSurface: '#233b37',
+    onPrimary: '#ffffff',
+    onSecondary: '#ffffff',
+    outline: '#e3e7df',
     elevation: {
       level0: 'transparent',
-      level1: '#FFFFFF',
-      level2: '#FFFFFF',
-      level3: '#FFFFFF',
-      level4: '#FFFFFF',
-      level5: '#FFFFFF',
+      level1: '#ffffff',
+      level2: '#ffffff',
+      level3: '#ffffff',
+      level4: '#ffffff',
+      level5: '#ffffff',
     },
   },
   roundness: 8,

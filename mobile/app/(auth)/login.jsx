@@ -97,14 +97,6 @@ export default function LoginScreen() {
             <Text variant="bodySmall" style={styles.tagline}>
               One platform connecting vendors, customers, and commerce.
             </Text>
-
-            {__DEV__ && (
-              <Link href="/(app)/(tabs)/dashboard" asChild>
-                <Button mode="outlined" style={{ marginTop: 24, borderColor: theme.colors.primary }} textColor={theme.colors.primary}>
-                  Dev Preview: Bypass Login
-                </Button>
-              </Link>
-            )}
           </View>
         </View>
       </ScrollView>

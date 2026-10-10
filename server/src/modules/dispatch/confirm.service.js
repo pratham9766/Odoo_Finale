@@ -39,11 +39,37 @@ export async function confirmDispatch(ctx, dispatchId, { at = new Date() } = {})
     if (!dispatch) throw new AppError(404, 'NOT_FOUND', 'Dispatch not found');
     if (dispatch.status !== 'packing') throw new AppError(409, 'INVALID_STATE_TRANSITION', `Dispatch ${dispatch.dispatch_no} is already ${dispatch.status}`);
 
-    const rolls = await scannedRolls(db, dispatch.id);
-    if (!rolls.length) throw new AppError(422, 'VALIDATION_FAILED', 'Scan at least one roll before confirming the dispatch');
+    const { rows: lockedRolls } = await db.query(
+      `select r.id, r.roll_no, r.status, r.order_id, r.weight_kg, dr.length_m 
+       from dispatch_rolls dr 
+       join rolls r on r.id = dr.roll_id 
+       where dr.dispatch_id = $1 
+       order by r.roll_no for update`, [dispatch.id]);
+
+    if (!lockedRolls.length) throw new AppError(422, 'VALIDATION_FAILED', 'Scan at least one roll before confirming the dispatch');
+
+    for (const r of lockedRolls) {
+      if (r.order_id !== dispatch.order_id) {
+        throw new AppError(409, 'ROLL_WRONG_ORDER', `Roll ${r.roll_no} belongs to another order`);
+      }
+      if (!['passed', 'packed'].includes(r.status)) {
+        throw new AppError(409, 'INVALID_ROLL_STATE', `Roll ${r.roll_no} has an invalid status (${r.status}) for dispatch`);
+      }
+    }
+
+    const { rows: [totals] } = await db.query(
+      `select (select coalesce(sum(length_m), 0) from dispatch_rolls where dispatch_id = $1)::float as scanned,
+              (select coalesce(sum(qty), 0) from order_lines where order_id = $2)::float as ordered,
+              (select coalesce(sum(dr.length_m), 0) from dispatch_rolls dr join dispatches d2 on d2.id = dr.dispatch_id
+                where d2.order_id = $2 and d2.status <> 'cancelled' and d2.id <> $1)::float as earlier`, [dispatch.id, dispatch.order_id]);
+    
+    if (totals.earlier + totals.scanned > totals.ordered * 1.05) {
+      throw new AppError(409, 'QTY_EXCEEDS_ORDER', `Confirmed quantity would exceed the ordered quantity`);
+    }
 
     await db.query(`update dispatches set status = 'confirmed', confirmed_at = $2 where id = $1`, [dispatch.id, at]);
-    await db.query(`update rolls set status = 'dispatched' where id = any($1::uuid[])`, [rolls.map((r) => r.id)]);
+    await db.query(`update rolls set status = 'dispatched' where id = any($1::uuid[])`, [lockedRolls.map((r) => r.id)]);
+    const rolls = lockedRolls;
     await db.query(
       `insert into roll_history (org_id, roll_id, event, data, at)
        select $1, r, 'dispatched', $2, $3 from unnest($4::uuid[]) as r`,
