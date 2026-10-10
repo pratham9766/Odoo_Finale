@@ -1,0 +1,621 @@
+/* =========================================================================
+   LOGIN PAGE STYLES - Matched to the Sameta Reference Design
+   ========================================================================= */
+
+.login-view-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #0d1e1a;
+  color: #111827;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-x: hidden;
+}
+
+/* ---------------- Top Navigation Bar ---------------- */
+.login-navbar {
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 44px;
+  position: relative;
+  z-index: 30;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.login-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-brand-logo {
+  display: flex;
+  align-items: center;
+}
+
+.nav-brand-text {
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+  color: #111827;
+}
+
+.login-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.nav-platform-tag {
+  color: #6b7280;
+  font-weight: 450;
+}
+
+.nav-divider {
+  color: #d1d5db;
+  font-size: 14px;
+}
+
+.nav-help-link {
+  color: #374151;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.nav-help-link:hover {
+  color: #111827;
+}
+
+.nav-lang-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #374151;
+  font-weight: 550;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.nav-lang-picker:hover {
+  background: #f3f4f6;
+}
+
+/* ---------------- Main Hero Stage ---------------- */
+.login-stage {
+  flex: 1;
+  position: relative;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  background-image: url('/textile-bg.jpg');
+  background-size: cover;
+  background-position: center right;
+  background-repeat: no-repeat;
+}
+
+.login-stage-backdrop {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(10, 24, 21, 0.94) 0%,
+    rgba(12, 28, 25, 0.86) 42%,
+    rgba(14, 32, 29, 0.70) 75%,
+    rgba(10, 22, 20, 0.78) 100%
+  );
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  z-index: 1;
+}
+
+.login-container {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1420px;
+  margin: 0 auto;
+  padding: 40px 48px;
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+/* ---------------- Left: Floating Sign-In Card ---------------- */
+.login-card-container {
+  width: 100%;
+  max-width: 460px;
+}
+
+.login-floating-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 38px 36px 30px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.42), 0 0 1px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.card-eyebrow {
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.card-main-title {
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: -1.2px;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.card-intro-text {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+.form-label-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  display: block;
+}
+
+.form-input-pill {
+  border-radius: 10px !important;
+  background-color: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  padding: 9px 14px !important;
+  font-size: 14px !important;
+  transition: all 0.15s ease !important;
+}
+
+.form-input-pill:hover {
+  border-color: #d1d5db !important;
+  background-color: #ffffff !important;
+}
+
+.form-input-pill:focus,
+.form-input-pill-focused {
+  border-color: #153e35 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(21, 62, 53, 0.12) !important;
+}
+
+.forgot-password-link-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  margin-bottom: 18px;
+}
+
+.forgot-link-text {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: #4b5563;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.forgot-link-text:hover {
+  color: #111827;
+  text-decoration: underline;
+}
+
+.login-floating-card .btn-login-submit,
+.login-floating-card .ant-btn-primary {
+  height: 48px !important;
+  border-radius: 10px !important;
+  background: #153e35 !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.2px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(21, 62, 53, 0.25) !important;
+}
+
+.login-floating-card .btn-login-submit:hover,
+.login-floating-card .ant-btn-primary:hover {
+  background: #1c5246 !important;
+  box-shadow: 0 6px 18px rgba(21, 62, 53, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.login-or-separator {
+  position: relative;
+  text-align: center;
+  margin: 18px 0;
+}
+
+.login-or-separator::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.login-or-separator span {
+  position: relative;
+  background: #ffffff;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.btn-microsoft-oauth {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #1f2937;
+  font-size: 13.5px;
+  font-weight: 550;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-microsoft-oauth:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.trust-badge-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 22px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.login-card-demo-wrapper {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+/* ---------------- Right: Hero Value Props & Tablet Mockup ---------------- */
+.login-hero-stage {
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 20px;
+}
+
+.hero-tag-connected {
+  font-size: 11.5px;
+  letter-spacing: 2.6px;
+  font-weight: 650;
+  color: #9ca3af;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.hero-statement-title {
+  font-size: clamp(38px, 4.4vw, 56px);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: #ffffff;
+  margin-bottom: 18px;
+}
+
+.gold-word {
+  color: #d0af71;
+  font-weight: 800;
+}
+
+.hero-narrative-copy {
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 530px;
+  margin-bottom: 30px;
+}
+
+/* 3 Glassmorphism Metric Cards */
+.glass-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 680px;
+  margin-bottom: 32px;
+}
+
+.glass-metric-box {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.glass-metric-box:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.metric-header-part {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+
+.metric-icon-circle {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-label-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.metric-highlight-value {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.8px;
+  color: #ffffff;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.metric-footer-part {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+.metric-sub-detail {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.metric-positive-trend {
+  color: #4ade80;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+/* Tablet Device Mockup */
+.tablet-preview-stage {
+  max-width: 680px;
+  position: relative;
+}
+
+.tablet-bezel {
+  background: #111827;
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.tablet-display-surface {
+  background: #0d1a17;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tablet-inner-nav {
+  height: 32px;
+  background: #091311;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+}
+
+.tablet-inner-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.tablet-inner-search {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.tablet-inner-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.tablet-sidebar-pane {
+  width: 110px;
+  background: #070f0e;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tablet-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+}
+
+.tablet-nav-link.active {
+  background: rgba(21, 62, 53, 0.7);
+  color: #ffffff;
+  border: 1px solid rgba(208, 175, 113, 0.35);
+}
+
+.tablet-content-pane {
+  flex: 1;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tablet-pane-header h4 {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tablet-graphs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mini-chart-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 6px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.spline-chart {
+  width: 100%;
+  height: 40px;
+}
+
+.tablet-progress-trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.progress-unit-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.progress-unit-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-unit-labels strong {
+  color: #ffffff;
+}
+
+.progress-track-rail {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill-bar {
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* ---------------- Responsive Behavior ---------------- */
+@media (max-width: 1180px) {
+  .login-container {
+    grid-template-columns: 420px 1fr;
+    gap: 36px;
+    padding: 32px 24px;
+  }
+  .hero-statement-title {
+    font-size: 38px;
+  }
+}
+
+@media (max-width: 960px) {
+  .login-navbar {
+    padding: 0 20px;
+  }
+  .nav-platform-tag {
+    display: none;
+  }
+  .login-container {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 24px 16px;
+  }
+  .login-card-container {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .login-hero-stage {
+    padding-left: 0;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+  .glass-metrics-row {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  .tablet-preview-stage {
+    display: none;
+  }
+}

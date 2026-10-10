@@ -1,221 +1,236 @@
-import { useState, useMemo } from 'react';
-import { Layout, Menu, Drawer, Avatar, Dropdown, Button, Typography } from 'antd';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import {
-  MenuFoldOutlined, MenuUnfoldOutlined,
-  UserOutlined, LogoutOutlined,
-} from '@ant-design/icons';
-import { useAuth } from '@/hooks/useAuth';
-import { useMill } from '@/hooks/useMill';
-import { usePermission } from '@/hooks/usePermission';
-import { millNav } from '@/config/nav';
-import { useIsMobile } from '@/hooks/useIsMobile';
+import { useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { Alert, Button, Drawer, Input, Select } from 'antd';
+import { useSession } from '@/context/Session';
 
-const { Sider, Header, Content } = Layout;
-const { Text } = Typography;
-
-function filterNav(items, can) {
-  return items
-    .map((item) => {
-      if (item.children) {
-        const children = filterNav(item.children, can);
-        if (children.length === 0) return null;
-        return { ...item, children };
-      }
-      if (item.anyOf && !can(...item.anyOf)) return null;
-      return item;
-    })
-    .filter(Boolean);
-}
-
-function navToAntd(items, location, navigate) {
-  return items.map((item) => {
-    if (item.children) {
-      return {
-        key: item.key,
-        icon: item.icon ? <item.icon /> : null,
-        label: item.label,
-        children: navToAntd(item.children, location, navigate),
-      };
-    }
-    return {
-      key: item.key,
-      icon: item.icon ? <item.icon /> : null,
-      label: <span onClick={() => navigate(item.to)}>{item.label}</span>,
-    };
-  });
-}
-
-function getSelectedKeys(items, pathname) {
-  for (const item of items) {
-    if (item.to && pathname.startsWith(item.to)) return [item.key];
-    if (item.children) {
-      const sub = getSelectedKeys(item.children, pathname);
-      if (sub.length) return sub;
-    }
-  }
-  return [];
-}
-
-function getOpenKeys(items, pathname) {
-  for (const item of items) {
-    if (item.children) {
-      const sub = getSelectedKeys(item.children, pathname);
-      if (sub.length) return [item.key];
-    }
-  }
-  return [];
+function LogoWeaveIcon({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 14L22 29M14 7L29 22" stroke="#d0af71" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M14 29L29 14M7 22L22 7" stroke="#c4a161" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M11 11L25 25M11 25L25 11" stroke="#d9bd85" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+    </svg>
+  );
 }
 
 export default function AppLayout() {
-  const { user, signOut } = useAuth();
-  const { mill, role } = useMill();
-  const { can } = usePermission();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isMobile = useIsMobile(992);
-  const [collapsed, setCollapsed] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const session = useSession();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState(null);
 
-  const visibleNav = useMemo(() => filterNav(millNav, can), [can]);
-  const menuItems = useMemo(() => navToAntd(visibleNav, location, navigate), [visibleNav, location, navigate]);
-  const selectedKeys = useMemo(() => getSelectedKeys(visibleNav, location.pathname), [visibleNav, location.pathname]);
-  const defaultOpenKeys = useMemo(() => getOpenKeys(visibleNav, location.pathname), [visibleNav, location.pathname]);
+  const isManufacturer = session.context.org.types?.includes('manufacturer');
 
-  const userMenu = [
-    { key: 'profile', icon: <UserOutlined />, label: 'My profile' },
-    { key: 'signout', icon: <LogoutOutlined />, label: 'Sign out', danger: true },
-  ];
+  const nav = (
+    <>
+      <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <LogoWeaveIcon size={28} />
+        <span style={{ color: '#ffffff', letterSpacing: '-0.5px' }}>sameta</span>
+      </div>
 
-  const handleUserMenu = ({ key }) => {
-    if (key === 'signout') signOut();
-    if (key === 'profile') navigate('/app/profile');
-  };
+      <div className="nav-caption">WORKSPACE</div>
 
-  const millName = mill?.name || 'Everest Textile Mills';
-  const roleName = role?.name || 'Staff';
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-
-  const sidebarMenu = (
-    <div className="flex flex-col h-full">
-      {/* Logo & Mill Name */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
-        <div className="flex items-center justify-center font-black text-brand tracking-tighter" style={{ fontSize: '20px' }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
-            <path d="M4 8l8-4 8 4M4 16l8 4 8-4M4 12l8 4 8-4" />
+      <nav aria-label="Main navigation">
+        <NavLink to="/app" end onClick={() => setOpen(false)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-        </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <div className="text-white font-bold text-lg leading-tight truncate tracking-tight">SAMETA</div>
-            <div className="text-white/50 text-xs truncate">{millName}</div>
-          </div>
+          Workspace
+        </NavLink>
+
+        {isManufacturer && session.can('orders.view') && (
+          <NavLink to="/app/orders" onClick={() => setOpen(false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Orders
+          </NavLink>
         )}
-      </div>
 
-      {/* Nav */}
-      <div className="flex-1 overflow-y-auto py-2">
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={selectedKeys}
-          defaultOpenKeys={defaultOpenKeys}
-          items={menuItems}
-          style={{ background: 'transparent', borderRight: 0 }}
-        />
-      </div>
+        {isManufacturer && session.can('stock.view') && (
+          <NavLink to="/app/stock" onClick={() => setOpen(false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+            Inventory
+          </NavLink>
+        )}
 
-      {/* User profile footer */}
-      <div className="p-3 border-t border-white/10">
-        <Dropdown menu={{ items: userMenu, onClick: handleUserMenu }} trigger={['click']} placement="topRight">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
-            <Avatar size={34} style={{ background: '#006B73', flexShrink: 0 }}>
-              {displayName[0]?.toUpperCase()}
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <div className="text-white text-xs font-semibold truncate leading-tight">{displayName}</div>
-                <div className="text-white/50 text-[11px] truncate capitalize">{roleName}</div>
-              </div>
-            )}
-          </div>
-        </Dropdown>
+        {isManufacturer && session.can('production.view') && (
+          <NavLink to="/app/production" onClick={() => setOpen(false)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+            Production floor
+          </NavLink>
+        )}
+
+        <NavLink to="/app/orders" onClick={() => setOpen(false)} style={{ opacity: 0.75 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          Buyers
+        </NavLink>
+
+        <NavLink to="/app/orders" onClick={() => setOpen(false)} style={{ opacity: 0.75 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          Analytics
+        </NavLink>
+
+        <NavLink to="/app" onClick={() => setOpen(false)} style={{ opacity: 0.75 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          Settings
+        </NavLink>
+      </nav>
+
+      <div className="sidebar-footer">
+        CONNECTED MILL OPERATIONS
+        <br />
+        <strong>From yarn to delivery.</strong>
       </div>
-    </div>
+    </>
   );
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {!isMobile ? (
-        <Sider
-          collapsible
-          collapsed={collapsed}
-          onCollapse={setCollapsed}
-          trigger={null}
-          width={240}
-          collapsedWidth={72}
-          style={{
-            background: '#12233F',
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            overflow: 'hidden',
-            zIndex: 100,
-          }}
-        >
-          {sidebarMenu}
-        </Sider>
-      ) : (
-        <Drawer
-          placement="left"
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          styles={{ body: { padding: 0, background: '#12233F' } }}
-          width={260}
-        >
-          {sidebarMenu}
-        </Drawer>
-      )}
+    <div className="app-shell">
+      <aside className="sidebar">{nav}</aside>
 
-      <Layout style={{ background: '#F8FAFC' }}>
-        <Header
-          style={{
-            background: '#FFFFFF',
-            padding: '0 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #E2E8F0',
-            height: 56,
-            position: 'sticky',
-            top: 0,
-            zIndex: 90,
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <Button
-              type="text"
-              icon={isMobile ? <MenuUnfoldOutlined /> : collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => (isMobile ? setDrawerOpen(true) : setCollapsed(!collapsed))}
-              style={{ fontSize: 16 }}
+      <Drawer placement="left" open={open} onClose={() => setOpen(false)} title="Sameta navigation">
+        {nav}
+      </Drawer>
+
+      <div className="workspace">
+        <header className="topbar">
+          <Button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation">
+            Menu
+          </Button>
+
+          {/* Org Selector with Building Icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, maxWidth: 680 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Select
+                className="org-select"
+                aria-label="Current organization"
+                value={session.orgId}
+                onChange={session.switchOrg}
+                options={session.orgs.map(o => ({
+                  value: o.id,
+                  label: (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 550 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+                        <path d="M9 22v-4h6v4" />
+                        <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+                      </svg>
+                      {o.name}
+                    </span>
+                  ),
+                }))}
+              />
+            </div>
+
+            {/* Global Search Bar */}
+            <Input
+              style={{
+                maxWidth: 380,
+                borderRadius: 8,
+                background: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                height: 38,
+              }}
+              prefix={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              }
+              placeholder="Search orders, buyers, fabrics..."
             />
-            <Text strong style={{ fontSize: 15, color: '#1E293B' }}>{millName}</Text>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span style={{ fontSize: 13, color: '#64748B' }}>Role: <strong style={{ color: '#0F172A' }}>{roleName}</strong></span>
-            <Dropdown menu={{ items: userMenu, onClick: handleUserMenu }} trigger={['click']}>
-              <Avatar size={32} style={{ background: '#006B73', cursor: 'pointer' }}>
-                {displayName[0]?.toUpperCase()}
-              </Avatar>
-            </Dropdown>
-          </div>
-        </Header>
+          <div className="topbar-right">
+            {/* Notification Bell with unread dot */}
+            <button
+              type="button"
+              aria-label="Notifications"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 6,
+                color: '#4b5563',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 5,
+                  right: 5,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: '#d0af71',
+                }}
+              />
+            </button>
 
-        <Content style={{ padding: isMobile ? 12 : 24, minHeight: 'calc(100vh - 56px)' }}>
+            {/* User role label / pill */}
+            <span className="role-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {session.context.role?.name || 'Owner'}
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.6 }}>
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </span>
+
+            <Button
+              style={{ borderRadius: 8, height: 36, borderColor: '#e5e7eb' }}
+              onClick={async () => {
+                try {
+                  await session.signOut();
+                } catch (err) {
+                  setError(err.message);
+                }
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
+        </header>
+
+        <main className="main-content">
+          {error && <Alert type="error" message={error} closable onClose={() => setError(null)} />}
           <Outlet />
-        </Content>
-      </Layout>
-    </Layout>
+        </main>
+
+        <footer className="workspace-footer">
+          SAMETA <span>Mill operations, in sync.</span>
+        </footer>
+      </div>
+    </div>
   );
 }

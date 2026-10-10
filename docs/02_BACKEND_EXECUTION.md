@@ -1,4 +1,4 @@
-# TexLink — Backend Execution Plan
+# Sameta — Backend Execution Plan
 
 > Node.js 20 + Express (JavaScript, ESM) + Supabase PostgreSQL.
 > Read [01_OVERALL_PLAN.md](01_OVERALL_PLAN.md) first for the product, domains, roles and workflows.
@@ -129,7 +129,7 @@ AI_MODEL=gemini-3.5-flash-lite
 
 # Email
 RESEND_API_KEY=...
-EMAIL_FROM="TexLink <no-reply@texlink.app>"
+EMAIL_FROM="Sameta <no-reply@sameta.app>"
 
 # Misc
 PUBLIC_TRACK_BASE_URL=http://localhost:5173/track
@@ -1676,7 +1676,7 @@ const schema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().default('gemini-3.5-flash-lite'),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('TexLink <no-reply@texlink.app>'),
+  EMAIL_FROM: z.string().default('Sameta <no-reply@sameta.app>'),
   PUBLIC_TRACK_BASE_URL: z.string().url(),
 });
 
