@@ -1,4 +1,4 @@
-# TexLink — Frontend Execution Plan
+# Sameta — Frontend Execution Plan
 
 > React 18 + Vite (JavaScript, no TypeScript) · React Router v6 · TanStack Query v5 · Ant Design 5 + Tailwind CSS 3 · Recharts · Supabase Auth · Socket.io client.
 > Read [01_OVERALL_PLAN.md](01_OVERALL_PLAN.md) for product, roles and workflows, and [02_BACKEND_EXECUTION.md](02_BACKEND_EXECUTION.md) for the API.
@@ -398,7 +398,7 @@ export function AuthProvider({ children }) {
 
 ### 5.2 `context/OrgContext.jsx`
 
-Loads `GET /me/orgs` and, for the selected org, `GET /me/orgs/:id/context` (role, permissions, scope, types, modules). Stores the selected org id in `localStorage` (`texlink.orgId`, wrapped in try/catch) and calls `setApiOrg()`.
+Loads `GET /me/orgs` and, for the selected org, `GET /me/orgs/:id/context` (role, permissions, scope, types, modules). Stores the selected org id in `localStorage` (`sameta.orgId`, wrapped in try/catch) and calls `setApiOrg()`.
 
 ```jsx
 import { createContext, useEffect, useMemo, useState } from 'react';
@@ -407,7 +407,7 @@ import { api, setApiOrg } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
 export const OrgContext = createContext(null);
-const KEY = 'texlink.orgId';
+const KEY = 'sameta.orgId';
 const readSaved = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
 const save = (id) => { try { localStorage.setItem(KEY, id); } catch { /* ignore */ } };
 
@@ -698,7 +698,7 @@ export const router = createBrowserRouter([
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ☰ TexLink   [Everest Textile Mills ▾]   🔍 Search     🔔 3   🤖  👤  │  topbar
+│ ☰ Sameta    [Everest Textile Mills ▾]   🔍 Search     🔔 3   🤖  👤  │  topbar
 ├────────────┬─────────────────────────────────────────────────────────┤
 │ sidebar    │  PageHeader (title, breadcrumbs, actions)               │
 │ (from      │  ─────────────────────────────────────────────────────  │
@@ -765,7 +765,7 @@ export const millNav = [
       { key: 'att', label: 'Attendance', to: '/app/reports/attendance', anyOf: ['reports.attendance'] },
   ]},
   { key: 'partners', label: 'Partners', to: '/app/partners', anyOf: ['partners.view'] },
-  { key: 'ai', label: 'Ask TexLink', to: '/app/ai', anyOf: ['ai.chat'] },
+  { key: 'ai', label: 'Ask Sameta', to: '/app/ai', anyOf: ['ai.chat'] },
   { key: 'settings', label: 'Settings', to: '/app/settings/org', anyOf: ['settings.manage', 'staff.view', 'roles.manage'] },
 ];
 ```
@@ -1334,7 +1334,7 @@ Calls `POST /me/orgs` at step 4 with everything; shows a spinner and handles err
 
 ### 14.5 Public tracking — `/track/:token`
 
-Minimal mobile page: mill name, order no., StageStepper, status, ETA, timeline. No prices, no login, "Powered by TexLink" footer. `GET /public/track/:token`, refresh every 60 s.
+Minimal mobile page: mill name, order no., StageStepper, status, ETA, timeline. No prices, no login, "Powered by Sameta" footer. `GET /public/track/:token`, refresh every 60 s.
 
 ---
 

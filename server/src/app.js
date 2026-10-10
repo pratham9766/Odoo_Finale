@@ -11,6 +11,7 @@ import publicRoutes from './modules/public/public.routes.js';
 import meRoutes from './modules/auth/me.routes.js';
 import platformRoutes from './modules/platform/platform.routes.js';
 import tenantRouter from './modules/index.js';
+import demoRoutes from './modules/auth/demo.routes.js';
 
 export const app = express();
 app.set('trust proxy', 1); // behind Render/Railway proxies (rate limiter needs the real IP)
@@ -21,6 +22,7 @@ app.use(express.json({ limit: '2mb' }));
 if (env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.use('/api/v1/demo', demoRoutes);
 app.use('/api/v1/public', publicRoutes); // no auth (tracking link)
 
 // kiosk (device-token auth) is mounted by the workforce module when it exists

@@ -135,11 +135,17 @@ export async function createOrg(user, input) {
           [orgId, st.id, s.weight_loss_pct ?? 0, s.length_shrink_pct ?? 0],
         );
       }
+      const { rows: [shiftColumn] } = await db.query(
+        `select is_generated from information_schema.columns
+         where table_schema = 'public' and table_name = 'shifts' and column_name = 'crosses_midnight'`,
+      );
       for (const sh of input.shifts?.length ? input.shifts : DEFAULT_SHIFTS) {
         const crosses = sh.end_time <= sh.start_time;
         await db.query(
-          `insert into shifts (org_id, name, start_time, end_time, grace_min, crosses_midnight) values ($1,$2,$3,$4,$5,$6)`,
-          [orgId, sh.name, sh.start_time, sh.end_time, sh.grace_min ?? 10, crosses],
+          shiftColumn?.is_generated === 'ALWAYS'
+            ? `insert into shifts (org_id, name, start_time, end_time, grace_min) values ($1,$2,$3,$4,$5)`
+            : `insert into shifts (org_id, name, start_time, end_time, grace_min, crosses_midnight) values ($1,$2,$3,$4,$5,$6)`,
+          [orgId, sh.name, sh.start_time, sh.end_time, sh.grace_min ?? 10, ...(shiftColumn?.is_generated === 'ALWAYS' ? [] : [crosses])],
         );
       }
       for (const [code, name, sev] of DEFECTS) {

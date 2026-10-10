@@ -1,3 +1,5 @@
+import { cleanPath } from './contracts.js';
+
 export class ApiError extends Error {
   constructor(message, status = 0, code = 'NETWORK', details) {
     super(message); this.status = status; this.code = code; this.details = details;
@@ -12,7 +14,7 @@ export async function request(path, { token, orgId, method = 'GET', body, signal
   if (signal?.aborted) controller.abort();
   const timeout = setTimeout(abort, 15000);
   try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1${path}`, {
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1${cleanPath(path)}`, {
       method, signal: controller.signal,
       headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(orgId ? { 'x-org-id': orgId } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),

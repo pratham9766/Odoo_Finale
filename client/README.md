@@ -1,4 +1,4 @@
-# TexLink frontend
+# Sameta frontend
 
 Member B foundation: React/Vite/JavaScript with Ant Design, Tailwind utilities, Router and TanStack Query. See `../docs/04_HACKATHON_DELIVERY.md` for team scope and `../docs/05_FRONTEND_CONTRACT.md` for required API response shapes.
 

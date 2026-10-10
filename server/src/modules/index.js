@@ -8,6 +8,7 @@ import orders from './orders/orders.routes.js';
 import transport from './transport/transport.routes.js';
 import ai from './ai/ai.routes.js';
 import notifications from './notifications/notifications.routes.js';
+import board from './production/board.routes.js';
 
 // All tenant-scoped modules (auth + tenant middleware already applied in app.js).
 // Each owner adds their router here in their PR (§22.5); Vipul merges.
@@ -22,5 +23,6 @@ r.use(orders);
 r.use(transport);
 r.use(ai);
 r.use(notifications);
+r.use(board);
 
 export default r;

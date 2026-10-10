@@ -1,4 +1,4 @@
-# TexLink
+# Sameta
 
 Textile mill operations for the Odoo × NMIT hackathon. Implementation has started with the Member B frontend assignment.
 

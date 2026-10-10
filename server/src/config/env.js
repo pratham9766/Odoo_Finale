@@ -25,6 +25,7 @@ const schema = z.object({
   PUBLIC_TRACK_BASE_URL: z.string().url(),
   ORG_APPROVAL_REQUIRED: bool(false),
   JOBS_ENABLED: bool(true),
+  DEMO_LOGIN_ENABLED: bool(false),
 });
 
 const parsed = schema.safeParse(process.env);
