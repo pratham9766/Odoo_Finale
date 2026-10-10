@@ -2,6 +2,7 @@ export default {
   expo: {
     name: 'SAMETA',
     slug: 'sameta-mobile',
+    scheme: 'sameta',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',

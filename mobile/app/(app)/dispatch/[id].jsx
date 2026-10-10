@@ -1,187 +1,107 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
-import { Text, Card, useTheme, Button, TextInput, Chip, Snackbar, IconButton } from 'react-native-paper';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Button, TextInput } from 'react-native-paper';
+import { useLocalSearchParams } from 'expo-router';
+import Gate from '../../../src/components/Gate';
+import ScanModal from '../../../src/components/ScanModal';
 import { useSession } from '../../../src/context/Session';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAction, useGet } from '../../../src/lib/hooks';
+import { Empty, Facts, Kpi, KpiRow, PageTitle, Panel, Pill, QueryState, Screen, Section } from '../../../src/components/ui';
+import { date, quantity } from '../../../src/utils/format';
+import { palette, space } from '../../../src/theme/theme';
 
-export default function DispatchDetailScreen() {
+export default function DispatchDetail() {
+  return <Gate perms="dispatch.view"><Body /></Gate>;
+}
+
+/** Scan or type a roll number: the server refuses a roll that is not passed, belongs to another order or is already on a truck. */
+function Body() {
   const { id } = useLocalSearchParams();
-  const theme = useTheme();
-  const { api, can } = useSession();
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const { can } = useSession();
+  const act = useAction();
+  const [code, setCode] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [last, setLast] = useState(null);       // { ok, text } of the latest scan
+  const q = useGet(`/dispatches/${id}`, {}, { refetchInterval: 30000 });
+  const d = q.payload;
+  const packing = d?.status === 'packing';
 
-  const [scanInput, setScanInput] = useState('');
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-
-  const { data: dispatchData, isLoading, refetch } = useQuery({
-    queryKey: ['dispatch', id],
-    queryFn: ({ signal }) => api(`/dispatches/${id}`, { signal }), // Assumes GET /dispatches/:id exists
-    enabled: !!can('dispatch.view'),
-  });
-
-  const dispatchItem = dispatchData?.data;
-
-  // We actually don't have a verified GET /dispatches/:id in the audit. 
-  // If it doesn't exist, we fallback to finding it from the list.
-  const { data: listData } = useQuery({
-    queryKey: ['dispatches'],
-    queryFn: ({ signal }) => api('/dispatches', { signal }),
-    enabled: !dispatchItem && !!can('dispatch.view'),
-  });
-  
-  const dispatch = dispatchItem || listData?.data?.find(d => d.id === id);
-
-  const scanMutation = useMutation({
-    mutationFn: (token) => {
-      const payload = token.length > 20 ? { qr_token: token } : { roll_no: token };
-      return api(`/dispatches/${id}/scan`, { method: 'POST', body: payload });
-    },
-    onSuccess: () => {
-      setScanInput('');
-      setSnackbarMessage('Roll added to dispatch');
-      queryClient.invalidateQueries(['dispatch', id]);
-      queryClient.invalidateQueries(['dispatches']);
-    },
-    onError: (err) => setSnackbarMessage(err.message || 'Failed to scan roll'),
-  });
-
-  const confirmMutation = useMutation({
-    mutationFn: () => api(`/dispatches/${id}/confirm`, { method: 'POST' }),
-    onSuccess: () => {
-      setSnackbarMessage('Dispatch confirmed');
-      queryClient.invalidateQueries(['dispatch', id]);
-      queryClient.invalidateQueries(['dispatches']);
-      setTimeout(() => router.back(), 1500);
-    },
-    onError: (err) => setSnackbarMessage(err.message || 'Failed to confirm dispatch'),
-  });
-
-  const handleScan = () => {
-    if (!scanInput.trim()) return;
-    scanMutation.mutate(scanInput.trim());
+  const scan = value => {
+    const v = value.trim();
+    if (!v) return;
+    act.mutate({ path: `/dispatches/${id}/scan`, body: { code: v }, quiet: true }, {
+      onSuccess: () => { setCode(''); setLast({ ok: true, text: `Added ${v}` }); },
+      onError: e => setLast({ ok: false, text: e.message }),
+    });
   };
-
-  if (isLoading && !dispatch) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
-  }
-
-  if (!dispatch) {
-    return (
-      <View style={styles.center}>
-        <Text>Dispatch not found.</Text>
-      </View>
-    );
-  }
-
-  const isPacking = dispatch.status === 'packing';
-  const isSubmitting = scanMutation.isPending || confirmMutation.isPending;
+  const remove = roll => act.mutate({ method: 'DELETE', path: `/dispatches/${id}/rolls/${roll.roll_id}` });
+  const confirm = () => Alert.alert(`Confirm ${d.rolls.length} rolls?`, 'This creates the invoice from the scanned rolls.', [
+    { text: 'Not yet', style: 'cancel' },
+    { text: 'Confirm and invoice', onPress: () => act.mutate({ path: `/dispatches/${id}/confirm` }, { onSuccess: () => Alert.alert('Dispatch confirmed', 'The invoice was created from the scanned rolls.') }) },
+  ]);
+  const move = status => act.mutate({ path: `/dispatches/${id}/status`, body: { status } });
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.rowBetween}>
-              <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>{dispatch.dispatch_no}</Text>
-              <Chip>{dispatch.status.replace('_', ' ').toUpperCase()}</Chip>
+    <Screen onRefresh={q.refetch} refreshing={q.isRefetching}>
+      <QueryState query={q}>
+        {d && (
+          <>
+            <PageTitle eyebrow="DISPATCH" title={d.dispatch_no} description={`${d.order_no}${d.to_party ? ` · ${d.to_party}` : ''}`} right={<Pill value={d.status} />} />
+            <Panel>
+              <Facts items={[
+                ['Vehicle', d.vehicle_no || '–'],
+                ['Driver', [d.driver_name, d.driver_phone].filter(Boolean).join(' · ') || '–'],
+                d.confirmed_at && ['Confirmed', date(d.confirmed_at)],
+                d.delivered_at && ['Delivered', date(d.delivered_at)],
+              ]} />
+            </Panel>
+            <KpiRow>
+              <Kpi label="On this truck" value={`${quantity(d.totals.scanned)} m`} />
+              <Kpi label="Still to send" value={`${quantity(d.totals.remaining)} m`} />
+            </KpiRow>
+
+            <View style={styles.actions}>
+              {packing && can('dispatch.confirm') && <Button mode="contained" onPress={confirm} disabled={d.rolls.length === 0 || act.isPending} style={{ flex: 1 }}>Confirm and invoice</Button>}
+              {d.status === 'confirmed' && can('dispatch.confirm') && <Button mode="outlined" onPress={() => move('in_transit')} style={{ flex: 1 }}>Mark in transit</Button>}
+              {(d.status === 'confirmed' || d.status === 'in_transit') && can('dispatch.confirm') && <Button mode="contained" onPress={() => move('delivered')} style={{ flex: 1 }}>Mark delivered</Button>}
             </View>
-            <Text variant="bodyMedium" style={{ marginTop: 8 }}>Buyer: {dispatch.buyer?.name || 'Unknown'}</Text>
-            <Text variant="bodyMedium">Vehicle: {dispatch.vehicle_no || 'Unassigned'}</Text>
-          </Card.Content>
-        </Card>
 
-        {isPacking && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="titleMedium" style={{ marginBottom: 12 }}>Scan Roll to Pack</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
-                  mode="outlined"
-                  label="Roll No or QR Token"
-                  value={scanInput}
-                  onChangeText={setScanInput}
-                  style={{ flex: 1, backgroundColor: '#fff' }}
-                  onSubmitEditing={handleScan}
-                  disabled={isSubmitting}
-                />
-                <Button mode="contained" onPress={handleScan} style={{ justifyContent: 'center' }} loading={scanMutation.isPending} disabled={isSubmitting}>
-                  Add
-                </Button>
-              </View>
-            </Card.Content>
-          </Card>
-        )}
-
-        <Text variant="titleMedium" style={{ fontWeight: 'bold', marginVertical: 12 }}>Packed Rolls ({dispatch.rolls_count || dispatch.rolls?.length || 0})</Text>
-        
-        {dispatch.rolls?.length > 0 ? (
-          dispatch.rolls.map((roll) => (
-            <Card key={roll.id} style={[styles.card, { marginBottom: 8 }]}>
-              <Card.Content style={styles.rowBetween}>
-                <View>
-                  <Text variant="bodyLarge" style={{ fontWeight: 'bold' }}>{roll.roll_no}</Text>
-                  <Text variant="bodySmall">{roll.length_m} m</Text>
+            {packing && can('dispatch.create') && (
+              <Section title="Add rolls" note="Scan the QR label or type the roll number.">
+                <Button mode="contained-tonal" icon="qrcode-scan" onPress={() => setScanning(true)} contentStyle={{ height: 46 }}>Scan a roll</Button>
+                <View style={styles.typeRow}>
+                  <TextInput mode="outlined" label="Roll number" value={code} onChangeText={setCode} autoCapitalize="characters" style={{ flex: 1, backgroundColor: '#fff' }}
+                    outlineColor={palette.linen} activeOutlineColor={palette.forest} onSubmitEditing={() => scan(code)} />
+                  <Button mode="contained" onPress={() => scan(code)} loading={act.isPending} disabled={!code.trim() || act.isPending}>Add</Button>
                 </View>
-                {/* Note: Delete roll not implemented to save prompt space, but can be added if backend supports it */}
-                {isPacking && (
-                  <Chip style={{ backgroundColor: theme.colors.primaryContainer }} textStyle={{ color: theme.colors.primary }}>PACKED</Chip>
-                )}
-              </Card.Content>
-            </Card>
-          ))
-        ) : (
-          <Text style={{ textAlign: 'center', opacity: 0.6, marginTop: 12 }}>No rolls packed yet.</Text>
-        )}
+                {last && <Text style={[styles.note, { color: last.ok ? palette.ok : palette.danger }]}>{last.text}</Text>}
+              </Section>
+            )}
 
-        {isPacking && (
-           <Button 
-             mode="contained" 
-             buttonColor="#18794E" 
-             onPress={() => confirmMutation.mutate()}
-             loading={confirmMutation.isPending}
-             disabled={isSubmitting || (dispatch.rolls?.length === 0)}
-             style={{ marginTop: 24, paddingVertical: 8 }}
-           >
-             Confirm Dispatch
-           </Button>
+            <Section title={`Rolls on this dispatch (${d.rolls.length})`}>
+              {d.rolls.length === 0 ? <Panel><Empty icon="roll-of-paper" text="No rolls scanned yet." /></Panel> : d.rolls.map(r => (
+                <Panel key={r.roll_id} style={styles.roll}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.strong}>{r.roll_no}</Text>
+                    <Text style={styles.sub}>{r.item}{r.colour ? ` · ${r.colour}` : ''} · {quantity(r.length_m)} m{r.weight_kg ? ` · ${quantity(r.weight_kg)} kg` : ''}</Text>
+                  </View>
+                  {packing && can('dispatch.create') && <Button compact textColor={palette.danger} onPress={() => remove(r)}>Remove</Button>}
+                </Panel>
+              ))}
+            </Section>
+          </>
         )}
-      </ScrollView>
-
-      <Snackbar
-        visible={!!snackbarMessage}
-        onDismiss={() => setSnackbarMessage('')}
-        duration={3000}
-      >
-        {snackbarMessage}
-      </Snackbar>
-    </View>
+      </QueryState>
+      <ScanModal visible={scanning} title="Scan rolls onto the truck" message={last} onScan={scan} onClose={() => setScanning(false)} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  card: {
-    marginBottom: 16,
-    backgroundColor: '#fff',
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  actions: { flexDirection: 'row', gap: space.md, marginVertical: space.lg },
+  typeRow: { flexDirection: 'row', gap: space.sm, alignItems: 'center', marginTop: space.md },
+  note: { marginTop: space.sm, fontSize: 13, fontWeight: '600' },
+  roll: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.md },
+  strong: { fontSize: 15, fontWeight: '700', color: palette.ink },
+  sub: { fontSize: 13, color: palette.textSecondary, marginTop: 2 },
 });
