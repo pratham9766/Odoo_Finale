@@ -13,15 +13,7 @@ export function randomCode(len = 16, alphabet = ALPHABET) {
   return s;
 }
 
-// 4-digit delivery OTP; stored as sha256(tripId + otp)
-export const newOtp = () => String(randomInt(0, 10000)).padStart(4, '0');
-export const otpHash = (tripId, otp) => sha256(`${tripId}${otp}`);
-
 export function safeEqualHex(a, b) {
   if (!a || !b || a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 }
-
-// names used by the dispatch module (same scheme: driver delivery verifies sha256(tripId + otp))
-export const generateOtp = newOtp;
-export const hashOtp = otpHash;

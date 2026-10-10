@@ -1,7 +1,6 @@
 // Material for the story: the opening stock, the yarn that is bought in every fortnight, and the check each order makes
 // (what stock does not cover is bought, delivered two to four days later, and holds the order back until it arrives).
 
-import { logEntry } from '../../../server/src/modules/gate/gate.service.js';
 import { atIST, istParts } from '../../../server/src/utils/time.js';
 import { round2 } from '../../../server/src/utils/money.js';
 import { SUPPLIERS } from './config.js';
@@ -11,14 +10,10 @@ const LOT_STEP = { fibre: 500, yarn: 100, dye: 25 };         // suppliers delive
 const RESTOCK_EVERY_DAYS = 14;
 
 const roundUp = (qty, step) => Math.ceil(qty / step) * step;
-const plate = (rng) => `GJ ${String(rng.int(1, 40)).padStart(2, '0')} ${rng.token(2, 'ABCDEFGHJKLMNPRSTUVWXYZ')} ${rng.int(1000, 9999)}`;
 
-/** A delivery of the supplier's lots: received into stock, with the truck logged at the gate (in, and out an hour or two later). */
+/** A delivery of the supplier's lots, received into stock. */
 async function deliver(sim, supplier, lines, at, forOrderId = null) {
   await receiveGoods(sim, { supplier, lines, at, forOrderId });
-  const truck = { vehicle_no: plate(sim.rng), driver_name: `${sim.rng.pick(['Ramesh', 'Salim', 'Dinesh', 'Karan'])} ${sim.rng.pick(['Yadav', 'Khan', 'Patel'])}`, purpose: 'supply' };
-  await logEntry(sim.ctx.gate, { ...truck, direction: 'in' }, { at: sim.after(at, -20) });
-  await logEntry(sim.ctx.gate, { ...truck, direction: 'out' }, { at: sim.after(at, sim.rng.int(60, 150)) });
 }
 
 const rateFor = (sim, sku) => round2(sim.item[sku].std_rate * (0.97 + sim.rng.next() * 0.06));

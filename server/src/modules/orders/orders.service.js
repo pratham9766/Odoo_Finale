@@ -1,4 +1,4 @@
-import { withTenant, withSystem } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { AppError, must } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';
 import { nextNumber } from '../../utils/numbering.js';
@@ -8,7 +8,6 @@ import { round3 } from '../../utils/money.js';
 import { env } from '../../config/env.js';
 import { hidePrices } from '../../middleware/rbac.js';
 import { bus } from '../../events/bus.js';
-import { isBuyerOf } from '../partners/partners.service.js';
 import { explode, summarize } from '../catalog/bom.service.js';
 import { reserveFifo, releaseReservations } from '../inventory/inventory.core.js';
 import { autoDraftPos } from '../procurement/procurement.service.js';
@@ -30,10 +29,6 @@ async function loadOrderRow(db, id, { lock = false } = {}) {
   return must(o, 'Order');
 }
 
-const assertSeller = (ctx, o) => {
-  if (o.seller_org_id !== ctx.orgId) throw new AppError(403, 'FORBIDDEN', 'Only the selling mill can do this');
-};
-
 async function priceStripped(ctx, rows) {
   return rows.map((r) => hidePrices(ctx, r));
 }
@@ -42,102 +37,82 @@ async function priceStripped(ctx, rows) {
 
 // `at` (optional, seed only) back-dates the order; HTTP never passes it
 export async function createOrder(ctx, input, { at = null } = {}) {
-  const isBuyerPlacing = input.seller_org_id !== ctx.orgId;
-  const sellerOrgId = input.seller_org_id;
-  const buyerOrgId = isBuyerPlacing ? ctx.orgId : input.buyer_org_id ?? null;
-  if (!isBuyerPlacing && !buyerOrgId && !input.buyer_contact_id) {
-    throw new AppError(422, 'VALIDATION_FAILED', 'Choose a connected buyer or an offline buyer contact');
-  }
-  if (buyerOrgId && input.buyer_contact_id) throw new AppError(422, 'VALIDATION_FAILED', 'Use either a connected buyer or a contact');
+  // the mill records the order for one of its buyer contacts
   if (input.deadline < new Date(at ?? Date.now()).toISOString().slice(0, 10)) throw new AppError(422, 'VALIDATION_FAILED', 'Deadline is in the past');
 
-  // item names for the order lines (a buyer cannot read the seller's items, so the snapshot is taken here)
   const itemIds = input.lines.map((l) => l.item_id);
-  const loadItems = (db) => db.query(`select id, name from items where id = any($1) and active ${isBuyerPlacing ? 'and sellable' : ''}`, [itemIds]);
 
-  const order = await withTenant(ctx, async (db) => {
-    if (buyerOrgId && !(await isBuyerOf(db, buyerOrgId, sellerOrgId))) {
-      throw new AppError(403, 'NOT_PARTNERS', 'You are not connected with this organization');
-    }
-    const items = isBuyerPlacing ? (await withSystem(sellerOrgId, loadItems)).rows : (await loadItems(db)).rows;
+  const order = await withTx(async (db) => {
+    must((await db.query(`select 1 from contacts where id = $1 and type = 'buyer'`, [input.buyer_contact_id])).rows[0], 'Buyer contact');
+    const { rows: items } = await db.query('select id, name from items where id = any($1) and active', [itemIds]);
     const names = new Map(items.map((i) => [i.id, i.name]));
     for (const l of input.lines) if (!names.has(l.item_id)) throw new AppError(422, 'VALIDATION_FAILED', 'One of the items is not available for order');
 
-    // the seller owns order numbers; a buyer-placed order carries a temporary REQ- number until the mill confirms
-    const orderNo = isBuyerPlacing ? `REQ-${Date.now().toString(36).toUpperCase()}${randomCode(2).toUpperCase()}` : await nextNumber(db, ctx.orgId, 'ORD');
+    const orderNo = await nextNumber(db, 'ORD');
     const { rows: [o] } = await db.query(
-      `insert into orders (order_no, seller_org_id, buyer_org_id, buyer_contact_id, buyer_ref, deadline, priority,
+      `insert into orders (order_no, buyer_contact_id, buyer_ref, deadline, priority,
                            delivery_address, notes, status, created_by, created_at, order_date)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10, coalesce($11::timestamptz, now()),
-               coalesce(($11::timestamptz at time zone 'Asia/Kolkata')::date, current_date)) returning *`,
-      [orderNo, sellerOrgId, buyerOrgId, input.buyer_contact_id ?? null, input.buyer_ref ?? null, input.deadline, input.priority,
+       values ($1,$2,$3,$4,$5,$6,$7,'draft',$8, coalesce($9::timestamptz, now()),
+               coalesce(($9::timestamptz at time zone 'Asia/Kolkata')::date, current_date)) returning *`,
+      [orderNo, input.buyer_contact_id, input.buyer_ref ?? null, input.deadline, input.priority,
        input.delivery_address ?? null, input.notes ?? null, ctx.userId, at]);
     for (const l of input.lines) {
       await db.query(
-        `insert into order_lines (order_id, seller_org_id, buyer_org_id, item_id, colour, description, qty, uom, rate)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [o.id, sellerOrgId, buyerOrgId, l.item_id, l.colour ?? null, l.description ?? names.get(l.item_id), l.qty, l.uom, l.rate]);
+        `insert into order_lines (order_id, item_id, colour, description, qty, uom, rate)
+         values ($1,$2,$3,$4,$5,$6,$7)`,
+        [o.id, l.item_id, l.colour ?? null, l.description ?? names.get(l.item_id), l.qty, l.uom, l.rate]);
     }
     await db.query(
-      `insert into order_events (order_id, seller_org_id, buyer_org_id, event, created_by, created_at) values ($1,$2,$3,'created',$4, coalesce($5, now()))`,
-      [o.id, sellerOrgId, buyerOrgId, ctx.userId, at]);
+      `insert into order_events (order_id, event, created_by, created_at) values ($1,'created',$2, coalesce($3, now()))`,
+      [o.id, ctx.userId, at]);
     await audit(db, ctx, { action: 'create', table: 'orders', id: o.id, after: { order_no: o.order_no } });
     return o;
   });
 
-  bus.emit('order.created', { orderId: order.id, sellerOrgId, buyerOrgId, byOrgId: ctx.orgId });
+  bus.emit('order.created', { orderId: order.id });
   return getOrder(ctx, order.id);
 }
 
 // ---------- read ----------
 
 export const listOrders = (ctx, q) =>
-  withTenant(ctx, async (db) => {
-    const side = q.side ?? (ctx.orgTypes.some((t) => ['manufacturer', 'supplier'].includes(t)) ? 'sales' : 'purchase');
+  withTx(async (db) => {
     const w = where().add('o.risk = ?', q.risk);
-    w.raw(side === 'sales' ? 'o.seller_org_id = ?' : 'o.buyer_org_id = ?', ctx.orgId);
     if (q.status) w.raw('o.status = any(?::text[])', q.status.split(','));
     if (q.q) w.raw('o.order_no ilike ?', `%${q.q}%`);
     const { rows, meta } = await paged(
       db,
       `select o.id, o.order_no, o.status, o.priority, o.deadline, o.progress_pct, o.current_stage, o.expected_completion,
-              o.risk, o.order_date, o.created_at, o.buyer_ref, o.seller_org_id, o.buyer_org_id, o.buyer_contact_id,
-              so.name as seller_name, coalesce(bo.name, c.name) as buyer_name,
+              o.risk, o.order_date, o.created_at, o.buyer_ref, o.buyer_contact_id,
+              c.name as buyer_name,
               (select coalesce(sum(l.qty), 0) from order_lines l where l.order_id = o.id) as total_qty,
               (select min(l.uom) from order_lines l where l.order_id = o.id) as uom,
               (select coalesce(sum(l.qty * l.rate), 0) from order_lines l where l.order_id = o.id) as total
-         from orders o join organizations so on so.id = o.seller_org_id
-         left join organizations bo on bo.id = o.buyer_org_id left join contacts c on c.id = o.buyer_contact_id ${w.sql}`,
+         from orders o left join contacts c on c.id = o.buyer_contact_id ${w.sql}`,
       w.params, q, 'deadline, created_at desc');
-    return { data: rows.map((r) => hidePrices(ctx, r)), meta, side };
-  }).then(({ data, meta, side }) => ({ data, meta: { ...meta, side } }));
+    return { data: rows.map((r) => hidePrices(ctx, r)), meta };
+  });
 
 export const getOrder = (ctx, id) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     const { rows: [o] } = await db.query(
-      `select o.*, so.name as seller_name, coalesce(bo.name, c.name) as buyer_name
-         from orders o join organizations so on so.id = o.seller_org_id
-         left join organizations bo on bo.id = o.buyer_org_id left join contacts c on c.id = o.buyer_contact_id where o.id = $1`, [id]);
+      `select o.*, c.name as buyer_name from orders o left join contacts c on c.id = o.buyer_contact_id where o.id = $1`, [id]);
     must(o, 'Order');
-    const isSeller = o.seller_org_id === ctx.orgId;
     const { rows: lines } = await db.query('select * from order_lines where order_id = $1 order by description', [id]);
     const { rows: events } = await db.query(
-      `select id, event, visible_to_buyer, data, created_at from order_events where order_id = $1 ${isSeller ? '' : 'and visible_to_buyer'} order by created_at`, [id]);
+      `select id, event, visible_to_buyer, data, created_at from order_events where order_id = $1 order by created_at`, [id]);
     const { rows: dispatches } = await db.query(
-      `select id, dispatch_no, kind, status, confirmed_at, delivered_at, transporter_org_id from dispatches where order_id = $1 order by created_at`, [id]);
+      `select id, dispatch_no, status, confirmed_at, delivered_at from dispatches where order_id = $1 order by created_at`, [id]);
 
-    const out = { ...o, is_seller_view: isSeller, lines: await priceStripped(ctx, lines), events, dispatches };
-    if (!isSeller) delete out.tracking_token;
-    if (isSeller) {
-      out.rolls = (await db.query(`select status, count(*)::int as count, coalesce(sum(length_m), 0) as length_m from rolls where order_id = $1 group by status`, [id])).rows;
-      if (ctx.permissions.has('production.view')) {
-        out.work_orders = (await db.query(`select status, count(*)::int as count from work_orders where order_id = $1 group by status`, [id])).rows;
-      }
-      out.reservations = (await db.query(`select coalesce(sum(qty), 0) as reserved_qty, count(*)::int as lines from reservations where order_id = $1 and status = 'active'`, [id])).rows[0];
+    const out = { ...o, lines: await priceStripped(ctx, lines), events, dispatches };
+    out.rolls = (await db.query(`select status, count(*)::int as count, coalesce(sum(length_m), 0) as length_m from rolls where order_id = $1 group by status`, [id])).rows;
+    if (ctx.permissions.has('production.view')) {
+      out.work_orders = (await db.query(`select status, count(*)::int as count from work_orders where order_id = $1 group by status`, [id])).rows;
     }
+    out.reservations = (await db.query(`select coalesce(sum(qty), 0) as reserved_qty, count(*)::int as lines from reservations where order_id = $1 and status = 'active'`, [id])).rows[0];
     if (ctx.permissions.has('invoice.view')) {
       out.invoices = await priceStripped(ctx, (await db.query(
-        `select id, invoice_no, kind, status, total, paid_amount, due_date from invoices where order_id = $1 order by created_at`, [id])).rows);
+        `select id, invoice_no, status, total, paid_amount, due_date from invoices where order_id = $1 order by created_at`, [id])).rows);
     }
     return out;
   });
@@ -174,9 +149,8 @@ async function combinedSummary(db, trees) {
 
 // what the order needs, ignoring the order's own reservations (computed in a rolled-back savepoint)
 export const requirements = (ctx, id) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     const o = await loadOrderRow(db, id);
-    assertSeller(ctx, o);
     await db.query('savepoint preview');
     try {
       await releaseReservations(db, id);
@@ -215,27 +189,26 @@ async function reserveOrderMaterial(db, ctx, orderId, at = null) {
 export const reserve = (ctx, id, { at = null } = {}) => runReserve(ctx, id, at);
 
 async function runReserve(ctx, id, at = null) {
-  const res = await withTenant(ctx, async (db) => {
+  const res = await withTx(async (db) => {
     const o = await loadOrderRow(db, id, { lock: true });
-    assertSeller(ctx, o);
     if (!PRE_PRODUCTION.includes(o.status)) throw new AppError(409, 'INVALID_STATE_TRANSITION', `Material is already committed (order is ${o.status})`);
     const r = await reserveOrderMaterial(db, ctx, id, at);
     const change = await applyStatus(db, id, r.ready ? 'material_ready' : 'waiting_material', { visibleToBuyer: r.ready, at });
     return { order: o, summary: r.summary, ready: r.ready, change };
   });
   if (res.change.changed) {
-    bus.emit('order.status_changed', { orderId: id, sellerOrgId: ctx.orgId, buyerOrgId: res.order.buyer_org_id, orderNo: res.order.order_no, ...res.change });
-    bus.emit('order.updated', { orderId: id, sellerOrgId: ctx.orgId, buyerOrgId: res.order.buyer_org_id, ...res.change });
+    bus.emit('order.status_changed', { orderId: id, orderNo: res.order.order_no, ...res.change });
+    bus.emit('order.updated', { orderId: id, ...res.change });
   }
   return { ready: res.ready, status: res.change.to, buy_list: res.summary.buy_list };
 }
 
 // a GRN arrived: give waiting orders (oldest first) another chance at the new stock
-export async function recheckWaitingOrders(orgId) {
-  const ids = await withSystem(orgId, async (db) =>
-    (await db.query(`select id from orders where seller_org_id = $1 and status = 'waiting_material' order by created_at`, [orgId])).rows.map((r) => r.id));
+export async function recheckWaitingOrders() {
+  const ids = await withTx(async (db) =>
+    (await db.query(`select id from orders where status = 'waiting_material' order by created_at`)).rows.map((r) => r.id));
   for (const id of ids) {
-    await runReserve({ orgId, userId: null, permissions: new Set(), orgTypes: [] }, id)
+    await runReserve({ userId: null, permissions: new Set() }, id)
       .catch((e) => console.error(`[recheck order ${id}]`, e.message));
   }
 }
@@ -243,13 +216,11 @@ export async function recheckWaitingOrders(orgId) {
 // ---------- confirm / cancel / tracking ----------
 
 export async function confirmOrder(ctx, id, { auto_po = false } = {}, { at = null } = {}) {
-  const res = await withTenant(ctx, async (db) => {
+  const res = await withTx(async (db) => {
     const o = await loadOrderRow(db, id, { lock: true });
-    assertSeller(ctx, o);
     if (o.status !== 'draft') throw new AppError(409, 'INVALID_STATE_TRANSITION', `Order is already ${o.status}`);
 
-    let orderNo = o.order_no;
-    if (orderNo.startsWith('REQ-')) orderNo = await nextNumber(db, ctx.orgId, 'ORD'); // the mill's real number
+    const orderNo = o.order_no;
     await db.query(`update orders set order_no = $2, confirmed_at = coalesce($3, now()) where id = $1`, [id, orderNo, at]);
     const confirmed = await applyStatus(db, id, 'confirmed', { at });
 
@@ -260,10 +231,10 @@ export async function confirmOrder(ctx, id, { auto_po = false } = {}, { at = nul
       drafts = await autoDraftPos(db, ctx, { orderId: id, buyList: r.summary.buy_list, needBy: o.deadline });
     }
     await audit(db, ctx, { action: 'confirm', table: 'orders', id, before: { order_no: o.order_no }, after: { order_no: orderNo, ready: r.ready } });
-    return { orderNo, buyerOrgId: o.buyer_org_id, confirmed, material, summary: r.summary, ready: r.ready, drafts };
+    return { orderNo, confirmed, material, summary: r.summary, ready: r.ready, drafts };
   });
 
-  const base = { orderId: id, sellerOrgId: ctx.orgId, buyerOrgId: res.buyerOrgId, orderNo: res.orderNo };
+  const base = { orderId: id, orderNo: res.orderNo };
   bus.emit('order.confirmed', base);
   bus.emit('order.status_changed', { ...base, ...res.confirmed });
   if (res.material.changed) bus.emit('order.status_changed', { ...base, ...res.material, from: 'confirmed' });
@@ -277,36 +248,29 @@ export async function confirmOrder(ctx, id, { auto_po = false } = {}, { at = nul
 }
 
 export async function cancelOrder(ctx, id, { reason } = {}) {
-  const res = await withTenant(ctx, async (db) => {
+  const res = await withTx(async (db) => {
     const o = await loadOrderRow(db, id, { lock: true });
-    const isSeller = o.seller_org_id === ctx.orgId;
-    if (!isSeller && !(o.buyer_org_id === ctx.orgId && o.status === 'draft')) {
-      throw new AppError(403, 'FORBIDDEN', 'A buyer can only cancel an order the mill has not confirmed yet');
-    }
     if (['dispatched', 'partially_dispatched', 'delivered', 'closed', 'cancelled'].includes(o.status)) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `A ${o.status.replace(/_/g, ' ')} order cannot be cancelled`);
     }
-    if (isSeller) {
-      const { rows: [{ n }] } = await db.query(`select count(*)::int n from work_orders where order_id = $1 and status in ('running','paused','done')`, [id]);
-      if (n) throw new AppError(409, 'INVALID_STATE_TRANSITION', 'Production has started on this order; stop the work orders first');
-      await db.query(`update work_orders set status = 'cancelled' where order_id = $1 and status = 'planned'`, [id]);
-      await releaseReservations(db, id);
-    }
+    const { rows: [{ n }] } = await db.query(`select count(*)::int n from work_orders where order_id = $1 and status in ('running','paused','done')`, [id]);
+    if (n) throw new AppError(409, 'INVALID_STATE_TRANSITION', 'Production has started on this order; stop the work orders first');
+    await db.query(`update work_orders set status = 'cancelled' where order_id = $1 and status = 'planned'`, [id]);
+    await releaseReservations(db, id);
     await db.query(`update orders set cancelled_at = now(), cancel_reason = $2 where id = $1`, [id, reason ?? null]);
     const change = await applyStatus(db, id, 'cancelled');
     await audit(db, ctx, { action: 'cancel', table: 'orders', id, after: { reason } });
     return { order: o, change };
   });
-  const p = { orderId: id, sellerOrgId: res.order.seller_org_id, buyerOrgId: res.order.buyer_org_id, orderNo: res.order.order_no, ...res.change };
+  const p = { orderId: id, orderNo: res.order.order_no, ...res.change };
   bus.emit('order.status_changed', p);
   bus.emit('order.updated', p);
   return { id, status: 'cancelled' };
 }
 
 export const trackingLink = (ctx, id) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     const o = await loadOrderRow(db, id, { lock: true });
-    assertSeller(ctx, o);
     let token = o.tracking_token;
     if (!token) {
       token = randomCode(24);

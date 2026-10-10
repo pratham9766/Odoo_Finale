@@ -16,20 +16,3 @@ export function grossPay(worker, totals) {
   }[worker.wage_type];
   return round2(base + overtime);
 }
-
-/**
- * Advances come off the pay oldest first (the smaller one first on the same day), whole advances only (an advance is never split),
- * never more than the gross. The first one that does not fit stops the recovery: a newer advance never jumps the queue.
- * @param {Array<{ id, amount }>} advances  unrecovered, oldest first
- * @returns {{ recovered: Array<{ id, amount }>, total: number }}
- */
-export function recoverAdvances(advances, gross) {
-  const recovered = [];
-  let total = 0;
-  for (const a of advances) {
-    if (round2(total + Number(a.amount)) > gross) break;
-    recovered.push(a);
-    total = round2(total + Number(a.amount));
-  }
-  return { recovered, total };
-}

@@ -19,6 +19,7 @@ export const memberPatchSchema = z.object({
   role_id: uuid.optional(),
   scope: scope.optional(),
   reports_to: uuid.nullable().optional(),
+  worker_id: uuid.nullable().optional(),   // link this login to a worker record (null = unlink)
   status: z.enum(['active', 'disabled']).optional(),
 }).refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 
@@ -34,5 +35,4 @@ export const roleUpdateSchema = z.object({
   permissions: z.array(z.string()).optional(),
 });
 
-export const membershipParam = z.object({ membershipId: uuid });
 export const auditQuery = z.object({ ...pageQuery, table: z.string().optional(), user_id: uuid.optional() });

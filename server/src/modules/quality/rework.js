@@ -13,7 +13,7 @@ export const mainDefect = (defects) => [...defects].sort((a, b) => b.count * b.s
 async function reworkStage(db, ctx, roll, defectCode) {
   const kind = DEFECT_OUTPUT_KIND[defectCode];
   const { rows: [stage] } = await db.query(
-    `select id from stages where org_id = $1 and output_kind = $2 order by sequence limit 1`, [ctx.orgId, kind ?? null]);
+    `select id from stages where output_kind = $1 order by sequence limit 1`, [kind ?? null]);
   if (stage) return stage.id;
   return (await db.query(`select stage_id from work_orders where id = $1`, [roll.work_order_id])).rows[0].stage_id;
 }
@@ -25,14 +25,14 @@ export async function startRework(db, ctx, roll, defects, at) {
   const stageId = await reworkStage(db, ctx, roll, defect.code);
 
   const { rows: [wo] } = await db.query(
-    `insert into work_orders (org_id, wo_no, order_id, order_line_id, stage_id, output_item_id, target_qty, uom, is_rework, parent_work_order_id, created_at, created_by)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10, $11) returning id, wo_no`,
-    [ctx.orgId, await nextNumber(db, ctx.orgId, 'WO'), roll.order_id, roll.order_line_id, stageId, roll.item_id, roll.length_m, item.uom,
+    `insert into work_orders (wo_no, order_id, order_line_id, stage_id, output_item_id, target_qty, uom, is_rework, parent_work_order_id, created_at, created_by)
+     values ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10) returning id, wo_no`,
+    [await nextNumber(db, 'WO'), roll.order_id, roll.order_line_id, stageId, roll.item_id, roll.length_m, item.uom,
      roll.work_order_id, at, ctx.userId]);
   const afterInspection = new Date(at.getTime() + 1);       // history is ordered by time: the rework follows the inspection that caused it
   await db.query(
-    `insert into roll_history (org_id, roll_id, stage_id, work_order_id, event, data, at) values ($1, $2, $3, $4, 'rework_started', $5, $6)`,
-    [ctx.orgId, roll.id, stageId, wo.id, JSON.stringify({ wo_no: wo.wo_no, defect: defect.name }), afterInspection]);
+    `insert into roll_history (roll_id, stage_id, work_order_id, event, data, at) values ($1, $2, $3, 'rework_started', $4, $5)`,
+    [roll.id, stageId, wo.id, JSON.stringify({ wo_no: wo.wo_no, defect: defect.name }), afterInspection]);
   return wo;
 }
 

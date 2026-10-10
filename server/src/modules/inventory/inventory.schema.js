@@ -27,11 +27,8 @@ export const movementQuery = z.object({
 });
 
 export const receiptSchema = z.object({
-  supplier_org_id: uuid.optional(),
   supplier_contact_id: uuid.optional(),
   po_id: uuid.optional(),
-  dispatch_id: uuid.optional(),
-  gate_entry_id: uuid.optional(),
   vehicle_no: z.string().trim().max(30).optional(),
   notes: z.string().max(1000).optional(),
   lines: z.array(z.object({
@@ -45,12 +42,12 @@ export const receiptSchema = z.object({
     for_order_id: uuid.optional(),
     dye_batch: z.string().trim().max(60).optional(),
   })).min(1),
-}).refine((v) => !(v.supplier_org_id && v.supplier_contact_id), 'Use either a connected supplier or a contact');
+});
 
 export const receiptQuery = z.object({
   ...pageQuery,
   status: z.enum(['draft', 'posted', 'cancelled']).optional(),
-  supplier_org_id: uuid.optional(),
+  supplier_contact_id: uuid.optional(),
 });
 
 export const adjustmentSchema = z.object({

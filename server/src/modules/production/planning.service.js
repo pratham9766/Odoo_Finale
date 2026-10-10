@@ -4,7 +4,7 @@
 // the stages after it and reduced by what stock covers. Stock reserved for THIS order counts as available to it
 // (forOrderId), otherwise confirming would reserve the stock and planning would then make it all over again.
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { bus } from '../../events/bus.js';
 import { audit } from '../../utils/audit.js';
 import { AppError } from '../../utils/errors.js';
@@ -28,9 +28,9 @@ function lineQty(line) {
 
 /** → the work orders created by this call (lines that already have work orders are left alone). `at` lets the seed replay history. */
 export async function planOrder(ctx, orderId, { at = new Date() } = {}) {
-  const createdIds = await withTenant(ctx, async (db) => {
+  const createdIds = await withTx(async (db) => {
     const { rows: [order] } = await db.query(
-      `select id, order_no, status, buyer_org_id from orders where id = $1 and seller_org_id = $2 for update`, [orderId, ctx.orgId]);
+      `select id, order_no, status from orders where id = $1 for update`, [orderId]);
     if (!order) throw new AppError(404, 'NOT_FOUND', 'Order not found');
     if (!PLANNABLE.includes(order.status)) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `Order ${order.order_no} is ${order.status}; only confirmed orders can be planned`);
@@ -45,7 +45,7 @@ export async function planOrder(ctx, orderId, { at = new Date() } = {}) {
         order by i.name, l.colour, l.id`, [orderId]);
     if (!lines.length) throw new AppError(409, 'INVALID_STATE_TRANSITION', `Order ${order.order_no} is already planned`);
 
-    const { rows: stages } = await db.query(`select id, sequence from stages where org_id = $1`, [ctx.orgId]);
+    const { rows: stages } = await db.query(`select id, sequence from stages`);
     const sequence = new Map(stages.map((s) => [s.id, s.sequence]));
 
     const alloc = new Map();                      // one stock allocation for the whole order: lines must not both count the same stock
@@ -60,21 +60,21 @@ export async function planOrder(ctx, orderId, { at = new Date() } = {}) {
     const ids = [];
     for (const w of specs) {
       const { rows: [row] } = await db.query(
-        `insert into work_orders (org_id, wo_no, order_id, order_line_id, stage_id, output_item_id, target_qty, uom, created_at, created_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
-        [ctx.orgId, await nextNumber(db, ctx.orgId, 'WO'), orderId, w.order_line_id, w.stage_id, w.output_item_id, w.target_qty, w.uom, at, ctx.userId]);
+        `insert into work_orders (wo_no, order_id, order_line_id, stage_id, output_item_id, target_qty, uom, created_at, created_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
+        [await nextNumber(db, 'WO'), orderId, w.order_line_id, w.stage_id, w.output_item_id, w.target_qty, w.uom, at, ctx.userId]);
       ids.push(row.id);
     }
 
     await db.query(
-      `insert into order_events (order_id, seller_org_id, buyer_org_id, event, visible_to_buyer, data, created_at, created_by)
-       values ($1, $2, $3, 'production_planned', false, $4, $5, $6)`,
-      [orderId, ctx.orgId, order.buyer_org_id, JSON.stringify({ work_orders: ids.length }), at, ctx.userId]);
+      `insert into order_events (order_id, event, visible_to_buyer, data, created_at, created_by)
+       values ($1, 'production_planned', false, $2, $3, $4)`,
+      [orderId, JSON.stringify({ work_orders: ids.length }), at, ctx.userId]);
     await audit(db, ctx, { action: 'plan', table: 'orders', id: orderId, after: { work_orders: ids } });
     return ids;
   });
 
-  bus.emit('order.planned', { orderId, sellerOrgId: ctx.orgId, workOrderIds: createdIds });
+  bus.emit('order.planned', { orderId, workOrderIds: createdIds });
   const { rows } = await workOrders.list(ctx, { order_id: orderId });
   return rows.filter((w) => createdIds.includes(w.id));
 }

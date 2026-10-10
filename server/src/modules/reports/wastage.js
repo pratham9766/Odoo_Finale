@@ -1,7 +1,7 @@
 // Wastage (reports.production): planned vs actual loss of finished work orders, by stage, machine or order, with what the extra waste cost.
 
 import { z } from 'zod';
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { rangeQuery } from '../../utils/crud/index.js';
 import { round2 } from '../../utils/money.js';
 import { reportRange } from '../../utils/time.js';
@@ -20,7 +20,7 @@ export default {
   query: rangeQuery.extend({ group: z.enum(Object.keys(GROUPS)).default('stage') }),
   run: (ctx, { group, ...range }) => {
     const { from, to } = reportRange(range);
-    return withTenant(ctx, async (db) => {
+    return withTx(async (db) => {
       // per work order first, so an unusually bad run is not averaged away; "extra" = what exceeded the stage's planned loss
       const { rows } = await db.query(
         `select ${GROUPS[group]} as key, count(*)::int as work_orders,

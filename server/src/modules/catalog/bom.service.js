@@ -1,4 +1,4 @@
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { AppError, must, notFound } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';
 import { paged, where } from '../../utils/paginate.js';
@@ -9,7 +9,7 @@ import * as textile from '../../utils/textile.js';
 
 async function getItem(db, id) {
   const { rows: [i] } = await db.query(
-    `select id, name, kind, uom, colour, std_rate, preferred_supplier_org_id, preferred_supplier_contact_id from items where id = $1`, [id]);
+    `select id, name, kind, uom, colour, std_rate, preferred_supplier_contact_id from items where id = $1`, [id]);
   return must(i, 'Item');
 }
 
@@ -89,14 +89,14 @@ export async function summarize(db, root) {
     const rate = await unitCost(db, item.id, item.std_rate);
     const q = round3(qty);
     buy_list.push({ item_id: item.id, name: item.name, uom: item.uom, qty: q, est_rate: rate, est_cost: Math.round(q * rate * 100) / 100,
-      preferred_supplier_org_id: item.preferred_supplier_org_id, preferred_supplier_contact_id: item.preferred_supplier_contact_id });
+      preferred_supplier_contact_id: item.preferred_supplier_contact_id });
     cost += q * rate;
   }
   return { buy_list, produce_list: produce, material_cost_estimate: Math.round(cost * 100) / 100 };
 }
 
 export const explodeRequest = (ctx, { item_id, qty, net_stock }) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     const tree = await explode(db, item_id, qty, { netStock: net_stock });
     const summary = await summarize(db, tree);
     if (!ctx.permissions.has('orders.view_price') && !ctx.permissions.has('po.create')) {
@@ -137,8 +137,8 @@ async function loadBom(db, id) {
 }
 
 export const listBoms = (ctx, q) =>
-  withTenant(ctx, async (db) => {
-    const w = where().raw('b.org_id = ?', ctx.orgId).add('b.output_item_id = ?', q.item_id);
+  withTx(async (db) => {
+    const w = where().add('b.output_item_id = ?', q.item_id);
     const { rows, meta } = await paged(
       db,
       `select b.*, i.name as output_name, i.uom as output_uom,
@@ -148,14 +148,14 @@ export const listBoms = (ctx, q) =>
     return { data: rows, meta };
   });
 
-export const getBom = (ctx, id) => withTenant(ctx, (db) => loadBom(db, id));
+export const getBom = (ctx, id) => withTx((db) => loadBom(db, id));
 
 async function replaceLines(db, ctx, bomId, lines) {
   await db.query('delete from bom_lines where bom_id = $1', [bomId]);
   for (const l of lines) {
     await db.query(
-      `insert into bom_lines (org_id, bom_id, component_item_id, qty, wastage_pct, share_label) values ($1,$2,$3,$4,$5,$6)`,
-      [ctx.orgId, bomId, l.component_item_id, l.qty, l.wastage_pct ?? 0, l.share_label ?? null]);
+      `insert into bom_lines (bom_id, component_item_id, qty, wastage_pct, share_label) values ($1,$2,$3,$4,$5)`,
+      [bomId, l.component_item_id, l.qty, l.wastage_pct ?? 0, l.share_label ?? null]);
   }
 }
 
@@ -166,14 +166,14 @@ async function assertNoCycle(db, outputItemId, lines) {
 }
 
 export const createBom = (ctx, i) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     must((await db.query('select 1 from items where id = $1', [i.output_item_id])).rows[0], 'Output item');
     if (i.is_default) await db.query('update boms set is_default = false where output_item_id = $1', [i.output_item_id]);
     const { rows: [{ v }] } = await db.query('select coalesce(max(version),0)+1 as v from boms where output_item_id = $1', [i.output_item_id]);
     const { rows: [bom] } = await db.query(
-      `insert into boms (org_id, output_item_id, output_qty, stage_id, version, is_default, notes, created_by)
-       values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
-      [ctx.orgId, i.output_item_id, i.output_qty, i.stage_id ?? null, v, i.is_default, i.notes ?? null, ctx.userId]);
+      `insert into boms (output_item_id, output_qty, stage_id, version, is_default, notes, created_by)
+       values ($1,$2,$3,$4,$5,$6,$7) returning id`,
+      [i.output_item_id, i.output_qty, i.stage_id ?? null, v, i.is_default, i.notes ?? null, ctx.userId]);
     await replaceLines(db, ctx, bom.id, i.lines);
     if (i.is_default) await assertNoCycle(db, i.output_item_id, i.lines);
     await audit(db, ctx, { action: 'create', table: 'boms', id: bom.id, after: { output_item_id: i.output_item_id, lines: i.lines.length } });
@@ -181,7 +181,7 @@ export const createBom = (ctx, i) =>
   });
 
 export const updateBom = (ctx, id, i) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     const { rows: [cur] } = await db.query('select * from boms where id = $1 for update', [id]);
     must(cur, 'BOM');
     if (i.is_default) await db.query('update boms set is_default = false where output_item_id = $1 and id <> $2', [cur.output_item_id, id]);
@@ -197,7 +197,7 @@ export const updateBom = (ctx, id, i) =>
   });
 
 export const deleteBom = (ctx, id) =>
-  withTenant(ctx, async (db) => {
+  withTx(async (db) => {
     const { rowCount } = await db.query('delete from boms where id = $1', [id]);
     if (!rowCount) throw notFound('BOM');
     await audit(db, ctx, { action: 'delete', table: 'boms', id });

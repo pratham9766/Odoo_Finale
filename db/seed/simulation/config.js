@@ -2,7 +2,7 @@
 // AI assistant is meant to discover. Nothing here touches a database. Change a number here, never inside the generators.
 
 export const SIM = {
-  days: 90,
+  days: 30,
   seed: 4242,
   ordersPerDay: 1.5,
   orderMetres: { min: 150, max: 600, step: 50 },
@@ -33,7 +33,6 @@ export const PATTERNS = {
   absentToday: 4,
   // money
   overdueBuyers: ['Tiruppur Knit Exports', 'Ludhiana Garments Co.'],
-  lateFleetPrefix: 'MH04WR',            // Western Roadways: often a day late
   paymentMix: [['onTime', 0.7], ['late', 0.2], ['partial', 0.1]],
   // the state at "now"
   redRiskOrders: 3,
@@ -56,12 +55,11 @@ export const BUYERS = {
   'Ludhiana Garments Co.': { weight: 0.25, pays: [['late', 0.3], ['never', 0.7]] },
 };
 
-// the people who do each thing in the story (demo logins of seed v1)
+// every action in the history is done by the owner: it is the only login the seed creates
+const OWNER = 'owner@everest.demo';
 export const ACTORS = {
-  prod: 'prodmgr@everest.demo', qc: 'qc@everest.demo', dispatch: 'dispatch@everest.demo', accounts: 'accounts@everest.demo',
-  hr: 'hr@everest.demo', maint: 'maint@everest.demo', gate: 'gate@everest.demo', store: 'store@everest.demo', purchase: 'purchase@everest.demo',
-  sales: 'sales@everest.demo',
+  prod: OWNER, qc: OWNER, dispatch: OWNER, accounts: OWNER, hr: OWNER, maint: OWNER, store: OWNER, purchase: OWNER, sales: OWNER,
 };
 
-// the operator the demo logs in as drives W-3 on the morning shift
+// the worker who runs W-3 on the morning shift (a worker record, not a login)
 export const FIXED_OPERATORS = { 'W-3|A': 'Anil Kumar' };

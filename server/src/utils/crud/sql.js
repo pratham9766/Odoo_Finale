@@ -2,18 +2,10 @@
 // Column names passed in here are written by us in code, never taken from a request;
 // every value goes through a bound parameter.
 
-/**
- * Collects the WHERE conditions of a list query. Always starts with `<alias>.<column> = $1` (the org).
- * Two-party tables name the side: new Filter(orgId, 'd', 'from_org_id') for what a mill dispatched.
- */
+/** Collects the WHERE conditions of a list query (`true` when there are none). */
 export class Filter {
-  #clauses;
-  #params;
-
-  constructor(orgId, alias = 't', column = 'org_id') {
-    this.#clauses = [`${alias}.${column} = $1`];
-    this.#params = [orgId];
-  }
+  #clauses = [];
+  #params = [];
 
   #bind(value) {
     this.#params.push(value);
@@ -38,7 +30,7 @@ export class Filter {
     return this;
   }
 
-  /** uuid column in a list of ids. An empty or missing list means "no restriction" (whole org). */
+  /** uuid column in a list of ids. An empty or missing list means "no restriction" (whole mill). */
   anyOf(column, ids) {
     if (ids?.length) this.#clauses.push(`${column} = any(${this.#bind(ids)}::uuid[])`);
     return this;
@@ -53,7 +45,7 @@ export class Filter {
     return this;
   }
 
-  get sql() { return this.#clauses.join(' and '); }
+  get sql() { return this.#clauses.length ? this.#clauses.join(' and ') : 'true'; }
   get params() { return [...this.#params]; }
 }
 

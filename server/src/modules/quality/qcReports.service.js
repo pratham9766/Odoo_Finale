@@ -1,13 +1,13 @@
 // GET /qc/summary and /qc/defects (backend plan §10.8): the numbers behind the quality page.
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { reportRange } from '../../utils/time.js';
 import { statusCounts } from './queue.service.js';
 
 /** Queue size, results in the period, rejection rate and first-pass yield (rolls that passed at their first inspection). */
 export function qcSummary(ctx, range) {
   const { from, to } = reportRange(range);
-  return withTenant(ctx, async (db) => {
+  return withTx(async (db) => {
     const { rows: [results] } = await db.query(
       `select coalesce(sum(passed), 0)::int as passed, coalesce(sum(rework), 0)::int as rework,
               coalesce(sum(rejected), 0)::int as rejected, coalesce(sum(total), 0)::int as total
@@ -22,7 +22,7 @@ export function qcSummary(ctx, range) {
     const pct = (part, whole) => (whole ? Math.round((1000 * part) / whole) / 10 : null);
     return {
       period: { from, to },
-      queue: await statusCounts(db, ctx.orgId),
+      queue: await statusCounts(db),
       passed_today: today.n,
       results,
       rejection_pct: pct(results.rejected, results.total),
@@ -38,7 +38,7 @@ const GROUPS = { type: 'defect', machine: 'machine_code', shift: 'shift', suppli
 export function defectsBy(ctx, { by = 'type', ...range }) {
   const { from, to } = reportRange(range);
   const column = GROUPS[by];
-  return withTenant(ctx, async (db) => {
+  return withTx(async (db) => {
     const { rows } = await db.query(
       `select ${column} as key, sum(defects)::int as defects from v_defects_by_cause
         where day between $1 and $2 group by 1 order by ${by === 'day' ? '1' : '2 desc, 1'}`, [from, to]);

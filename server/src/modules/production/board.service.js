@@ -1,20 +1,20 @@
 // The live machine board (backend plan §7.2 v_machine_board, §13 machine.updated).
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { Filter } from '../../utils/crud/index.js';
-import { publishToOrg } from '../../utils/publish.js';
+import { publish } from '../../utils/publish.js';
 import { shiftContaining } from '../../utils/shifts.js';
-import { loadShifts } from '../orgs/orgs.service.js';
+import { loadShifts } from '../mill/mill.service.js';
 
 /**
  * Board rows with the operator on duty. Scope-filtered: a supervisor sees their stages, an operator their machines.
  * @param {{ machineId?: string, stageId?: string, mine?: boolean, at?: Date }} opts  mine = only machines I am assigned to now
  */
 export async function boardRows(db, ctx, { machineId, stageId, mine = false, at = new Date() } = {}) {
-  const duty = shiftContaining(await loadShifts(db, ctx.orgId), at);     // the shift running now, if any
+  const duty = shiftContaining(await loadShifts(db), at);     // the shift running now, if any
   const [date, shiftId] = [duty?.date ?? null, duty?.shift.id ?? null];
 
-  const f = new Filter(ctx.orgId, 'b')
+  const f = new Filter()
     .anyOf('m.stage_id', ctx.scope?.stage_ids).anyOf('b.machine_id', ctx.scope?.machine_ids)
     .eq('b.machine_id', machineId).eq('m.stage_id', stageId);
   if (mine) {
@@ -48,10 +48,10 @@ export function summariseBoard(machines) {
 }
 
 export function getBoard(ctx, query) {
-  return withTenant(ctx, async (db) => summariseBoard(await boardRows(db, ctx, query)));
+  return withTx(async (db) => summariseBoard(await boardRows(db, ctx, query)));
 }
 
-/** machine.updated: push one machine's fresh board row to the org room (after commit). */
-export function publishMachine(orgId, machineId) {
-  return publishToOrg(orgId, 'machine.updated', async (db) => (await boardRows(db, { orgId, scope: {} }, { machineId }))[0]);
+/** machine.updated: push one machine's fresh board row to the mill room (after commit). */
+export function publishMachine(machineId) {
+  return publish('machine.updated', async (db) => (await boardRows(db, { scope: {} }, { machineId }))[0]);
 }

@@ -22,7 +22,6 @@ if (!url) {
 // {{NAME}} placeholders in SQL are filled from env (role passwords); never commit real secrets
 const PLACEHOLDERS = {
   APP_USER_PASSWORD: process.env.APP_USER_PASSWORD,
-  AI_READER_PASSWORD: process.env.AI_READER_PASSWORD,
 };
 function fill(sql, file) {
   return sql.replace(/\{\{([A-Z_]+)\}\}/g, (_, k) => {

@@ -37,7 +37,7 @@ export const fmt = {
 export function sendPdf(res, buffer, filename) {
   res.type('application/pdf')
     .set('Content-Disposition', `inline; filename="${filename.replace(/[^\w.-]/g, '_')}"`)
-    .set('Cache-Control', 'private, no-store')      // badges carry QR tokens, invoices carry prices
+    .set('Cache-Control', 'private, no-store')      // invoices carry prices
     .send(buffer);
 }
 
@@ -183,26 +183,25 @@ function drawQr(doc, text, x, y, size) {
 
 // ---- documents ---------------------------------------------------------------
 
-const INVOICE_TITLES = { sales: 'TAX INVOICE', supply: 'TAX INVOICE', freight: 'FREIGHT INVOICE' };
 
 /**
  * Sales, supply or freight invoice.
  * @param {{
- *   invoice: { invoice_no, kind: 'sales'|'supply'|'freight', invoice_date, due_date, subtotal, tax, total },
+ *   invoice: { invoice_no, invoice_date, due_date, subtotal, tax, total },
  *   seller: { name, gstin?, address?, city?, state?, pincode?, phone? },
  *   buyer:  { name, gstin?, address?, city?, state?, pincode?, phone? },
  *   lines:  Array<{ description, qty, uom, rate, tax_pct, amount }>,
- *   refs?:  { order_no?, dispatch_no?, po_no?, trip_no?, vehicle_no? }
+ *   refs?:  { order_no?, dispatch_no?, vehicle_no? }
  * }} data
  * @returns {Promise<Buffer>}
  */
 export function invoice({ invoice: inv, seller, buyer, lines, refs = {} }) {
   return render({ info: { Title: `Invoice ${inv.invoice_no}` } }, (doc) => {
-    header(doc, { org: seller, title: INVOICE_TITLES[inv.kind] ?? 'INVOICE', number: inv.invoice_no });
+    header(doc, { org: seller, title: 'TAX INVOICE', number: inv.invoice_no });
     keyValues(doc, [
       ['Invoice date', fmt.date(inv.invoice_date)], ['Due date', fmt.date(inv.due_date)],
       ['Order', refs.order_no], ['Dispatch', refs.dispatch_no],
-      ['PO', refs.po_no], ['Trip', refs.trip_no], ['Vehicle', refs.vehicle_no],
+      ['Vehicle', refs.vehicle_no],
     ]);
     parties(doc, { label: 'Billed by', party: seller }, { label: 'Billed to', party: buyer });
     table(doc, [
@@ -284,38 +283,12 @@ export function rollLabel({ roll, item, order = {}, org = {} }) {
 }
 
 /**
- * Worker ID badge (credit-card size, 86 × 54 mm) with the kiosk QR.
- * @param {{
- *   worker: { name, emp_code, qr_token, stage?, shift? },
- *   org: { name }, photo?: Buffer
- * }} data
- * @returns {Promise<Buffer>}
- */
-export function badge({ worker, org, photo }) {
-  const W = 86 * MM, H = 54 * MM, m = 3 * MM, qr = 22 * MM;
-  return render({ size: [W, H], margin: m, info: { Title: `Badge ${worker.emp_code}` } }, (doc) => {
-    doc.rect(0, 0, W, 9 * MM).fill('#1f3b57').fillColor('#fff');
-    doc.font('Helvetica-Bold').fontSize(10).text(org.name, m, 3 * MM, { width: W - 2 * m, lineBreak: false, ellipsis: true });
-    doc.fillColor('#000');
-    const top = 12 * MM, photoW = 18 * MM, photoH = 22 * MM;
-    if (photo) doc.image(photo, m, top, { fit: [photoW, photoH], align: 'center', valign: 'center' });
-    else doc.rect(m, top, photoW, photoH).lineWidth(0.5).stroke();
-    const x = m + photoW + 3 * MM, w = W - x - qr - 2 * m;
-    doc.font('Helvetica-Bold').fontSize(9).text(worker.name, x, top, { width: w });
-    doc.font('Helvetica').fontSize(7.5).text(worker.emp_code, { width: w });
-    if (worker.stage) doc.text(worker.stage, { width: w });
-    if (worker.shift) doc.text(`Shift ${worker.shift}`, { width: w });
-    drawQr(doc, worker.qr_token, W - m - qr, top, qr);
-  });
-}
-
-/**
  * Monthly payslip for one worker.
  * @param {{
  *   org: object,
  *   worker: { name, emp_code, wage_type: 'daily'|'hourly'|'piece', rate, ot_rate, piece_rate },
  *   month: string|Date,                           // first day of month
- *   line: { days, half_days, hours, ot_hours, pieces, gross, advances, deductions, net },
+ *   line: { days, half_days, hours, ot_hours, pieces, gross, deductions, net },
  *   status?: 'draft'|'approved'|'paid'
  * }} data
  * @returns {Promise<Buffer>}
@@ -343,7 +316,6 @@ export function payslip({ org, worker, month, line, status }) {
     ]);
     totals(doc, [
       ['Gross', fmt.money(line.gross)],
-      ['Advances recovered', `- ${fmt.money(line.advances)}`],
       ['Deductions', `- ${fmt.money(line.deductions)}`],
       ['Net pay', fmt.money(line.net), true],
     ]);

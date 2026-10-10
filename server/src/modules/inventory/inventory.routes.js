@@ -17,10 +17,10 @@ r.post('/stock/adjustments', can('stock.adjust'), validate({ body: adjustmentSch
 r.post('/stock/adjustments/:id/approve', can('stock.adjust_approve'), validate({ params: idParam }), send((req) => s.approveAdjustment(req.ctx, req.valid.params.id)));
 r.post('/stock/adjustments/:id/reject', can('stock.adjust_approve'), validate({ params: idParam }), send((req) => s.rejectAdjustment(req.ctx, req.valid.params.id)));
 
-r.get('/receipts', can('stock.view'), validate({ query: receiptQuery }), send((req) => s.listReceipts(req.ctx, req.valid.query)));
+r.get('/receipts', can('receipt.view', 'stock.view'), validate({ query: receiptQuery }), send((req) => s.listReceipts(req.ctx, req.valid.query)));
 r.post('/receipts', can('receipt.create'), validate({ body: receiptSchema }), send((req) => s.createReceipt(req.ctx, req.valid.body), 201));
-r.get('/receipts/:id', can('stock.view'), validate({ params: idParam }), send((req) => s.getReceipt(req.ctx, req.valid.params.id)));
-r.post('/receipts/:id/post', can('receipt.create'), validate({ params: idParam }), send((req) => s.postReceipt(req.ctx, req.valid.params.id)));
-r.post('/receipts/:id/cancel', can('receipt.create'), validate({ params: idParam }), send((req) => s.cancelReceipt(req.ctx, req.valid.params.id)));
+r.get('/receipts/:id', can('receipt.view', 'stock.view'), validate({ params: idParam }), send((req) => s.getReceipt(req.ctx, req.valid.params.id)));
+r.post('/receipts/:id/post', can('receipt.post'), validate({ params: idParam }), send((req) => s.postReceipt(req.ctx, req.valid.params.id)));
+r.post('/receipts/:id/cancel', can('receipt.delete'), validate({ params: idParam }), send((req) => s.cancelReceipt(req.ctx, req.valid.params.id)));
 
 export default r;

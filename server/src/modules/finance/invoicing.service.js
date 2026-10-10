@@ -1,4 +1,4 @@
-// Invoice from what was physically scanned onto a dispatch (backend plan §11.10): quantity = the roll lengths, rate from the order line.
+// Invoice from what was physically scanned onto a dispatch: quantity = the roll lengths, rate from the order line.
 
 import { AppError } from '../../utils/errors.js';
 import { round2 } from '../../utils/money.js';
@@ -6,7 +6,7 @@ import { nextNumber } from '../../utils/numbering.js';
 import { convertQty } from '../../utils/textile.js';
 import { addDays, istParts } from '../../utils/time.js';
 
-const DEFAULT_TAX_PCT = 5;                // GST on fabric; an org can override with settings.tax_pct
+const DEFAULT_TAX_PCT = 5;                // GST on fabric; the mill can override with settings.tax_pct
 export const PAYMENT_TERMS_DAYS = 30;
 
 /** One line per order line: Σ roll lengths in the order line's unit × its rate. */
@@ -30,8 +30,8 @@ async function invoiceLines(db, dispatchId, taxPct) {
  * @returns the invoice row (with `lines`)
  */
 export async function createInvoiceFromDispatch(db, ctx, dispatch, at) {
-  const { rows: [org] } = await db.query(`select settings from organizations where id = $1`, [ctx.orgId]);
-  const taxPct = Number(org.settings?.tax_pct ?? DEFAULT_TAX_PCT);
+  const { rows: [mill] } = await db.query(`select settings from mill`);
+  const taxPct = Number(mill.settings?.tax_pct ?? DEFAULT_TAX_PCT);
   const lines = await invoiceLines(db, dispatch.id, taxPct);
   if (!lines.length) throw new AppError(422, 'VALIDATION_FAILED', `Dispatch ${dispatch.dispatch_no} has no rolls to invoice`);
 
@@ -40,17 +40,17 @@ export async function createInvoiceFromDispatch(db, ctx, dispatch, at) {
   const today = istParts(at).date;
 
   const { rows: [invoice] } = await db.query(
-    `insert into invoices (invoice_no, kind, seller_org_id, buyer_org_id, buyer_contact_id, order_id, dispatch_id, invoice_date, due_date,
+    `insert into invoices (invoice_no, buyer_contact_id, order_id, dispatch_id, invoice_date, due_date,
                            subtotal, tax, total, created_at, created_by)
-     values ($1, 'sales', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning *`,
-    [await nextNumber(db, ctx.orgId, org.settings?.invoice_prefix ?? 'INV'), ctx.orgId, dispatch.to_org_id, dispatch.to_contact_id, dispatch.order_id, dispatch.id,
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) returning *`,
+    [await nextNumber(db, mill.settings?.invoice_prefix ?? 'INV'), dispatch.to_contact_id, dispatch.order_id, dispatch.id,
      today, addDays(today, PAYMENT_TERMS_DAYS), subtotal, tax, round2(subtotal + tax), at, ctx.userId]);
 
   for (const l of lines) {
     await db.query(
-      `insert into invoice_lines (invoice_id, seller_org_id, buyer_org_id, item_id, description, qty, uom, rate, tax_pct, amount)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [invoice.id, ctx.orgId, dispatch.to_org_id, l.item_id, l.description, l.qty, l.uom, l.rate, l.tax_pct, l.amount]);
+      `insert into invoice_lines (invoice_id, item_id, description, qty, uom, rate, tax_pct, amount)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [invoice.id, l.item_id, l.description, l.qty, l.uom, l.rate, l.tax_pct, l.amount]);
   }
   return { ...invoice, lines };
 }

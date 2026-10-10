@@ -102,15 +102,14 @@ const qualities = [
   { code: 'DRL', name: 'Drill', gsm: 190, width_in: 58, warp: 'YRN-24S-C', weft: 'YRN-20S-C', warp_pct: 55, colour: 'Olive green', dye: 'DYE-OLIVE', shade_pct: 3, roll_length_m: 40, grey_rate: 128, finished_rate: 188 },
 ];
 
-// ---- the two mills -------------------------------------------------------------------------
+// ---- the mill (one system = one mill: Everest Textile Mills) -------------------------------------------------------------------------
 
-export const PROFILES = {
-  everest: {
+export const PROFILE = {
     org: {
-      name: 'Everest Textile Mills', types: ['manufacturer'], gstin: '24AAACE4567F1Z2',
+      name: 'Everest Textile Mills', gstin: '24AAACE4567F1Z2',
       address: 'Plot 112, Sachin GIDC', city: 'Surat', state: 'Gujarat', pincode: '394230',
       phone: '+91 261 240 1100', email: 'accounts@everest.demo',
-      settings: { timezone: 'Asia/Kolkata', currency: 'INR', invoice_prefix: 'EVT' },
+      settings: { timezone: 'Asia/Kolkata', currency: 'INR', invoice_prefix: 'EVT', modules: {} },
     },
     stages: STAGES, shifts: SHIFTS, defectTypes: DEFECT_TYPES, warehouses: WAREHOUSES,
     machines: [
@@ -118,7 +117,6 @@ export const PROFILES = {
       { prefix: 'W', count: 8, stage: 'Weaving', label: 'Air-jet loom', capacity: 55, uom: 'm', overhead: 220 },
       { prefix: 'D', count: 6, stage: 'Dyeing', label: 'Jet dyeing machine', capacity: 120, uom: 'm', overhead: 260 },
     ],
-    kioskDevices: ['Main gate tablet'],
     workers: {
       perStage: { Spinning: 18, Weaving: 26, Dyeing: 16 },       // 60 in total, named workers included
       wageMix: [['daily', 0.6], ['hourly', 0.25], ['piece', 0.15]],
@@ -137,50 +135,11 @@ export const PROFILES = {
       { type: 'supplier', name: 'Gujarat Cotton Traders', city: 'Rajkot', phone: '+91 98240 44004', email: 'sales@gujcotton.demo', gstin: '24AAACG3344M1Z6', address: 'APMC Yard' },
       { type: 'supplier', name: 'Supplier X Yarn Mills', city: 'Coimbatore', phone: '+91 98940 55005', email: 'dispatch@supplierx.demo', gstin: '33AAACS5566N1Z2', address: '77 Avinashi Road' },
       { type: 'supplier', name: 'Dyechem Industries', city: 'Ahmedabad', phone: '+91 98790 66006', email: 'orders@dyechem.demo', gstin: '24AAACD6677P1Z9', address: 'Naroda GIDC' },
-      { type: 'transporter', name: 'Speedline Logistics', city: 'Surat', phone: '+91 98250 77007', email: 'ops@speedline.demo', gstin: '24AAACS7788L1Z1', address: 'Kamrej Transport Nagar' },
-      { type: 'transporter', name: 'Western Roadways', city: 'Mumbai', phone: '+91 98200 88008', email: 'ops@westernroadways.demo', gstin: '27AAACW8899R1Z3', address: 'Bhiwandi Godown 14' },
     ],
-    // scope names are resolved to ids; empty / missing scope = whole org
+    // scope names are resolved to ids; empty / missing scope = the whole mill
+    // the only login: the owner. Everyone else is invited by email from Settings → Staff, with roles the owner creates.
     users: [
-      { email: 'owner@everest.demo', name: 'Ravi Mehta', role: 'Owner' },
-      { email: 'gm@everest.demo', name: 'Kiran Desai', role: 'General Manager' },
-      { email: 'prodmgr@everest.demo', name: 'Anand Joshi', role: 'Production Manager' },
-      { email: 'sup.weaving@everest.demo', name: 'Mahesh Patil', role: 'Shift Supervisor', scope: { stages: ['Weaving'], shifts: ['A'] } },
-      { email: 'op.w3@everest.demo', name: 'Anil Kumar', role: 'Machine Operator', scope: { machines: ['W-3'] }, worker: 'Anil Kumar' },
-      { email: 'qchead@everest.demo', name: 'Pooja Nair', role: 'QC Head' },
-      { email: 'qc@everest.demo', name: 'Imran Sheikh', role: 'QC Inspector' },
-      { email: 'store@everest.demo', name: 'Dilip Rathod', role: 'Store Keeper', scope: { warehouses: ['Raw store'] } },
-      { email: 'dispatch@everest.demo', name: 'Nitin Gaikwad', role: 'Dispatch In-charge', scope: { warehouses: ['Finished goods'] } },
-      { email: 'purchase@everest.demo', name: 'Hetal Shah', role: 'Purchase Officer' },
-      { email: 'sales@everest.demo', name: 'Rohit Agarwal', role: 'Sales Coordinator' },
-      { email: 'accounts@everest.demo', name: 'Sneha Kulkarni', role: 'Accountant' },
-      { email: 'hr@everest.demo', name: 'Meera Iyer', role: 'HR Clerk' },
-      { email: 'maint@everest.demo', name: 'Santosh Jadhav', role: 'Maintenance Technician' },
-      { email: 'gate@everest.demo', name: 'Bhola Singh', role: 'Gate Security' },
+      { email: 'owner@everest.demo', name: 'Ravi Mehta', role: 'Owner',
+        phone: '+91 98765 43210', address: 'Plot 14, Textile Park, MIDC', city: 'Ichalkaranji' },
     ],
-  },
-
-  // a spinner: same machine codes (S-1…) and yarn SKUs as Everest, so isolation tests have something to prove
-  shakti: {
-    org: {
-      name: 'Shakti Spinners', types: ['manufacturer'], gstin: '33AAACS1234F1Z7',
-      address: '9 Mettupalayam Road', city: 'Coimbatore', state: 'Tamil Nadu', pincode: '641043',
-      phone: '+91 422 255 0900', email: 'info@shakti.demo',
-      settings: { timezone: 'Asia/Kolkata', currency: 'INR', invoice_prefix: 'SHK' },
-    },
-    stages: STAGES.slice(0, 1), shifts: SHIFTS.slice(0, 2), defectTypes: DEFECT_TYPES.slice(0, 3), warehouses: WAREHOUSES,
-    machines: [{ prefix: 'S', count: 5, stage: 'Spinning', label: 'Ring frame', capacity: 36, uom: 'kg', overhead: 140 }],
-    kioskDevices: ['Gate tablet'],
-    workers: { perStage: { Spinning: 12 }, wageMix: [['daily', 0.7], ['hourly', 0.3]], contractShare: 0.2, named: [] },
-    catalog: {
-      fibres: fibres.slice(0, 1),
-      yarns: yarns.filter((y) => ['YRN-20S-C', 'YRN-30S-C', 'YRN-40S-C'].includes(y.sku)),
-      dyes: [], scrap: scrap.slice(0, 1), qualities: [], garments: [],
-    },
-    contacts: [
-      { type: 'buyer', name: 'Southern Hosiery Mills', city: 'Tiruppur', phone: '+91 98430 99001', email: 'buy@southernhosiery.demo', gstin: '33AAACS9900H1Z5', address: '3 Palladam Road' },
-      { type: 'supplier', name: 'Salem Cotton Traders', city: 'Salem', phone: '+91 98420 99002', email: 'sales@salemcotton.demo', gstin: '33AAACS8800T1Z3', address: 'Cotton Market' },
-    ],
-    users: [{ email: 'owner@shakti.demo', name: 'Lakshmi Narayan', role: 'Owner' }],
-  },
 };

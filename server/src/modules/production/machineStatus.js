@@ -9,8 +9,8 @@
 export async function setMachineStatus(db, ctx, machineId, status, { reason = null, workOrderId = null, at }) {
   await db.query(`update machine_events set ended_at = $2 where machine_id = $1 and ended_at is null`, [machineId, at]);
   const { rows: [event] } = await db.query(
-    `insert into machine_events (org_id, machine_id, status, reason, started_at, created_by)
-     values ($1, $2, $3, $4, $5, $6) returning *`, [ctx.orgId, machineId, status, reason, at, ctx.userId]);
+    `insert into machine_events (machine_id, status, reason, started_at, created_by)
+     values ($1, $2, $3, $4, $5) returning *`, [machineId, status, reason, at, ctx.userId]);
   await db.query(
     `update machines set status = $2, status_since = $3, current_work_order_id = $4 where id = $1`,
     [machineId, status, at, workOrderId]);

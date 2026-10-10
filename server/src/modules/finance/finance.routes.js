@@ -1,8 +1,8 @@
-// Entry point of the finance module (backend plan §10.11): Vipul mounts this one router at the tenant root.
-//   GET  /invoices?side=&kind=&status=         invoice.view
+// Finance module: invoices (from dispatches), payments from buyers, expenses (incl. supplier bills).
+//   GET  /invoices?status=                     invoice.view
 //   GET  /invoices/:id[/pdf]                   invoice.view
 //   POST /invoices/from-dispatch/:id           invoice.create   (confirming a dispatch normally does this)
-//   GET/POST /payments                         invoice.view / payment.record   (either party records; the invoice follows)
+//   GET/POST /payments                         invoice.view / payment.record
 //   CRUD /expenses                             expense.manage
 //   GET  /finance/receivables | /payables      invoice.view
 
@@ -23,12 +23,12 @@ r.post('/invoices/from-dispatch/:id', can('invoice.create'), validate({ params: 
 r.get('/invoices/:id', can('invoice.view'), validate({ params: idParams }), invoices.get);
 r.get('/invoices/:id/pdf', can('invoice.view'), validate({ params: idParams }), invoices.invoicePdf);
 
-r.get('/payments', can('invoice.view'), validate({ query: s.listPaymentsQuery }), finance.listPaymentsHandler);
-r.post('/payments', can('payment.record'), validate({ body: s.paymentSchema }), finance.record);
+r.get('/payments', can('payment.view', 'invoice.view'), validate({ query: s.listPaymentsQuery }), finance.listPaymentsHandler);
+r.post('/payments', can('payment.create'), validate({ body: s.paymentSchema }), finance.record);
 
 mountCrud(r, '/expenses', {
   handlers: crudHandlers(expenses),
-  read: [can('expense.manage')], write: [can('expense.manage')],
+  read: [can('expense.view')], create: [can('expense.create')], update: [can('expense.update')], remove: [can('expense.delete')],
   schemas: { list: s.listExpensesQuery, create: s.createExpenseSchema, update: s.updateExpenseSchema },
 });
 

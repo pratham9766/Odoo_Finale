@@ -19,8 +19,6 @@ export const itemSchema = z.object({
   uom: z.enum(UOMS),
   reorder_level: num.min(0).default(0),
   std_rate: num.min(0).default(0),
-  sellable: z.boolean().default(false),
-  preferred_supplier_org_id: uuid.nullable().optional(),
   preferred_supplier_contact_id: uuid.nullable().optional(),
   active: z.boolean().default(true),
 });
@@ -31,7 +29,6 @@ export const itemQuery = z.object({
   kind: z.enum(KINDS).optional(),
   q: z.string().trim().max(80).optional(),
   active: zBoolStr,
-  sellable: zBoolStr,
 });
 
 export const bomSchema = z.object({

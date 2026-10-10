@@ -15,7 +15,6 @@ export const scan = async (req, res) => res.status(201).json({ data: await svc.s
 export const removeRoll = async (req, res) => res.json({ data: await svc.removeRoll(req.ctx, id(req), req.valid.params.rollId) });
 export const confirm = async (req, res) => res.json({ data: await confirmDispatch(req.ctx, id(req)) });
 export const status = async (req, res) => res.json({ data: await svc.updateStatus(req.ctx, id(req), req.valid.body.status) });
-export const receive = async (req, res) => res.json({ data: await svc.receiveDispatch(req.ctx, id(req), req.valid.body) });
 
 export async function packingList(req, res) {
   const data = await svc.packingListData(req.ctx, id(req));

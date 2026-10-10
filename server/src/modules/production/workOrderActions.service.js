@@ -1,8 +1,8 @@
 // Work order lifecycle (backend plan §11.7): start / resume, pause, finish.
 // Every function takes an optional `{ at }` so the seed can replay history; HTTP never passes it.
 
-import { withTenant } from '../../db/withTenant.js';
-import { assertOwned, invalid } from '../../utils/crud/index.js';
+import { withTx } from '../../db/tx.js';
+import { assertExists, invalid } from '../../utils/crud/index.js';
 import { AppError } from '../../utils/errors.js';
 import { bomInputQty, round3 } from '../../utils/textile.js';
 import { issueForWorkOrder, produce } from '../inventory/inventory.service.js';
@@ -17,7 +17,7 @@ async function materialFor(db, ctx, wo) {
   const { rows } = await db.query(
     `select l.component_item_id as item_id, l.qty, l.wastage_pct, b.output_qty
        from boms b join bom_lines l on l.bom_id = b.id
-      where b.org_id = $1 and b.output_item_id = $2 and b.is_default`, [ctx.orgId, wo.output_item_id]);
+      where b.output_item_id = $1 and b.is_default`, [wo.output_item_id]);
   const needed = new Map();
   for (const line of rows) needed.set(line.item_id, (needed.get(line.item_id) ?? 0) + bomInputQty(wo.target_qty, line, line.output_qty));
   return [...needed].map(([item_id, qty]) => ({ item_id, qty: round3(qty) }));
@@ -28,7 +28,7 @@ async function materialFor(db, ctx, wo) {
  * order's reservations); a resume only puts the machine back to work. The machine must be idle.
  */
 export async function startWorkOrder(ctx, id, { at = new Date() } = {}) {
-  const wo = await withTenant(ctx, async (db) => {
+  const wo = await withTx(async (db) => {
     const row = await lockWorkOrder(db, ctx, id);
     if (!['planned', 'paused'].includes(row.status)) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `Work order ${row.wo_no} is ${row.status}; only planned or paused work can be started`);
@@ -55,14 +55,14 @@ export async function startWorkOrder(ctx, id, { at = new Date() } = {}) {
 
 /** Pause a running work order; its machine goes idle. */
 export async function pauseWorkOrder(ctx, id, { reason } = {}, { at = new Date() } = {}) {
-  const wo = await withTenant(ctx, async (db) => {
+  const wo = await withTx(async (db) => {
     const row = await lockWorkOrder(db, ctx, id);
     if (row.status !== 'running') throw notRunning(row, 'be paused');
     await setMachineStatus(db, ctx, row.machine_id, 'idle', { reason: reason ?? 'paused', at });
     await db.query(`update work_orders set status = 'paused' where id = $1`, [row.id]);
     return row;
   });
-  await publishMachine(ctx.orgId, wo.machine_id);
+  await publishMachine(wo.machine_id);
   return workOrders.get(ctx, id);
 }
 
@@ -79,21 +79,21 @@ async function stockOutput(db, ctx, wo, { good_qty, waste_qty, waste_item_id }) 
 
 /** Finish a work order: record good output and waste, free the machine, stock the output. */
 export async function finishWorkOrder(ctx, id, input, { at = new Date() } = {}) {
-  const wo = await withTenant(ctx, async (db) => {
+  const wo = await withTx(async (db) => {
     const row = await lockWorkOrder(db, ctx, id);
     if (!['running', 'paused'].includes(row.status)) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `Work order ${row.wo_no} is ${row.status}; only running or paused work can be finished`);
     }
     if (input.waste_item_id) {
-      await assertOwned(db, ctx, 'items', input.waste_item_id, 'Waste item');
+      await assertExists(db, 'items', input.waste_item_id, 'Waste item');
       const { rows: [item] } = await db.query(`select kind from items where id = $1`, [input.waste_item_id]);
       if (item.kind !== 'scrap') throw invalid('waste_item_id', 'Waste must be booked to a scrap item');
     }
 
     await db.query(
-      `insert into work_order_outputs (org_id, work_order_id, good_qty, good_weight_kg, waste_qty, waste_item_id, waste_type, created_at, created_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [ctx.orgId, row.id, input.good_qty, input.good_weight_kg ?? null, input.waste_qty, input.waste_item_id ?? null, input.waste_type ?? null, at, ctx.userId]);
+      `insert into work_order_outputs (work_order_id, good_qty, good_weight_kg, waste_qty, waste_item_id, waste_type, created_at, created_by)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [row.id, input.good_qty, input.good_weight_kg ?? null, input.waste_qty, input.waste_item_id ?? null, input.waste_type ?? null, at, ctx.userId]);
     await db.query(
       `update work_orders set status = 'done', finished_at = $2, waste_qty = $3, produced_qty = greatest(produced_qty, $4) where id = $1`,
       [row.id, at, input.waste_qty, input.good_qty]);

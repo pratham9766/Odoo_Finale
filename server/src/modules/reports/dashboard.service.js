@@ -1,7 +1,7 @@
 // GET /reports/dashboard (backend plan §10.11): role-aware KPI blocks. Every block checks its own permission, so a supervisor
 // and the owner call the same endpoint and get different things. A block the caller may not see is simply absent.
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { round2 } from '../../utils/money.js';
 import { addDays, monthStart, todayIST } from '../../utils/time.js';
 import { boardRows, summariseBoard } from '../production/board.service.js';
@@ -22,17 +22,17 @@ async function production(db, ctx, today) {
 /** Orders by risk, and the ones that need attention first. */
 async function orders(db, ctx) {
   const { rows: counts } = await db.query(
-    `select coalesce(risk, 'green') as risk, count(*)::int as n from orders where seller_org_id = $1 and status = any($2) group by 1`, [ctx.orgId, IN_PROGRESS]);
+    `select coalesce(risk, 'green') as risk, count(*)::int as n from orders where status = any($1) group by 1`, [IN_PROGRESS]);
   const { rows: attention } = await db.query(
     `select id, order_no, risk, status, progress_pct, deadline, expected_completion from orders
-      where seller_org_id = $1 and status = any($2) and risk in ('red', 'amber') order by risk desc, deadline limit 5`, [ctx.orgId, IN_PROGRESS]);
+      where status = any($1) and risk in ('red', 'amber') order by risk desc, deadline limit 5`, [IN_PROGRESS]);
   const by = Object.fromEntries(counts.map((c) => [c.risk, c.n]));
   return { in_progress: counts.reduce((n, c) => n + c.n, 0), red: by.red ?? 0, amber: by.amber ?? 0, green: by.green ?? 0, needs_attention: attention };
 }
 
 async function attendance(db, ctx, today) {
-  const counts = await todayCounts(db, ctx.orgId, today);
-  const { rows: [{ expected }] } = await db.query(`select count(*)::int as expected from workers where org_id = $1 and active`, [ctx.orgId]);
+  const counts = await todayCounts(db, today);
+  const { rows: [{ expected }] } = await db.query(`select count(*)::int as expected from workers where active`);
   return { ...counts, expected };
 }
 
@@ -50,11 +50,11 @@ async function alerts(db, ctx) {
   const out = {};
   if (can('stock.view')) {
     out.low_stock = (await db.query(`select count(*)::int as n from v_low_stock`)).rows[0].n;
-    const { rows: [org] } = await db.query(`select settings from organizations where id = $1`, [ctx.orgId]);
-    out.unmoved_rolls = (await db.query(`select count(*)::int as n from v_finished_stock where days_on_shelf >= $1`, [Number(org.settings?.unmoved_days ?? 7)])).rows[0].n;
+    const { rows: [mill] } = await db.query(`select settings from mill`);
+    out.unmoved_rolls = (await db.query(`select count(*)::int as n from v_finished_stock where days_on_shelf >= $1`, [Number(mill.settings?.unmoved_days ?? 7)])).rows[0].n;
   }
   if (can('production.view')) {
-    out.machines_down = (await db.query(`select code from machines where org_id = $1 and status in ('breakdown', 'maintenance') order by code`, [ctx.orgId])).rows.map((m) => m.code);
+    out.machines_down = (await db.query(`select code from machines where status in ('breakdown', 'maintenance') order by code`)).rows.map((m) => m.code);
   }
   if (can('invoice.view')) {
     const { rows: [o] } = await db.query(`select count(*)::int as invoices, coalesce(sum(outstanding), 0) as amount from v_receivables where overdue`);
@@ -67,7 +67,7 @@ async function alerts(db, ctx) {
 export function dashboard(ctx) {
   const today = todayIST();
   const can = (p) => ctx.permissions.has(p);
-  return withTenant(ctx, async (db) => ({
+  return withTx(async (db) => ({
     ...(can('production.view') && { production: await production(db, ctx, today) }),
     ...(can('orders.view') && { orders: await orders(db, ctx) }),
     ...(can('attendance.view') && { attendance: await attendance(db, ctx, today) }),

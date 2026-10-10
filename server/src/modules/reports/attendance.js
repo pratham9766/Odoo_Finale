@@ -2,7 +2,7 @@
 // Attendance % = days worked ÷ (days worked + days absent); leave, holidays and weekly offs are not counted against anyone.
 
 import { z } from 'zod';
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { monthString } from '../../utils/crud/index.js';
 import { round2 } from '../../utils/money.js';
 import { currentMonth, nextMonthStart } from '../../utils/time.js';
@@ -21,7 +21,7 @@ export default {
   run: (ctx, { month, group }) => {
     const first = `${month}-01`;
     const [key, order] = GROUPS[group];
-    return withTenant(ctx, async (db) => {
+    return withTx(async (db) => {
       const { rows } = await db.query(
         `select ${key} as key,
                 count(*) filter (where a.status in ('present', 'late', 'half_day'))::int as worked_days,
@@ -31,8 +31,8 @@ export default {
                 count(*) filter (where a.status = 'leave')::int as leave_days,
                 coalesce(sum(a.ot_hours), 0) as ot_hours
            from attendance a join shifts sh on sh.id = a.shift_id join workers w on w.id = a.worker_id left join stages st on st.id = w.stage_id
-          where a.org_id = $1 and a.date >= $2::date and a.date < $3::date
-          group by ${group === 'shift' ? 'sh.name, sh.start_time' : key} order by ${order}`, [ctx.orgId, first, nextMonthStart(first)]);
+          where a.date >= $1::date and a.date < $2::date
+          group by ${group === 'shift' ? 'sh.name, sh.start_time' : key} order by ${order}`, [first, nextMonthStart(first)]);
 
       const table = rows.map((r) => ({ ...r, ot_hours: round2(r.ot_hours), attendance_pct: pct(r.worked_days, r.worked_days + r.absent_days) }));
       const totals = totalsOf(table, ['worked_days', 'absent_days', 'late_days', 'half_days', 'leave_days', 'ot_hours']);

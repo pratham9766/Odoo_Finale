@@ -1,72 +1,67 @@
-// Seed v1: the two demo mills with all their masters (backend plan §17, step 1–3). Run: npm run seed (from server/).
+// Seed: Everest Textile Mills with all its masters (stages, machines, shifts, workers, items, BOMs, buyers, suppliers, demo logins),
+// then (unless --masters) a replay of its history through the real services.  Run: npm run seed (from server/).
 //
-// Connects as the migration role (bypasses RLS), builds everything in ONE transaction, and refuses to run on a
-// database that already has the demo orgs. Deterministic: the same SEED always produces the same world.
-// seedAll() takes its two outside collaborators as arguments, so tests can run it without Supabase or Vipul's code.
+// Connects as the migration role, builds the masters in ONE transaction, and refuses to run on a database that already has the mill.
+// Deterministic: the same SEED always produces the same world.
+// seedAll() takes its two outside collaborators as arguments, so it can run without Supabase.
 
 import { pathToFileURL } from 'node:url';
-import { DEMO_PASSWORD, PROFILES, SEED } from './config.js';
+import { DEMO_PASSWORD, PROFILE, SEED } from './config.js';
 import { seedAccess } from './generators/access.js';
 import { seedCatalog } from './generators/catalog.js';
 import { seedContacts } from './generators/contacts.js';
 import { seedFactory } from './generators/factory.js';
-import { seedOrganization } from './generators/organizations.js';
+import { seedMill } from './generators/mill.js';
 import { seedWorkers } from './generators/workers.js';
 import { createRng } from './lib/rng.js';
 import { loadServerEnv, requireServer } from '../lib/serverDeps.js';
 
 async function assertNotSeeded(db) {
-  const names = Object.values(PROFILES).map((p) => p.org.name);
-  const { rows } = await db.query(`select name from organizations where name = any($1::text[])`, [names]);
+  const { rows } = await db.query(`select name from mill`);
   if (rows.length) {
-    throw new Error(`Demo data already exists (${rows.map((r) => r.name).join(', ')}). Run the demo reset script, or use an empty database.`);
+    throw new Error(`The mill already exists (${rows[0].name}). Run the demo reset script, or use an empty database.`);
   }
 }
 
 /**
- * @param {{ query: Function }} db  pg Client or PGlite
+ * @param {{ query: Function }} db  pg Client
  * @param {{ createUser: Function, createDefaultRoles: Function, log?: Function }} deps
- * @returns {Promise<Array<object>>} one summary per organization (counts + the demo kiosk token)
+ * @returns {Promise<object>} counts
  */
 export async function seedAll(db, { createUser, createDefaultRoles, log = () => {} }) {
   const rng = createRng(SEED);
-  const summaries = [];
 
   await db.query('begin');
   try {
     await assertNotSeeded(db);
-    for (const [key, profile] of Object.entries(PROFILES)) {
-      const org = await seedOrganization(db, profile.org, rng);
-      const factory = await seedFactory(db, org.id, profile, rng);
-      const workers = await seedWorkers(db, org.id, profile, factory, rng);
-      const catalog = await seedCatalog(db, org.id, profile, factory);
-      const contacts = await seedContacts(db, org.id, profile);
-      const access = await seedAccess(db, org, profile, { ...factory, ...workers }, { createUser, createDefaultRoles });
+    const mill = await seedMill(db, PROFILE.org);
+    const factory = await seedFactory(db, PROFILE, rng);
+    const workers = await seedWorkers(db, PROFILE, factory, rng);
+    const catalog = await seedCatalog(db, PROFILE, factory);
+    const contacts = await seedContacts(db, PROFILE);
+    const access = await seedAccess(db, PROFILE, { ...factory, ...workers }, { createUser, createDefaultRoles });
 
-      const summary = {
-        key, orgId: org.id, name: org.name, connectCode: org.connect_code,
-        machines: Object.keys(factory.machineId).length, workers: Object.keys(workers.workerId).length,
-        items: Object.keys(catalog.itemId).length, boms: catalog.bomCount, contacts: contacts.length, users: access.users,
-        kioskDevices: factory.kioskDevices,
-      };
-      summaries.push(summary);
-      log(`${org.name}: ${summary.machines} machines, ${summary.workers} workers, ${summary.items} items, ${summary.boms} BOMs, ${summary.contacts} contacts, ${summary.users} logins`);
-    }
+    const summary = {
+      name: mill.name,
+      machines: Object.keys(factory.machineId).length, workers: Object.keys(workers.workerId).length,
+      items: Object.keys(catalog.itemId).length, boms: catalog.bomCount, contacts: contacts.length, users: access.users,
+    };
+    log(`${mill.name}: ${summary.machines} machines, ${summary.workers} workers, ${summary.items} items, ${summary.boms} BOMs, ${summary.contacts} buyers/suppliers, ${summary.users} logins`);
     await db.query('commit');
+    return summary;
   } catch (err) {
     await db.query('rollback');
     throw err;
   }
-  return summaries;
 }
 
 // ---- command line -------------------------------------------------------------------------
 
 const need = (name) => process.env[name] || (() => { throw new Error(`${name} is not set (see server/.env.example)`); })();
 
-// npm run seed                  masters + 90-day history + connected portals (about an hour: every step goes through the real services)
-// npm run seed -- --days=14     a shorter history (the quick demo seed)
-// npm run seed -- --masters     only seed v1: orgs, users, machines, workers, items, BOMs (seconds)
+// npm run seed                  masters + 30-day history
+// npm run seed -- --days=14     a shorter history
+// npm run seed -- --masters     only the masters: mill, users, machines, workers, items, BOMs (seconds)
 const flag = (name) => process.argv.find((a) => a === `--${name}` || a.startsWith(`--${name}=`))?.split('=')[1] ?? (process.argv.includes(`--${name}`) ? true : undefined);
 
 async function main() {
@@ -80,14 +75,13 @@ async function main() {
   client.on('error', (e) => console.warn(`[seed] masters connection dropped after use (${e.code ?? e.message}); not needed any more`));
   await client.connect();
   try {
-    const summaries = await seedAll(client, { createUser, createDefaultRoles, log: console.log });
+    await seedAll(client, { createUser, createDefaultRoles, log: console.log });
 
     if (!flag('masters')) {
       const { simulate } = await import('./simulation/run.js');
-      const { seedB2B } = await import('./b2b.js');
       const days = Number(flag('days')) || undefined;
       // a long job must survive a dropped connection: a pool reconnects, and one retry covers the query that was in flight
-      const pool = new pg.Pool({ connectionString: need('MIGRATION_DATABASE_URL'), ssl: { rejectUnauthorized: false }, max: 3 });
+      const pool = new pg.Pool({ connectionString: need('MIGRATION_DATABASE_URL'), ssl: { rejectUnauthorized: false }, max: 3, keepAlive: true, keepAliveInitialDelayMillis: 10_000 });
       pool.on('error', (e) => console.warn(`[seed] idle connection dropped (${e.code ?? e.message}); reconnecting on next query`));
       const TRANSIENT = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', '57P01', '08006', '08003']);
       const admin = {
@@ -101,24 +95,19 @@ async function main() {
         },
       };
       try {
-        console.log(`\nSimulating ${days ?? 90} days of Everest's history …`);
+        console.log(`\nSimulating ${days ?? 30} days of Everest's history …`);
         const result = await simulate(admin, { days, log: console.log });
-        console.log(`History done: ${result.orders} orders, ${result.rolls} rolls, ${result.insights} insights.`);
-        await seedB2B(admin, { createUser, log: console.log });
+        console.log(`History done: ${result.orders} orders, ${result.rolls} rolls.`);
       } finally {
         await pool.end();
       }
     }
 
-    const portals = flag('masters') ? '' : ', buyer@metrofashion.demo, driver@speedfreight.demo, admin@texlink.demo';
-    console.log(`\nDemo logins use password ${DEMO_PASSWORD} (e.g. owner@everest.demo${portals}).`);
-    for (const s of summaries) for (const d of s.kioskDevices) console.log(`${s.name} kiosk "${d.name}" device token: ${d.token}`);
+    console.log(`\nLogin: owner@everest.demo / ${DEMO_PASSWORD}. Add everyone else from Settings → Roles and Settings → Staff (invites by email).`);
   } finally {
     await client.end();
-    // the simulation used the server's own pools
-    for (const mod of ['db/pool.js', 'db/aiPool.js']) {
-      try { await (await import(`../../server/src/${mod}`))[mod.includes('ai') ? 'aiPool' : 'pool'].end(); } catch { /* never opened */ }
-    }
+    // the simulation used the server's own pool
+    try { await (await import('../../server/src/db/pool.js')).pool.end(); } catch { /* never opened */ }
   }
 }
 

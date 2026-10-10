@@ -19,19 +19,3 @@ export const bulkSchema = z.object({
 
 export const dayQuery = z.object({ date: dateString.optional(), shift_id: uuid.optional(), stage_id: uuid.optional() });
 export const registerQuery = z.object({ month: monthString, stage_id: uuid.optional(), shift_id: uuid.optional() });
-
-// ---- corrections and leave ---------------------------------------------------------------------------------------------
-
-export const correctionSchema = z.object({
-  attendance_id: uuid,
-  change: z.object({ check_in: z.coerce.date().optional(), check_out: z.coerce.date().optional(), status: status.optional() })
-    .refine((c) => Object.keys(c).length > 0, 'Say what should change'),
-  reason: text(300),
-});
-export const listCorrectionsQuery = pageQuery.extend({ status: z.enum(['pending', 'approved', 'rejected']).optional() });
-export const decideSchema = z.object({ approve: z.boolean() });
-
-export const leaveSchema = z.object({
-  worker_id: uuid, from_date: dateString, to_date: dateString, type: text(30), reason: optionalText(300),
-}).refine((l) => l.to_date >= l.from_date, { message: 'The last day is before the first day', path: ['to_date'] });
-export const listLeaveQuery = pageQuery.extend({ status: z.enum(['pending', 'approved', 'rejected']).optional(), worker_id: uuid.optional() });

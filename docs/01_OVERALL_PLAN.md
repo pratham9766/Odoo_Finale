@@ -1,4 +1,4 @@
-# TexLink — Overall Plan
+# Sameta — Overall Plan
 
 > Multi-tenant B2B SaaS platform for the textile supply chain.
 > Built for the **Textile Manufacturing System** hackathon problem (Everest Textile Mills).
@@ -40,7 +40,7 @@
 
 ## 1. Summary
 
-**TexLink** is one platform where **mills, buyers, suppliers and transporters** each get their own secure workspace and connect to each other. Data entered once flows through the whole chain:
+**Sameta** is one platform where **mills, buyers, suppliers and transporters** each get their own secure workspace and connect to each other. Data entered once flows through the whole chain:
 
 **yarn → gate → store → machines → QC → dispatch → truck → buyer → payment → profit**
 
@@ -50,7 +50,7 @@
 | 🛒 Buyer / Vendor | Traders, garment units, shops, exporters | Place orders, live tracking, deliveries, bills, payments |
 | 🧵 Supplier | Yarn, dye and chemical vendors | Receive POs, dispatch lots, invoices, quality feedback |
 | 🚚 Transporter | Transport companies, drivers | Trips, fleet, driver app, proof of delivery, freight bills |
-| 🛡️ Platform (TexLink admin) | Our team | Manage orgs, approve/suspend, usage, announcements |
+| 🛡️ Platform (Sameta admin) | Our team | Manage orgs, approve/suspend, usage, announcements |
 
 **Main demo tenant:** Everest Textile Mills. Every scene in the problem statement must work end to end inside it.
 
@@ -83,7 +83,7 @@ The six scenes we must solve:
 
 ## 3. Problem → solution map
 
-| # | Problem | TexLink solution | Domain |
+| # | Problem | Sameta solution | Domain |
 |---|---|---|---|
 | 1 | Yarn stock in a notebook | Gate entry + GRN (lot, type, colour, qty, rate, for-order) + stock ledger | Mill, Supplier, Transport |
 | 2 | No low-stock warning | Reorder levels, alerts, days-left forecast | Mill |
@@ -109,7 +109,7 @@ The six scenes we must solve:
 
 ```
                          ┌───────────────────────┐
-                         │  PLATFORM (TexLink)   │  manages all orgs
+                         │  PLATFORM (Sameta)    │  manages all orgs
                          └───────────────────────┘
 
  ┌──────────────┐  yarn   ┌──────────────────┐  fabric  ┌──────────────────┐
@@ -279,7 +279,7 @@ Cron (daily) → insight SQL rules → Gemini writes 1–2 lines → ai_insights
 ## 8. Separation levels and security
 
 ```
-┌──────────── PLATFORM (TexLink admin) ───────────┐  org metadata only, no business data
+┌──────────── PLATFORM (Sameta admin) ────────────┐  org metadata only, no business data
 └─────────────────────────────────────────────────┘
 ┌──── TENANT: Everest (private) ────┐   ┌──── TENANT: Shree Fabrics ────┐
 │ Staff · RBAC · Machines · QC ·    │   │ Staff · their stock · their    │
@@ -843,7 +843,7 @@ INVOICE      unpaid → partial → paid ; overdue (past due date)
 | Buyer | `/buyer/*` | PortalLayout | Desktop + phone | Buyer org |
 | Supplier | `/supplier/*` | PortalLayout | Desktop + phone | Supplier org |
 | Transport / Driver | `/transport/*`, `/driver/*` | PortalLayout / DriverLayout | Desktop / phone | Transporter, driver |
-| Platform admin | `/admin/*` | AdminLayout | Desktop | TexLink team |
+| Platform admin | `/admin/*` | AdminLayout | Desktop | Sameta team |
 | Public tracking | `/track/:token` | Minimal | Phone | Anyone with the link |
 | **Mobile app** (React Native) | App tabs per experience | Bottom tabs | Android / iOS | Buyer, supplier, transporter, driver, mill floor, owner (lite) — see [04_MOBILE_APP_EXECUTION.md](04_MOBILE_APP_EXECUTION.md) |
 

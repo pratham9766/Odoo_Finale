@@ -17,13 +17,12 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string(),
   SUPABASE_JWT_SECRET: z.string().optional(),
   DATABASE_URL: z.string(),
-  AI_DATABASE_URL: z.string(),
-  GEMINI_API_KEY: z.string().optional(),
-  AI_MODEL: z.string().default('gemini-3.5-flash-lite'),
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('TexLink <no-reply@texlink.app>'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().default('Everest Textile Mills <no-reply@example.com>'),
   PUBLIC_TRACK_BASE_URL: z.string().url(),
-  ORG_APPROVAL_REQUIRED: bool(false),
   JOBS_ENABLED: bool(true),
 });
 
@@ -34,7 +33,7 @@ if (!parsed.success) {
 }
 
 // empty strings in .env mean "not set"
-for (const k of ['SUPABASE_JWT_SECRET', 'GEMINI_API_KEY', 'RESEND_API_KEY']) {
+for (const k of ['SUPABASE_JWT_SECRET', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS']) {
   if (!parsed.data[k]) parsed.data[k] = undefined;
 }
 
