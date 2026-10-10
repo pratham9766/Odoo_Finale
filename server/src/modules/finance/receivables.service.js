@@ -1,7 +1,7 @@
-// Receivables and payables with ageing (backend plan §10.11, frontend "Receivables / Payables" pages).
+// Receivables (buyers owe us) and payables (we owe suppliers), with ageing.
 // Ageing buckets count days PAST DUE: "0-30" is everything not yet due or up to 30 days late.
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { round2 } from '../../utils/money.js';
 import { daysBetween, monthStart, todayIST } from '../../utils/time.js';
 import { PAYMENT_TERMS_DAYS } from './invoicing.service.js';
@@ -35,30 +35,27 @@ const withDaysOverdue = (rows, today) => rows.map((r) => ({ ...r, days_overdue: 
 /** What buyers owe us: unpaid and partly paid sales invoices. */
 export function receivables(ctx) {
   const today = todayIST();
-  return withTenant(ctx, async (db) => {
+  return withTx(async (db) => {
     const { rows } = await db.query(
-      `select r.invoice_id, r.invoice_no, coalesce(bo.name, bc.name) as party, r.total, r.paid_amount, r.outstanding, r.due_date
-         from v_receivables r left join organizations bo on bo.id = r.buyer_org_id left join contacts bc on bc.id = r.buyer_contact_id
+      `select r.invoice_id, r.invoice_no, bc.name as party, r.total, r.paid_amount, r.outstanding, r.due_date
+         from v_receivables r left join contacts bc on bc.id = r.buyer_contact_id
         order by r.due_date, r.invoice_no`);
     const { rows: [paid] } = await db.query(
-      `select coalesce(sum(amount), 0) as n from payments where seller_org_id = $1 and paid_at >= $2::date`, [ctx.orgId, monthStart(today)]);
+      `select coalesce(sum(amount), 0) as n from payments where paid_at >= $1::date`, [monthStart(today)]);
     return summarise(withDaysOverdue(rows, today), paid.n);
   });
 }
 
-/** What we owe: bills from connected suppliers and transporters, plus unpaid bills of offline suppliers (expenses 'supplier_bill'). */
+/** What we owe: unpaid supplier bills (expenses with category 'supplier_bill'). */
 export function payables(ctx) {
   const today = todayIST();
-  return withTenant(ctx, async (db) => {
+  return withTx(async (db) => {
     const { rows: bills } = await db.query(
-      `select p.invoice_id, p.invoice_no, p.kind, o.name as party, p.total, p.paid_amount, p.outstanding, p.due_date
-         from v_payables p join organizations o on o.id = p.seller_org_id order by p.due_date, p.invoice_no`);
-    const { rows: offline } = await db.query(
-      `select null::uuid as invoice_id, coalesce(note, 'Supplier bill') as invoice_no, 'supplier_bill' as kind, coalesce(note, 'Offline supplier') as party,
-              amount as total, 0 as paid_amount, amount as outstanding, (date + $2::int) as due_date
-         from expenses where org_id = $1 and category = 'supplier_bill' and not paid order by date`, [ctx.orgId, PAYMENT_TERMS_DAYS]);
+      `select null::uuid as invoice_id, coalesce(note, 'Supplier bill') as invoice_no, 'supplier_bill' as kind, coalesce(note, 'Supplier') as party,
+              amount as total, 0 as paid_amount, amount as outstanding, (date + $1::int) as due_date
+         from expenses where category = 'supplier_bill' and not paid order by date`, [PAYMENT_TERMS_DAYS]);
     const { rows: [paid] } = await db.query(
-      `select coalesce(sum(amount), 0) as n from payments where buyer_org_id = $1 and paid_at >= $2::date`, [ctx.orgId, monthStart(today)]);
-    return summarise(withDaysOverdue([...bills, ...offline], today), paid.n);
+      `select coalesce(sum(amount), 0) as n from expenses where category = 'supplier_bill' and paid and date >= $1::date`, [monthStart(today)]);
+    return summarise(withDaysOverdue(bills, today), paid.n);
   });
 }

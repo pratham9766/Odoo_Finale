@@ -16,25 +16,23 @@ export function supabaseAdmin() {
 
 const safeName = (name) => name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100);
 
-// every object path starts with org_id/
-export const objectPath = (orgId, filename) => `${orgId}/${randomUUID()}-${safeName(filename)}`;
+// server-made object paths: a random id + a cleaned file name
+export const objectPath = (filename) => `${randomUUID()}-${safeName(filename)}`;
 
-export function assertOrgPath(orgId, path) {
-  if (!path || !path.startsWith(`${orgId}/`) || path.includes('..')) {
-    throw new AppError(403, 'FORBIDDEN', 'File does not belong to this organization');
-  }
+export function assertSafePath(path) {
+  if (!path || path.includes('..') || path.startsWith('/')) throw new AppError(403, 'FORBIDDEN', 'Invalid file path');
 }
 
-export async function signUpload(orgId, bucket, filename) {
+export async function signUpload(bucket, filename) {
   if (!BUCKETS.includes(bucket)) throw new AppError(422, 'VALIDATION_FAILED', 'Unknown bucket');
-  const path = objectPath(orgId, filename);
+  const path = objectPath(filename);
   const { data, error } = await supabaseAdmin().storage.from(bucket).createSignedUploadUrl(path);
   if (error) throw new AppError(502, 'STORAGE_ERROR', error.message);
   return { bucket, path, signed_url: data.signedUrl, token: data.token };
 }
 
-export async function signDownload(orgId, bucket, path, expiresIn = 300) {
-  assertOrgPath(orgId, path);
+export async function signDownload(bucket, path, expiresIn = 300) {
+  assertSafePath(path);
   const { data, error } = await supabaseAdmin().storage.from(bucket).createSignedUrl(path, expiresIn);
   if (error) throw new AppError(502, 'STORAGE_ERROR', error.message);
   return data.signedUrl;

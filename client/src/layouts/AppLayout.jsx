@@ -1,13 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Layout, Menu, Drawer, Badge, Avatar, Dropdown, Button, Tag, Typography, Tooltip } from 'antd';
-import { Outlet, useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
+import { Layout, Menu, Drawer, Avatar, Dropdown, Button, Typography } from 'antd';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-  MenuFoldOutlined, MenuUnfoldOutlined, BellOutlined,
-  UserOutlined, LogoutOutlined, SwapOutlined,
-  SearchOutlined, ExperimentOutlined,
+  MenuFoldOutlined, MenuUnfoldOutlined,
+  UserOutlined, LogoutOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/hooks/useAuth';
-import { useOrg } from '@/hooks/useOrg';
+import { useMill } from '@/hooks/useMill';
 import { usePermission } from '@/hooks/usePermission';
 import { millNav } from '@/config/nav';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -17,7 +16,7 @@ const { Text } = Typography;
 
 function filterNav(items, can) {
   return items
-    .map(item => {
+    .map((item) => {
       if (item.children) {
         const children = filterNav(item.children, can);
         if (children.length === 0) return null;
@@ -30,7 +29,7 @@ function filterNav(items, can) {
 }
 
 function navToAntd(items, location, navigate) {
-  return items.map(item => {
+  return items.map((item) => {
     if (item.children) {
       return {
         key: item.key,
@@ -70,7 +69,7 @@ function getOpenKeys(items, pathname) {
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
-  const { org, orgs, role, switchOrg } = useOrg();
+  const { mill, role } = useMill();
   const { can } = usePermission();
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,20 +83,20 @@ export default function AppLayout() {
   const defaultOpenKeys = useMemo(() => getOpenKeys(visibleNav, location.pathname), [visibleNav, location.pathname]);
 
   const userMenu = [
-    { key: 'profile', icon: <UserOutlined />, label: 'My profile' },
-    orgs.length > 1 && { key: 'switch', icon: <SwapOutlined />, label: 'Switch organization' },
-    { type: 'divider' },
     { key: 'signout', icon: <LogoutOutlined />, label: 'Sign out', danger: true },
-  ].filter(Boolean);
+  ];
 
   const handleUserMenu = ({ key }) => {
     if (key === 'signout') signOut();
-    if (key === 'profile') navigate('/app/settings/profile');
   };
+
+  const millName = mill?.name || 'Everest Textile Mills';
+  const roleName = role?.name || 'Staff';
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   const sidebarMenu = (
     <div className="flex flex-col h-full">
-      {/* Logo */}
+      {/* Logo & Mill Name */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
         <div className="flex items-center justify-center font-black text-brand tracking-tighter" style={{ fontSize: '20px' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
@@ -107,7 +106,7 @@ export default function AppLayout() {
         {!collapsed && (
           <div className="min-w-0">
             <div className="text-white font-bold text-lg leading-tight truncate tracking-tight">SAMETA</div>
-            <div className="text-white/50 text-xs truncate">{org?.name}</div>
+            <div className="text-white/50 text-xs truncate">{millName}</div>
           </div>
         )}
       </div>
@@ -119,107 +118,99 @@ export default function AppLayout() {
           mode="inline"
           selectedKeys={selectedKeys}
           defaultOpenKeys={defaultOpenKeys}
-          inlineCollapsed={collapsed}
           items={menuItems}
-          style={{ background: 'transparent', border: 'none' }}
+          style={{ background: 'transparent', borderRight: 0 }}
         />
       </div>
 
-      {/* Role badge */}
-      {!collapsed && role && (
-        <div className="px-4 py-3 border-t border-white/10">
-          <Tag color="cyan" className="text-xs">{role.name}</Tag>
-        </div>
-      )}
+      {/* User profile footer */}
+      <div className="p-3 border-t border-white/10">
+        <Dropdown menu={{ items: userMenu, onClick: handleUserMenu }} trigger={['click']} placement="topRight">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+            <Avatar size={34} style={{ background: '#006B73', flexShrink: 0 }}>
+              {displayName[0]?.toUpperCase()}
+            </Avatar>
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <div className="text-white text-xs font-semibold truncate leading-tight">{displayName}</div>
+                <div className="text-white/50 text-[11px] truncate capitalize">{roleName}</div>
+              </div>
+            )}
+          </div>
+        </Dropdown>
+      </div>
     </div>
   );
 
   return (
-    <Layout className="min-h-screen">
-
-      {/* Desktop sidebar */}
-      {!isMobile && (
+    <Layout style={{ minHeight: '100vh' }}>
+      {!isMobile ? (
         <Sider
-          width={232}
-          collapsedWidth={72}
+          collapsible
           collapsed={collapsed}
           onCollapse={setCollapsed}
-          style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 200, overflow: 'hidden' }}
+          trigger={null}
+          width={240}
+          collapsedWidth={72}
+          style={{
+            background: '#12233F',
+            position: 'sticky',
+            top: 0,
+            height: '100vh',
+            overflow: 'hidden',
+            zIndex: 100,
+          }}
         >
           {sidebarMenu}
         </Sider>
-      )}
-
-      {/* Mobile drawer */}
-      {isMobile && (
+      ) : (
         <Drawer
           placement="left"
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
-          width={232}
-          styles={{ body: { padding: 0, background: '#12233F' }, header: { display: 'none' } }}
+          styles={{ body: { padding: 0, background: '#12233F' } }}
+          width={260}
         >
           {sidebarMenu}
         </Drawer>
       )}
 
-      {/* Main area */}
-      <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? 72 : 232), transition: 'margin-left 0.2s' }}>
-        {/* Topbar */}
-        <Header className="tl-topbar" style={{ top: 0, position: 'sticky', zIndex: 100 }}>
-          <Button
-            type="text"
-            icon={isMobile
-              ? <MenuUnfoldOutlined />
-              : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)
-            }
-            onClick={() => isMobile ? setDrawerOpen(true) : setCollapsed(c => !c)}
-            style={{ color: '#536278' }}
-          />
+      <Layout style={{ background: '#F8FAFC' }}>
+        <Header
+          style={{
+            background: '#FFFFFF',
+            padding: '0 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid #E2E8F0',
+            height: 56,
+            position: 'sticky',
+            top: 0,
+            zIndex: 90,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Button
+              type="text"
+              icon={isMobile ? <MenuUnfoldOutlined /> : collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => (isMobile ? setDrawerOpen(true) : setCollapsed(!collapsed))}
+              style={{ fontSize: 16 }}
+            />
+            <Text strong style={{ fontSize: 15, color: '#1E293B' }}>{millName}</Text>
+          </div>
 
-          {/* Org switcher */}
-          {orgs.length > 1 ? (
-            <Dropdown
-              menu={{
-                items: orgs.map(o => ({ key: o.id, label: o.name })),
-                onClick: ({ key }) => switchOrg(key),
-              }}
-            >
-              <Button type="text" className="font-medium text-strong hidden sm:flex items-center gap-1 max-w-[200px]">
-                <span className="truncate">{org?.name}</span>
-              </Button>
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: 13, color: '#64748B' }}>Role: <strong style={{ color: '#0F172A' }}>{roleName}</strong></span>
+            <Dropdown menu={{ items: userMenu, onClick: handleUserMenu }} trigger={['click']}>
+              <Avatar size={32} style={{ background: '#006B73', cursor: 'pointer' }}>
+                {displayName[0]?.toUpperCase()}
+              </Avatar>
             </Dropdown>
-          ) : (
-            <span className="font-medium text-strong text-sm truncate hidden sm:block max-w-[200px]">
-              {org?.name}
-            </span>
-          )}
-
-          <div className="flex-1" />
-
-          {/* Search */}
-          <Tooltip title="Search orders, rolls, workers…">
-            <Button type="text" icon={<SearchOutlined />} style={{ color: '#536278' }} />
-          </Tooltip>
-
-          {/* Notifications */}
-          <Badge count={0} size="small">
-            <Button type="text" icon={<BellOutlined />} style={{ color: '#536278' }} />
-          </Badge>
-
-          {/* User menu */}
-          <Dropdown menu={{ items: userMenu, onClick: handleUserMenu }}>
-            <button className="flex items-center gap-2 cursor-pointer bg-transparent border-none p-1 rounded-lg hover:bg-appbg">
-              <Avatar size={32} icon={<UserOutlined />} style={{ background: '#006B73' }} />
-              <span className="hidden md:block text-sm text-strong font-medium">
-                {user?.user_metadata?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0]}
-              </span>
-            </button>
-          </Dropdown>
+          </div>
         </Header>
 
-        {/* Content */}
-        <Content className="tl-main-content">
+        <Content style={{ padding: isMobile ? 12 : 24, minHeight: 'calc(100vh - 56px)' }}>
           <Outlet />
         </Content>
       </Layout>

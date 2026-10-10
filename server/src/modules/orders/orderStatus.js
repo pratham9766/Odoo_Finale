@@ -1,7 +1,7 @@
 // Order status engine (§11.14). Production-driven statuses are derived from work orders, rolls and
 // dispatches; the pre-production statuses (confirmed / waiting_material / material_ready) are owned by
 // the reservation flow in orders.service.js and are only preserved here.
-import { withSystem } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { bus } from '../../events/bus.js';
 import { round2 } from '../../utils/money.js';
 
@@ -37,13 +37,13 @@ export async function applyStatus(db, orderId, to, { visibleToBuyer = true, at =
   if (!o || o.status === to) return { changed: false, from: o?.status, to };
   await db.query('update orders set status = $2 where id = $1', [orderId, to]);
   await db.query(
-    `insert into order_events (order_id, seller_org_id, buyer_org_id, event, visible_to_buyer, created_at)
-     select id, seller_org_id, buyer_org_id, $2, $3, coalesce($4, now()) from orders where id = $1`, [orderId, to, visibleToBuyer, at]);
+    `insert into order_events (order_id, event, visible_to_buyer, created_at) values ($1, $2, $3, coalesce($4, now()))`,
+    [orderId, to, visibleToBuyer, at]);
   return { changed: true, from: o.status, to };
 }
 
-export async function recomputeOrderStatus(sellerOrgId, orderId) {
-  const result = await withSystem(sellerOrgId, async (db) => {
+export async function recomputeOrderStatus(orderId) {
+  const result = await withTx(async (db) => {
     const { rows: [s] } = await db.query(
       `with o as (select * from orders where id = $1),
        lines as (select coalesce(sum(qty), 0) as ordered from order_lines where order_id = $1),
@@ -59,7 +59,7 @@ export async function recomputeOrderStatus(sellerOrgId, orderId) {
                       coalesce(bool_and(d.status = 'delivered'), false) as all_delivered, count(distinct d.id) as n
                  from dispatches d join dispatch_rolls dr on dr.dispatch_id = d.id
                 where d.order_id = $1 and d.status in ('confirmed','in_transit','delivered'))
-       select o.status, o.deadline, o.buyer_org_id, o.order_no, lines.ordered, wos.total, wos.done, wos.active,
+       select o.status, o.deadline, o.order_no, lines.ordered, wos.total, wos.done, wos.active,
               wos.produced, wos.target, rl.passed_m, rl.pending, dsp.dispatched_m, dsp.all_delivered, dsp.n,
               (select st.name from work_orders w join stages st on st.id = w.stage_id
                 where w.order_id = $1 and w.status in ('running','paused') order by st.sequence desc limit 1) as current_stage
@@ -89,7 +89,7 @@ export async function recomputeOrderStatus(sellerOrgId, orderId) {
     await db.query(
       `update orders set progress_pct = $2, current_stage = $3, expected_completion = $4, risk = $5 where id = $1`,
       [orderId, round2(progress), s.current_stage, expected, risk]);
-    return { orderId, sellerOrgId, buyerOrgId: s.buyer_org_id, orderNo: s.order_no, progress_pct: round2(progress), risk, ...change };
+    return { orderId, orderNo: s.order_no, progress_pct: round2(progress), risk, ...change };
   });
   if (!result) return null;
   bus.emit('order.updated', result);

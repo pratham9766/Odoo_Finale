@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ConfigProvider, App as AntApp } from 'antd';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/context/AuthContext';
-import { OrgProvider } from '@/context/OrgContext';
+import { MillProvider } from '@/context/MillContext';
 import { SocketProvider } from '@/context/SocketContext';
 import { theme } from '@/styles/theme';
 import { router } from '@/router';
@@ -18,11 +18,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AntApp>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <OrgProvider>
+            <MillProvider>
               <SocketProvider>
                 <RouterProvider router={router} />
               </SocketProvider>
-            </OrgProvider>
+            </MillProvider>
           </AuthProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

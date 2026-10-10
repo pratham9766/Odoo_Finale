@@ -2,7 +2,7 @@
 // AI assistant is meant to discover. Nothing here touches a database. Change a number here, never inside the generators.
 
 export const SIM = {
-  days: 90,
+  days: 30,
   seed: 4242,
   ordersPerDay: 1.5,
   orderMetres: { min: 150, max: 600, step: 50 },
@@ -33,7 +33,6 @@ export const PATTERNS = {
   absentToday: 4,
   // money
   overdueBuyers: ['Tiruppur Knit Exports', 'Ludhiana Garments Co.'],
-  lateFleetPrefix: 'MH04WR',            // Western Roadways: often a day late
   paymentMix: [['onTime', 0.7], ['late', 0.2], ['partial', 0.1]],
   // the state at "now"
   redRiskOrders: 3,
@@ -58,9 +57,9 @@ export const BUYERS = {
 
 // the people who do each thing in the story (demo logins of seed v1)
 export const ACTORS = {
-  prod: 'prodmgr@everest.demo', qc: 'qc@everest.demo', dispatch: 'dispatch@everest.demo', accounts: 'accounts@everest.demo',
-  hr: 'hr@everest.demo', maint: 'maint@everest.demo', gate: 'gate@everest.demo', store: 'store@everest.demo', purchase: 'purchase@everest.demo',
-  sales: 'sales@everest.demo',
+  prod: 'supervisor@everest.demo', qc: 'qc@everest.demo', dispatch: 'store@everest.demo', accounts: 'office@everest.demo',
+  hr: 'owner@everest.demo', maint: 'supervisor@everest.demo', store: 'store@everest.demo', purchase: 'office@everest.demo',
+  sales: 'office@everest.demo',
 };
 
 // the operator the demo logs in as drives W-3 on the morning shift

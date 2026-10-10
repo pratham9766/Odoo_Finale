@@ -1,4 +1,4 @@
-// Workers with QR badges: a few named ones the demo script refers to, the rest generated to fill each stage.
+// Workers: a few named ones the demo script refers to, the rest generated to fill each stage.
 
 import { FIRST_NAMES, LAST_NAMES, SKILLS } from '../config.js';
 import { idsBy, insertRows, need } from '../lib/insert.js';
@@ -19,7 +19,7 @@ function payFor(wageType, rng, given = {}) {
 }
 
 /** @returns {{ workerId: Object<string,string> }} name → id */
-export async function seedWorkers(db, orgId, profile, { stageId, shiftId }, rng) {
+export async function seedWorkers(db, profile, { stageId, shiftId }, rng) {
   const plan = profile.workers;
   const shiftNames = profile.shifts.map((s) => s.name);
   const taken = new Set(plan.named.map((w) => w.name));
@@ -46,7 +46,6 @@ export async function seedWorkers(db, orgId, profile, { stageId, shiftId }, rng)
   }
 
   const rows = slots.map((w, i) => ({
-    org_id: orgId,
     emp_code: `EMP-${String(i + 1).padStart(4, '0')}`,
     name: w.name,
     phone: `9${rng.int(100000000, 999999999)}`,
@@ -56,7 +55,6 @@ export async function seedWorkers(db, orgId, profile, { stageId, shiftId }, rng)
     employment_type: rng.chance(plan.contractShare) ? 'contract' : 'permanent',
     wage_type: w.wage_type,
     ...payFor(w.wage_type, rng, w),
-    qr_token: rng.token(16),
   }));
 
   return { workerId: idsBy(await insertRows(db, 'workers', rows), 'name') };

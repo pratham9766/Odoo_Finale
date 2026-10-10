@@ -1,18 +1,18 @@
-import { useOrg } from './useOrg';
+import { useMill } from './useMill';
 
 export function usePermission() {
-  const { permissions, org, scope } = useOrg();
+  const { permissions, scope } = useMill();
 
   return {
     /** True if user has ANY of the listed permissions */
-    can: (...perms) => perms.some(p => permissions.has(p)),
+    can: (...perms) => perms.some((p) => permissions.has(p)),
     /** True if user has ALL of the listed permissions */
-    canAll: (...perms) => perms.every(p => permissions.has(p)),
-    /** True if org has the given type */
-    isType: (t) => org?.types?.includes(t) ?? false,
+    canAll: (...perms) => perms.every((p) => permissions.has(p)),
+    /** Kept as no-op/true for manufacturer */
+    isType: () => true,
     /**
      * True if the resource is in the user's scope.
-     * Empty scope = whole org (no restriction).
+     * Empty scope = whole mill (no restriction).
      * @param {'stage'|'machine'|'shift'|'warehouse'} kind
      * @param {string} id
      */

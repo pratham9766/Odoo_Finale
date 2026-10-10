@@ -34,5 +34,4 @@ export const roleUpdateSchema = z.object({
   permissions: z.array(z.string()).optional(),
 });
 
-export const membershipParam = z.object({ membershipId: uuid });
 export const auditQuery = z.object({ ...pageQuery, table: z.string().optional(), user_id: uuid.optional() });

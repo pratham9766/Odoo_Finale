@@ -6,7 +6,6 @@ import {
   WarningOutlined, ReloadOutlined, ArrowUpOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
-import { useOrg } from '@/hooks/useOrg';
 import { usePermission } from '@/hooks/usePermission';
 import { useUrlState } from '@/hooks/useUrlState';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -14,7 +13,6 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { P } from '@/lib/permissions';
 import { PageHeader, SectionCard, KpiCard, Can } from '@/components/common';
 import { fetchStock } from '../api';
-import { STOCK } from '@/mocks/fixtures';
 import { formatQty } from '@/lib/format';
 
 const { Text } = Typography;
@@ -34,7 +32,6 @@ function StockStatus({ item }) {
 }
 
 export default function StockPage() {
-  const { orgId } = useOrg();
   const { can } = usePermission();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -43,9 +40,8 @@ export default function StockPage() {
   const debouncedSearch = useDebounce(filters.search, 300);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['inventory', 'stock', orgId, filters.kind, debouncedSearch],
-    queryFn: ({ signal }) => fetchStock({ orgId, kind: filters.kind || null, search: debouncedSearch, signal }),
-    enabled: !!orgId,
+    queryKey: ['stock', filters.kind, debouncedSearch],
+    queryFn: ({ signal }) => fetchStock({ kind: filters.kind || null, q: debouncedSearch, signal }),
     staleTime: 30_000,
   });
 

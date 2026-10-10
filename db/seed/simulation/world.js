@@ -1,11 +1,10 @@
 // What the simulation knows about Everest: ids by name, the people to act as, the machines with their schedules.
 // Loaded once from the seeded database; every generator receives the same `sim` object.
 
-import { withTenant } from '../../../server/src/db/withTenant.js';
-import { loadContext } from '../../../server/src/middleware/tenant.js';
-import { loadShifts } from '../../../server/src/modules/orgs/orgs.service.js';
+import { withTx } from '../../../server/src/db/tx.js';
+import { loadContext } from '../../../server/src/middleware/staff.js';
+import { loadShifts } from '../../../server/src/modules/mill/mill.service.js';
 import { shiftContaining } from '../../../server/src/utils/shifts.js';
-import { PROFILES } from '../config.js';
 import { createRng } from '../lib/rng.js';
 import { ACTORS, FIXED_OPERATORS } from './config.js';
 
@@ -13,36 +12,35 @@ const byKey = (rows, key) => Object.fromEntries(rows.map((r) => [r[key], r]));
 
 /** @param {{ query: Function }} admin  a connection that bypasses RLS (the migration role) */
 export async function loadWorld(admin, { now, days, seed, log = () => {} }) {
-  const { rows: [org] } = await admin.query(`select id, name, settings from organizations where name = $1`, [PROFILES.everest.org.name]);
-  if (!org) throw new Error(`${PROFILES.everest.org.name} is not in the database: run the seed first`);
-  const rows = async (sql, params = []) => (await admin.query(sql, [org.id, ...params])).rows;
+  const { rows: [mill] } = await admin.query(`select name from mill`);
+  if (!mill) throw new Error('The mill is not in the database: run the seed first');
+  const rows = async (sql, params = []) => (await admin.query(sql, params)).rows;
 
-  const people = byKey(await rows(
-    `select u.email, u.id from memberships m join auth.users u on u.id = m.user_id where m.org_id = $1`), 'email');
+  const people = byKey(await rows(`select email, id from profiles where role_id is not null`), 'email');
   const ctx = {};
   for (const [role, email] of Object.entries(ACTORS)) {
-    if (!people[email]) throw new Error(`${email} has no membership in ${org.name}`);
-    ctx[role] = await loadContext(org.id, people[email].id);
+    if (!people[email]) throw new Error(`${email} is not staff of ${mill.name}`);
+    ctx[role] = await loadContext(people[email].id);
   }
 
-  const stages = await rows(`select id, name, sequence, output_kind from stages where org_id = $1 order by sequence`);
+  const stages = await rows(`select id, name, sequence, output_kind from stages order by sequence`);
   const machines = (await rows(
-    `select id, code, stage_id, capacity_per_hour::float as capacity, capacity_uom as uom from machines where org_id = $1 and active order by stage_id, length(code), code`))
+    `select id, code, stage_id, capacity_per_hour::float as capacity, capacity_uom as uom from machines where active order by stage_id, length(code), code`))
     .map((m) => ({ ...m, freeAt: new Date(now.getTime() - days * 86_400_000), brokenUntil: null, nextBreakdown: null }));
   const items = (await rows(
     `select id, sku, kind, name, uom, width_m::float as width_m, gsm::float as gsm, roll_length_m::float as roll_length_m,
-            reorder_level::float as reorder_level, std_rate::float as std_rate from items where org_id = $1`));
-  const workers = await rows(`select id, name, emp_code, stage_id, default_shift_id, wage_type from workers where org_id = $1 and active order by emp_code`);
-  const shifts = await withTenant(ctx.prod, (db) => loadShifts(db, org.id));
+            reorder_level::float as reorder_level, std_rate::float as std_rate from items`));
+  const workers = await rows(`select id, name, emp_code, stage_id, default_shift_id, wage_type from workers where active order by emp_code`);
+  const shifts = await withTx((db) => loadShifts(db));
 
   const world = {
-    admin, orgId: org.id, orgName: org.name, now, days, start: new Date(now.getTime() - days * 86_400_000), rng: createRng(seed), log,
+    admin, millName: mill.name, now, days, start: new Date(now.getTime() - days * 86_400_000), rng: createRng(seed), log,
     ctx, shifts, stages, machines,
     machinesOfStage: (stageId) => machines.filter((m) => m.stage_id === stageId),
     stageById: byKey(stages, 'id'),
     item: byKey(items, 'sku'), itemById: byKey(items, 'id'),
-    contact: byKey(await rows(`select id, name, type, email from contacts where org_id = $1`), 'name'),
-    defectType: byKey(await rows(`select id, code from defect_types where org_id = $1`), 'code'),
+    contact: byKey(await rows(`select id, name, type, email from contacts`), 'name'),
+    defectType: byKey(await rows(`select id, code from defect_types`), 'code'),
     workers, roster: new Map(),
     /** One query against the database, bypassing RLS: [rows]. */
     sql: async (text, params = []) => (await admin.query(text, params)).rows,

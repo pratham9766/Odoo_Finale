@@ -8,7 +8,6 @@ import {
   CloseOutlined, RedoOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useOrg } from '@/hooks/useOrg';
 import { usePermission } from '@/hooks/usePermission';
 import { P } from '@/lib/permissions';
 import { PageHeader, SectionCard, StatusBadge, Can, KpiCard } from '@/components/common';
@@ -25,19 +24,18 @@ const DEFECT_TYPES = [
   'Colour variation', 'Sizing defect',
 ];
 
-function InspectionPanel({ orgId }) {
+function InspectionPanel() {
   const qc = useQueryClient();
   const { can } = usePermission();
   const [rollInput, setRollInput] = useState('');
   const [lookedUpRoll, setLookedUpRoll] = useState(null);
   const [lookupError, setLookupError] = useState(null);
-  const [lookingUp, setLookingUp] = useState(false);
   const [form] = Form.useForm();
 
   const lookupMutation = useMutation({
-    mutationFn: (rollNo) => lookupRoll({ rollNo, orgId }),
+    mutationFn: (rollNo) => lookupRoll({ rollNo }),
     onSuccess: (result) => {
-      setLookedUpRoll(result.data);
+      setLookedUpRoll(result.data || result);
       setLookupError(null);
       form.resetFields(['verdict', 'remarks', 'defects']);
     },
@@ -49,22 +47,18 @@ function InspectionPanel({ orgId }) {
   });
 
   const inspectMutation = useMutation({
-    mutationFn: (payload) => submitInspection({ orgId, payload }),
+    mutationFn: (payload) => submitInspection(payload),
     onSuccess: (result) => {
-      const verdict = result.data?.verdict;
-      if (verdict === 'passed') message.success(`Roll ${lookedUpRoll.roll_no} — Passed QC`);
-      else if (verdict === 'rework') message.info(`Roll ${lookedUpRoll.roll_no} — Sent for rework`);
-      else if (verdict === 'rejected') message.warning(`Roll ${lookedUpRoll.roll_no} — Rejected`);
-      qc.invalidateQueries({ queryKey: ['qc', 'queue', orgId] });
+      const verdict = result.data?.verdict || result?.verdict || 'inspected';
+      message.success(`Roll inspected — result: ${verdict}`);
+      qc.invalidateQueries({ queryKey: ['qc', 'queue'] });
       setLookedUpRoll(null);
       setRollInput('');
       form.resetFields();
     },
     onError: (err) => {
-      message.error(err.message ?? 'Inspection failed');
-      err._handled = true;
+      message.error(err.message || 'Inspection failed');
     },
-    retry: false,
   });
 
   const handleLookup = () => {
@@ -222,30 +216,28 @@ function InspectionPanel({ orgId }) {
 }
 
 export default function QualityPage() {
-  const { orgId } = useOrg();
   const { can } = usePermission();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useUrlStateSingle('tab', 'queue');
 
   // Subscribe to QC queue changes (documented socket event)
-  useSocketEvent('qc.queue_changed', () => qc.invalidateQueries({ queryKey: ['qc', 'queue', orgId] }));
+  useSocketEvent('qc.queue_changed', () => qc.invalidateQueries({ queryKey: ['qc', 'queue'] }));
 
   const { data, isLoading } = useQuery({
-    queryKey: ['qc', 'queue', orgId],
-    queryFn: ({ signal }) => fetchQCQueue({ orgId, signal }),
-    enabled: !!orgId,
+    queryKey: ['qc', 'queue'],
+    queryFn: ({ signal }) => fetchQCQueue({ signal }),
     staleTime: 30_000,
   });
 
   const counts = data?.meta?.by_status ?? {};
-  const pending = data?.data?.filter(r => r.status === 'pending_qc') ?? [];
+  const pending = data?.data?.filter((r) => r.status === 'pending_qc') ?? [];
 
   const columns = [
-    { title: 'Roll no.', dataIndex: 'roll_no', key: 'roll_no', render: v => <span style={{ fontWeight: 600 }}>{v}</span>, width: 140 },
+    { title: 'Roll no.', dataIndex: 'roll_no', key: 'roll_no', render: (v) => <span style={{ fontWeight: 600 }}>{v}</span>, width: 140 },
     { title: 'Order', dataIndex: 'order_no', key: 'order_no', responsive: ['sm'] },
     { title: 'Item · Colour', key: 'item', render: (_, r) => `${r.item_name} · ${r.colour}`, responsive: ['md'] },
-    { title: 'Length', dataIndex: 'length_m', key: 'length_m', render: v => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v} m</span>, align: 'right', width: 90 },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: v => <StatusBadge status={v} />, width: 130 },
+    { title: 'Length', dataIndex: 'length_m', key: 'length_m', render: (v) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{v} m</span>, align: 'right', width: 90 },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (v) => <StatusBadge status={v} />, width: 130 },
     ...(can(P.QC_INSPECT) ? [{
       title: '',
       key: 'inspect',
@@ -281,7 +273,7 @@ export default function QualityPage() {
     ...(can(P.QC_INSPECT) ? [{
       key: 'inspect',
       label: 'Inspect roll',
-      children: <InspectionPanel orgId={orgId} />,
+      children: <InspectionPanel />,
     }] : []),
   ];
 

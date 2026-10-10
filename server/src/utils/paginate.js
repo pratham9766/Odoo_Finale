@@ -2,7 +2,7 @@
 //
 //   const w = where();
 //   w.add('status = ?', q.status);           // skipped when the value is undefined/null/''
-//   w.raw('o.seller_org_id = ?', ctx.orgId); // always added
+//   w.raw('o.status <> ?', 'cancelled');    // always added
 //   const { rows, meta } = await paged(db, `select ... from orders o ${w.sql}`, w.params, q, 'o.created_at desc');
 
 export function where(initial = []) {

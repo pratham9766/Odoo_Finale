@@ -1,7 +1,7 @@
 // Wages (wages.view 🔒): one month, a row per worker from the wage run (v_wages_monthly), with totals by wage type.
 
 import { z } from 'zod';
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { monthString } from '../../utils/crud/index.js';
 import { currentMonth } from '../../utils/time.js';
 import { columns, totalsOf } from './support.js';
@@ -15,7 +15,7 @@ const SUMS = ['gross', 'advances', 'deductions', 'net'];
 export default {
   permission: 'wages.view',
   query: z.object({ month: monthString.default(() => currentMonth()) }),
-  run: (ctx, { month }) => withTenant(ctx, async (db) => {
+  run: (ctx, { month }) => withTx(async (db) => {
     const { rows } = await db.query(
       `select name, wage_type, status, days, hours, ot_hours, pieces, gross, advances, deductions, net from v_wages_monthly where month = $1::date order by name`, [`${month}-01`]);
     const byType = Object.fromEntries(['daily', 'hourly', 'piece'].map((t) => [t, totalsOf(rows.filter((r) => r.wage_type === t), SUMS)]));

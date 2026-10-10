@@ -20,16 +20,15 @@ export async function scannedRolls(db, dispatchId) {
 
 /**
  * The dispatch's rolls reach the buyer: dispatched → delivered, except the ones reported as short or damaged.
- * Runs as the SELLER (their rolls): in the mill's own transaction, or from the dispatch.received listener when the buyer confirmed.
  */
-export async function markRollsDelivered(db, sellerOrgId, dispatchId, exceptRollIds, at) {
+export async function markRollsDelivered(db, dispatchId, exceptRollIds, at) {
   const { rows } = await db.query(
     `update rolls r set status = 'delivered'
       where r.status = 'dispatched' and r.id <> all($2::uuid[])
         and r.id in (select roll_id from dispatch_rolls where dispatch_id = $1)
       returning r.id`, [dispatchId, exceptRollIds]);
   for (const { id } of rows) {
-    await db.query(`insert into roll_history (org_id, roll_id, event, at) values ($1, $2, 'delivered', $3)`, [sellerOrgId, id, at]);
+    await db.query(`insert into roll_history (roll_id, event, at) values ($1, 'delivered', $2)`, [id, at]);
   }
   return rows.length;
 }

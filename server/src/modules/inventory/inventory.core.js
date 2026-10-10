@@ -34,8 +34,8 @@ export async function reserveFifo(db, ctx, { orderId, itemId, qty, at = null }) 
     if (left <= 0) break;
     const take = Math.min(left, lot.free);
     await db.query(
-      `insert into reservations (org_id, item_id, lot_id, order_id, qty, created_by, created_at) values ($1,$2,$3,$4,$5,$6, coalesce($7, now()))`,
-      [ctx.orgId, itemId, lot.id, orderId, round3(take), ctx.userId ?? null, at],
+      `insert into reservations (item_id, lot_id, order_id, qty, created_by, created_at) values ($1,$2,$3,$4,$5, coalesce($6, now()))`,
+      [itemId, lot.id, orderId, round3(take), ctx.userId ?? null, at],
     );
     left = round3(left - take);
   }
@@ -68,20 +68,20 @@ export async function issueForWorkOrder(db, ctx, { workOrderId, orderId, items }
       const take = Math.min(left, r.qty);
       if ((await lotOnHand(db, r.lot_id)) < take) break; // stock was adjusted away
       const { rows: [mi] } = await db.query(
-        `insert into material_issues (org_id, work_order_id, lot_id, item_id, qty, unit_cost, created_by)
-         values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-        [ctx.orgId, workOrderId, r.lot_id, itemId, round3(take), r.unit_cost, ctx.userId ?? null]);
+        `insert into material_issues (work_order_id, lot_id, item_id, qty, unit_cost, created_by)
+         values ($1,$2,$3,$4,$5,$6) returning *`,
+        [workOrderId, r.lot_id, itemId, round3(take), r.unit_cost, ctx.userId ?? null]);
       await db.query(
-        `insert into stock_movements (org_id, item_id, lot_id, type, qty, ref_type, ref_id, created_by)
-         values ($1,$2,$3,'consume',$4,'work_order',$5,$6)`,
-        [ctx.orgId, itemId, r.lot_id, -round3(take), workOrderId, ctx.userId ?? null]);
+        `insert into stock_movements (item_id, lot_id, type, qty, ref_type, ref_id, created_by)
+         values ($1,$2,'consume',$3,'work_order',$4,$5)`,
+        [itemId, r.lot_id, -round3(take), workOrderId, ctx.userId ?? null]);
       if (take >= r.qty) {
         await db.query(`update reservations set status = 'consumed' where id = $1`, [r.id]);
       } else {
         await db.query(`update reservations set qty = qty - $2 where id = $1`, [r.id, take]);
         await db.query(
-          `insert into reservations (org_id, item_id, lot_id, order_id, qty, status, created_by)
-           values ($1,$2,$3,$4,$5,'consumed',$6)`, [ctx.orgId, itemId, r.lot_id, orderId, round3(take), ctx.userId ?? null]);
+          `insert into reservations (item_id, lot_id, order_id, qty, status, created_by)
+           values ($1,$2,$3,$4,'consumed',$5)`, [itemId, r.lot_id, orderId, round3(take), ctx.userId ?? null]);
       }
       issued.push(mi);
       left = round3(left - take);
@@ -101,19 +101,19 @@ export async function issueForWorkOrder(db, ctx, { workOrderId, orderId, items }
 export async function produce(db, ctx, { itemId, qty, lotNo, refType, refId, unitCost = 0, orderId = null, type = 'produce', warehouseId = null }) {
   await lockItem(db, itemId);
   const { rows: [lot] } = await db.query(
-    `insert into stock_lots (org_id, item_id, lot_no, unit_cost, warehouse_id, created_by)
-     values ($1,$2,$3,$4,$5,$6)
-     on conflict (org_id, item_id, lot_no) do update set unit_cost = case when stock_lots.unit_cost = 0 then excluded.unit_cost else stock_lots.unit_cost end
+    `insert into stock_lots (item_id, lot_no, unit_cost, warehouse_id, created_by)
+     values ($1,$2,$3,$4,$5)
+     on conflict (item_id, lot_no) do update set unit_cost = case when stock_lots.unit_cost = 0 then excluded.unit_cost else stock_lots.unit_cost end
      returning *`,
-    [ctx.orgId, itemId, lotNo, unitCost, warehouseId, ctx.userId ?? null]);
+    [itemId, lotNo, unitCost, warehouseId, ctx.userId ?? null]);
   await db.query(
-    `insert into stock_movements (org_id, item_id, lot_id, type, qty, ref_type, ref_id, created_by)
-     values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-    [ctx.orgId, itemId, lot.id, type, round3(qty), refType ?? null, refId ?? null, ctx.userId ?? null]);
+    `insert into stock_movements (item_id, lot_id, type, qty, ref_type, ref_id, created_by)
+     values ($1,$2,$3,$4,$5,$6,$7)`,
+    [itemId, lot.id, type, round3(qty), refType ?? null, refId ?? null, ctx.userId ?? null]);
   if (orderId && type === 'produce') {
     await db.query(
-      `insert into reservations (org_id, item_id, lot_id, order_id, qty, created_by) values ($1,$2,$3,$4,$5,$6)`,
-      [ctx.orgId, itemId, lot.id, orderId, round3(qty), ctx.userId ?? null]);
+      `insert into reservations (item_id, lot_id, order_id, qty, created_by) values ($1,$2,$3,$4,$5)`,
+      [itemId, lot.id, orderId, round3(qty), ctx.userId ?? null]);
   }
   return lot;
 }

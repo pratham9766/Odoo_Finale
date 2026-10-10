@@ -1,12 +1,6 @@
 import axios from 'axios';
 import { supabase } from './supabase';
 
-// ─── Org header management ────────────────────────────────────────────────
-// Store captured orgId per request to avoid race conditions during org switch
-let _currentOrgId = null;
-export const setApiOrg = (orgId) => { _currentOrgId = orgId; };
-export const getCurrentOrgId = () => _currentOrgId;
-
 // ─── Main API client ──────────────────────────────────────────────────────
 export const api = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/v1`,
@@ -17,14 +11,9 @@ api.interceptors.request.use(async (config) => {
   // Attach JWT
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-
-  // Attach org header — capture at request time, not from mutable global
-  const orgId = config._orgId ?? _currentOrgId;
-  if (orgId && !config.headers['x-org-id']) {
-    config.headers['x-org-id'] = orgId;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
 
@@ -54,26 +43,10 @@ api.interceptors.response.use(
   }
 );
 
-// ─── Kiosk client (device token, no user JWT) ─────────────────────────────
-export const kioskApi = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/v1`,
-  timeout: 10000,
-});
-
-kioskApi.interceptors.response.use(
-  (res) => res.data,
-  (err) => {
-    const status = err.response?.status ?? 0;
-    const e = err.response?.data?.error ?? {};
-    return Promise.reject(new ApiError(status, e.code ?? 'NETWORK', e.message ?? 'Network error', e.details));
-  }
-);
-
 // ─── File download helper ─────────────────────────────────────────────────
 export async function download(path, filename) {
   try {
     const response = await api.get(path, { responseType: 'blob' });
-    // Check if the blob is actually an error JSON
     const blob = response instanceof Blob ? response : new Blob([response]);
     if (blob.type?.includes('application/json')) {
       const text = await blob.text();

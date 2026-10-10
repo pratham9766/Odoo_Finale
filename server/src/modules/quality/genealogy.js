@@ -23,15 +23,15 @@ export async function recordGenealogy(db, ctx, roll, finalWo, at) {
   steps.push({ ...steps.at(-1), event: 'created', data: '{}', at });          // the final-stage work order made the roll itself
 
   for (const step of steps) {
-    const row = insertClause({ org_id: ctx.orgId, roll_id: roll.id, ...step });
+    const row = insertClause({ roll_id: roll.id, ...step });
     await db.query(`insert into roll_history (${row.columns}) values (${row.placeholders})`, row.values);
   }
 
   // raw material lots (yarn, fibre) issued to any work order of this order line: the suppliers a rejected roll points back to
   await db.query(
-    `insert into roll_yarn_lots (org_id, roll_id, lot_id)
-     select distinct $1::uuid, $2::uuid, mi.lot_id
+    `insert into roll_yarn_lots (roll_id, lot_id)
+     select distinct $1::uuid, mi.lot_id
        from material_issues mi join items i on i.id = mi.item_id join work_orders w on w.id = mi.work_order_id
-      where w.order_line_id = $3 and i.kind in ('yarn', 'fibre')
-     on conflict do nothing`, [ctx.orgId, roll.id, finalWo.order_line_id]);
+      where w.order_line_id = $2 and i.kind in ('yarn', 'fibre')
+     on conflict do nothing`, [roll.id, finalWo.order_line_id]);
 }

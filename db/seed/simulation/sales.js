@@ -12,7 +12,6 @@ import { istParts } from '../../../server/src/utils/time.js';
 import { BUYERS, PATTERNS, SIM, SUPPLIER_X } from './config.js';
 import { runWorkOrder } from './production.js';
 
-const FLEETS = [['Speedline Logistics', 'GJ05SL', 0.6], ['Western Roadways', PATTERNS.lateFleetPrefix, 0.4]];
 
 // ---- QC ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -50,7 +49,7 @@ async function rework(sim, roll, at) {
   if (!wo) return null;
   const done = await runWorkOrder(sim, { ...wo, target_qty: Number(wo.target_qty) }, sim.after(at, 60), { rework: true });
   if (!done.complete) return null;
-  await onWorkOrderFinished({ orgId: sim.orgId, workOrderId: wo.id });
+  await onWorkOrderFinished({ workOrderId: wo.id });
   const again = sim.after(done.end, sim.rng.int(60, 180));
   if (again > sim.now) return null;
   const pass = sim.rng.chance(PATTERNS.reworkPass);
@@ -89,10 +88,9 @@ const plate = (sim, prefix) => `${prefix}${sim.rng.int(1000, 9999)}`;
 
 /** One dispatch of `rolls` at `at`: packed, confirmed (invoice), on the road, delivered a day or two later. @returns the invoice id */
 async function ship(sim, orderId, rolls, at) {
-  const [fleet, prefix] = sim.rng.weighted(FLEETS.map(([name, p, w]) => [[name, p], w]));
-  const late = prefix === PATTERNS.lateFleetPrefix;
+  const late = sim.rng.chance(0.2);                       // one delivery in five arrives a day late
   const d = await createDispatch(sim.ctx.dispatch, {
-    order_id: orderId, vehicle_no: plate(sim, prefix), driver_name: `${sim.rng.pick(['Raju', 'Salim', 'Gurpreet', 'Mohan'])} (${fleet})`,
+    order_id: orderId, vehicle_no: plate(sim, 'GJ05'), driver_name: sim.rng.pick(['Raju', 'Salim', 'Gurpreet', 'Mohan']),
     driver_phone: `98${sim.rng.int(10000000, 99999999)}`,
   }, { at });
   let t = at;

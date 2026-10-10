@@ -1,10 +1,9 @@
-// Entry point of the dispatch module (backend plan §10.9): Vipul mounts this one router at the tenant root.
+// Dispatch module routes:
 //   GET/POST /dispatches                       dispatch.view / dispatch.create
 //   GET /dispatches/:id[/packing-list.pdf]     dispatch.view
 //   POST /dispatches/:id/scan                  dispatch.create     { code } | { roll_no } | { qr_token }
 //   DELETE /dispatches/:id/rolls/:rollId       dispatch.create     only while packing
-//   POST /dispatches/:id/confirm | /status     dispatch.confirm    confirm & invoice; mill-managed status (no transporter org)
-//   POST /dispatches/:id/receive               receipt.create      the buyer side
+//   POST /dispatches/:id/confirm | /status     dispatch.confirm    confirm & invoice; in transit / delivered
 
 import { Router } from 'express';
 import { can, requireModule } from '../../middleware/rbac.js';
@@ -28,6 +27,5 @@ r.post('/dispatches/:id/scan', create, validate({ params: idParams, body: s.scan
 r.delete('/dispatches/:id/rolls/:rollId', create, validate({ params: s.rollParams }), c.removeRoll);
 r.post('/dispatches/:id/confirm', confirm, validate({ params: idParams }), c.confirm);
 r.post('/dispatches/:id/status', confirm, validate({ params: idParams, body: s.statusSchema }), c.status);
-r.post('/dispatches/:id/receive', can('receipt.create'), validate({ params: idParams, body: s.receiveSchema }), c.receive);
 
 export default r;

@@ -1,85 +1,94 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useOrg } from '@/hooks/useOrg';
-import { useUrlState } from '@/hooks/useUrlState';
-import { fetchOrders, fetchOrder, fetchOrderRequirements, createOrder, confirmOrder, reserveMaterial, cancelOrder } from './api';
+import {
+  fetchOrders, fetchOrder, fetchOrderRequirements,
+  createOrder, confirmOrder, reserveMaterial, cancelOrder,
+  planOrder, createTrackingLink,
+} from './api';
 
 const KEY = 'orders';
 
-export function useOrders() {
-  const { orgId } = useOrg();
-  const [filters] = useUrlState({ status: 'all', search: '', page: 1, pageSize: 20 });
-
+export function useOrders(filters = {}) {
   return useQuery({
-    queryKey: [KEY, orgId, filters],
-    queryFn: ({ signal }) => fetchOrders({ orgId, ...filters, signal }),
-    enabled: !!orgId,
+    queryKey: [KEY, filters],
+    queryFn: ({ signal }) => fetchOrders({ ...filters, signal }),
   });
 }
 
 export function useOrder(id) {
-  const { orgId } = useOrg();
   return useQuery({
-    queryKey: [KEY, orgId, id],
-    queryFn: ({ signal }) => fetchOrder({ id, orgId, signal }),
-    enabled: !!orgId && !!id,
+    queryKey: [KEY, id],
+    queryFn: ({ signal }) => fetchOrder({ id, signal }),
+    enabled: !!id,
   });
 }
 
 export function useOrderRequirements(id) {
-  const { orgId } = useOrg();
   return useQuery({
-    queryKey: [KEY, orgId, id, 'requirements'],
-    queryFn: ({ signal }) => fetchOrderRequirements({ id, orgId, signal }),
-    enabled: !!orgId && !!id,
+    queryKey: [KEY, id, 'requirements'],
+    queryFn: ({ signal }) => fetchOrderRequirements({ id, signal }),
+    enabled: !!id,
   });
 }
 
 export function useCreateOrder() {
-  const { orgId } = useOrg();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload) => createOrder({ orgId, payload }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY, orgId] }),
-    retry: false,
+    mutationFn: (payload) => createOrder(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
   });
 }
 
 export function useConfirmOrder() {
-  const { orgId } = useOrg();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => confirmOrder({ id, orgId }),
+    mutationFn: (id) => confirmOrder(id),
     onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: [KEY, orgId, id] });
-      qc.invalidateQueries({ queryKey: [KEY, orgId] });
-      qc.invalidateQueries({ queryKey: ['dashboard', orgId] });
+      qc.invalidateQueries({ queryKey: [KEY, id] });
+      qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
-    retry: false,
   });
 }
 
 export function useReserveMaterial() {
-  const { orgId } = useOrg();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => reserveMaterial({ id, orgId }),
+    mutationFn: (id) => reserveMaterial(id),
     onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: [KEY, orgId, id] });
-      qc.invalidateQueries({ queryKey: ['inventory', orgId] });
+      qc.invalidateQueries({ queryKey: [KEY, id] });
+      qc.invalidateQueries({ queryKey: ['stock'] });
     },
-    retry: false,
   });
 }
 
 export function useCancelOrder() {
-  const { orgId } = useOrg();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }) => cancelOrder({ id, orgId, reason }),
+    mutationFn: ({ id, reason }) => cancelOrder({ id, reason }),
     onSuccess: (_, { id }) => {
-      qc.invalidateQueries({ queryKey: [KEY, orgId, id] });
-      qc.invalidateQueries({ queryKey: [KEY, orgId] });
+      qc.invalidateQueries({ queryKey: [KEY, id] });
+      qc.invalidateQueries({ queryKey: [KEY] });
     },
-    retry: false,
+  });
+}
+
+export function usePlanOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => planOrder(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: [KEY, id] });
+      qc.invalidateQueries({ queryKey: ['work-orders'] });
+    },
+  });
+}
+
+export function useTrackingLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => createTrackingLink(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: [KEY, id] });
+    },
   });
 }

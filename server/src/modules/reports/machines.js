@@ -1,12 +1,12 @@
 // Machine production (reports.production): output, run hours, downtime, idle time and utilisation per machine, plus the share of
 // its rolls QC rejected (weaving machines only: that is where a roll's machine is recorded).
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { rangeQuery } from '../../utils/crud/index.js';
 import { round2 } from '../../utils/money.js';
 import { shiftHours } from '../../utils/shifts.js';
 import { daysBetween, reportRange } from '../../utils/time.js';
-import { loadShifts } from '../orgs/orgs.service.js';
+import { loadShifts } from '../mill/mill.service.js';
 import { columns, pct } from './support.js';
 
 const COLUMNS = columns(
@@ -19,8 +19,8 @@ export default {
   query: rangeQuery,
   run: (ctx, query) => {
     const { from, to } = reportRange(query);
-    return withTenant(ctx, async (db) => {
-      const shifts = await loadShifts(db, ctx.orgId);
+    return withTx(async (db) => {
+      const shifts = await loadShifts(db);
       const availableHours = (daysBetween(from, to) + 1) * shifts.reduce((n, s) => n + shiftHours(s), 0);   // what the shifts could have run
 
       const { rows } = await db.query(

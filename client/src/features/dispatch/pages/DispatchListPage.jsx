@@ -3,7 +3,6 @@ import { Table, Button, Input } from 'antd';
 import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useOrg } from '@/hooks/useOrg';
 import { usePermission } from '@/hooks/usePermission';
 import { P } from '@/lib/permissions';
 import { PageHeader, StatusBadge } from '@/components/common';
@@ -11,14 +10,12 @@ import { fetchDispatches } from '../api';
 import { formatDate } from '@/lib/format';
 
 export default function DispatchListPage() {
-  const { orgId } = useOrg();
   const { can } = usePermission();
   const navigate = useNavigate();
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['dispatch', orgId],
-    queryFn: ({ signal }) => fetchDispatches({ orgId, signal }),
-    enabled: !!orgId,
+    queryKey: ['dispatches'],
+    queryFn: ({ signal }) => fetchDispatches({ signal }),
   });
 
   const dispatches = data?.data ?? [];

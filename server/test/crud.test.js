@@ -3,38 +3,38 @@ import assert from 'node:assert/strict';
 import { Filter, insertClause, pick, setClause } from '../src/utils/crud/sql.js';
 import { randomToken, sha256Hex } from '../src/utils/tokens.js';
 
-test('Filter always scopes to the org and numbers parameters in order', () => {
-  const f = new Filter('org-1');
-  assert.equal(f.sql, 't.org_id = $1');
+test('Filter numbers parameters in order', () => {
+  const f = new Filter();
+  assert.equal(f.sql, 'true');
   f.eq('t.stage_id', 'st-1').eq('t.active', false).eq('t.status', undefined).eq('t.shift', null);
-  assert.equal(f.sql, 't.org_id = $1 and t.stage_id = $2 and t.active = $3');
-  assert.deepEqual(f.params, ['org-1', 'st-1', false]);     // false is a real filter, undefined / null are skipped
+  assert.equal(f.sql, 't.stage_id = $1 and t.active = $2');
+  assert.deepEqual(f.params, ['st-1', false]);     // false is a real filter, undefined / null are skipped
 });
 
 test('Filter.isNull: true → is null, false → is not null, undefined → no condition', () => {
-  assert.equal(new Filter('o').isNull('t.machine_id', true).sql, 't.org_id = $1 and t.machine_id is null');
-  assert.equal(new Filter('o').isNull('t.machine_id', false).sql, 't.org_id = $1 and t.machine_id is not null');
-  assert.equal(new Filter('o').isNull('t.machine_id', undefined).sql, 't.org_id = $1');
+  assert.equal(new Filter().isNull('t.machine_id', true).sql, 't.machine_id is null');
+  assert.equal(new Filter().isNull('t.machine_id', false).sql, 't.machine_id is not null');
+  assert.equal(new Filter().isNull('t.machine_id', undefined).sql, 'true');
 });
 
-test('Filter.anyOf: empty or missing scope means the whole org', () => {
-  assert.equal(new Filter('o').anyOf('t.id', undefined).anyOf('t.id', []).sql, 't.org_id = $1');
-  const f = new Filter('o').anyOf('t.stage_id', ['a', 'b']);
-  assert.equal(f.sql, 't.org_id = $1 and t.stage_id = any($2::uuid[])');
-  assert.deepEqual(f.params, ['o', ['a', 'b']]);
+test('Filter.anyOf: empty or missing scope means the whole mill', () => {
+  assert.equal(new Filter().anyOf('t.id', undefined).anyOf('t.id', []).sql, 'true');
+  const f = new Filter().anyOf('t.stage_id', ['a', 'b']);
+  assert.equal(f.sql, 't.stage_id = any($1::uuid[])');
+  assert.deepEqual(f.params, [['a', 'b']]);
 });
 
 test('Filter.search escapes LIKE wildcards and ORs the columns on one parameter', () => {
-  const f = new Filter('o').search(['t.name', 't.emp_code'], '50%_off\\');
-  assert.equal(f.sql, 't.org_id = $1 and (t.name ilike $2 or t.emp_code ilike $2)');
-  assert.deepEqual(f.params, ['o', '%50\\%\\_off\\\\%']);
-  assert.equal(new Filter('o').search(['t.name'], '').sql, 't.org_id = $1');
+  const f = new Filter().search(['t.name', 't.emp_code'], '50%_off\\');
+  assert.equal(f.sql, '(t.name ilike $1 or t.emp_code ilike $1)');
+  assert.deepEqual(f.params, ['%50\\%\\_off\\\\%']);
+  assert.equal(new Filter().search(['t.name'], '').sql, 'true');
 });
 
 test('Filter.params is a copy', () => {
-  const f = new Filter('o');
+  const f = new Filter();
   f.params.push('x');
-  assert.deepEqual(f.params, ['o']);
+  assert.deepEqual(f.params, []);
 });
 
 test('pick keeps only allowed keys that were sent; null is a value, undefined is not', () => {

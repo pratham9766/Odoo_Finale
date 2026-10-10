@@ -3,7 +3,7 @@ import { registerNotifier } from './notifier.js';
 import { registerSocketEmitter } from './socketEmitter.js';
 
 // Every other file in this folder is a listener module exporting register()/register<Name>(): statusEngine, inventoryReactions,
-// dispatchReactions, attendanceReactions, financeReactions, gateReactions, qualityReactions, ... Owners add files; no edit here.
+// attendanceReactions, financeReactions, inventoryReactions, qualityReactions, statusEngine. Add files; no edit here.
 const CORE = new Set(['index.js', 'notifier.js', 'socketEmitter.js']);
 
 let registered = false;

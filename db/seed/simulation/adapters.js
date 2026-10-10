@@ -2,7 +2,7 @@
 // with the timestamp the story needs (`{ at }`). Going through confirmOrder matters: it reserves the stock that work-order starts
 // issue from (issueForWorkOrder only takes reserved stock).
 
-import { withTenant } from '../../../server/src/db/withTenant.js';
+import { withTx } from '../../../server/src/db/tx.js';
 import { explode } from '../../../server/src/modules/catalog/bom.service.js';
 import { createOrder, confirmOrder } from '../../../server/src/modules/orders/orders.service.js';
 import { createPo, respondPo, sendPo } from '../../../server/src/modules/procurement/procurement.service.js';
@@ -15,7 +15,7 @@ export async function placeOrder(sim, { buyer, lines, deadline, priority = 'norm
   const contact = sim.contact[buyer];
   const [address] = await sim.sql(`select address, city from contacts where id = $1`, [contact.id]);
   const order = await createOrder(sim.ctx.sales, {
-    seller_org_id: sim.orgId, buyer_contact_id: contact.id, deadline, priority,
+    buyer_contact_id: contact.id, deadline, priority,
     delivery_address: [address.address, address.city].filter(Boolean).join(', '),
     lines: lines.map((l) => ({ item_id: sim.item[l.sku].id, qty: l.qty, uom: sim.item[l.sku].uom, rate: l.rate, colour: l.colour })),
   }, { at });
@@ -33,7 +33,7 @@ const RAW_KINDS = ['fibre', 'yarn', 'dye'];
  * item the order draws on, bought or not, so a lot still on its way can hold the order back.
  */
 export function materialPlan(sim, lines) {
-  return withTenant(sim.ctx.store, async (db) => {
+  return withTx(async (db) => {
     const alloc = new Map(), buy = new Map(), touched = new Set();
     const walk = (node) => {
       if (node.action === 'buy') buy.set(node.item.id, (buy.get(node.item.id) ?? 0) + node.to_make);
@@ -63,7 +63,7 @@ export async function receiveGoods(sim, { supplier, lines, at, forOrderId = null
   await sendPo(sim.ctx.purchase, po.id, { at: sim.after(ordered, 20) });
   await respondPo(sim.ctx.purchase, po.id, { action: 'accept', promise_date: istParts(at).date }, { at: sim.after(ordered, 240) });
 
-  const [warehouse] = await sim.sql(`select id from warehouses where org_id = $1 and kind = 'raw'`, [sim.orgId]);
+  const [warehouse] = await sim.sql(`select id from warehouses where kind = 'raw'`);
   const lineOf = new Map(po.lines.map((l) => [l.item_id, l.id]));
   const day = istParts(at).date.replace(/-/g, '').slice(2);
   const grn = await createReceipt(sim.ctx.store, {
@@ -76,8 +76,8 @@ export async function receiveGoods(sim, { supplier, lines, at, forOrderId = null
   await postReceipt(sim.ctx.store, grn.id, { at });
 
   await sim.sql(
-    `insert into expenses (org_id, category, amount, date, note, paid, created_at, created_by) values ($1, 'supplier_bill', $2, $3, $4, false, $5, $6)`,
-    [sim.orgId, round2(lines.reduce((n, l) => n + l.qty * l.rate, 0)), istParts(at).date, `${supplier} · ${grn.grn_no}`, at, sim.ctx.store.userId]);
+    `insert into expenses (category, amount, date, note, paid, created_at, created_by) values ('supplier_bill', $1, $2, $3, false, $4, $5)`,
+    [round2(lines.reduce((n, l) => n + l.qty * l.rate, 0)), istParts(at).date, `${supplier} · ${grn.grn_no}`, at, sim.ctx.store.userId]);
 
   const lots = await sim.sql(
     `select l.id as "lotId", i.sku, l.lot_no from stock_lots l join items i on i.id = l.item_id where l.receipt_id = $1`, [grn.id]);

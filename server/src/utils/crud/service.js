@@ -1,4 +1,4 @@
-// CRUD service factory for per-org tables (machines, workers, stages, shifts, ...).
+// CRUD service factory for master tables (machines, workers, stages, shifts, ...).
 //
 //   export const machines = createCrud({
 //     table: 'machines', label: 'Machine',
@@ -7,12 +7,12 @@
 //     references: { stage_id: { table: 'stages', label: 'Stage' } },
 //   });
 //
-// Every query runs inside withTenant (RLS) and also filters on org_id, audits every write, and turns
+// Every query runs inside one transaction, audits every write, and turns
 // unique / foreign-key violations into messages a form can show. The main table is always aliased `t`.
 // Domain rules go in `check`; columns the server sets itself (tokens, hashes) go in create()/update()'s
 // `extra` argument so they never pass through the request whitelist.
 
-import { withTenant } from '../../db/withTenant.js';
+import { withTx } from '../../db/tx.js';
 import { audit } from '../audit.js';
 import { AppError } from '../errors.js';
 import { Filter, insertClause, pick, setClause } from './sql.js';
@@ -23,17 +23,14 @@ const notFound = (label) => new AppError(404, 'NOT_FOUND', `${label} not found`)
 export const invalid = (field, message) =>
   new AppError(422, 'VALIDATION_FAILED', message, { formErrors: [], fieldErrors: { [field]: [message] } });
 
-/** Uploads live under `<org_id>/…`; a path pointing into another org's folder must never be stored. */
-export function assertOrgPath(ctx, path, field) {
-  if (path && !path.startsWith(`${ctx.orgId}/`)) throw invalid(field, 'File must be uploaded through the app first');
+/** Uploaded files get server-made paths; a hand-written path (or one climbing folders) must never be stored. */
+export function assertUploadPath(path, field) {
+  if (path && (path.includes('..') || path.startsWith('/'))) throw invalid(field, 'File must be uploaded through the app first');
 }
 
-/**
- * Foreign-key checks ignore RLS, so a client could reference another org's row by id.
- * Call this before storing any id that points at an org-owned table.
- */
-export async function assertOwned(db, ctx, table, id, label) {
-  const { rowCount } = await db.query(`select 1 from ${table} where id = $1 and org_id = $2`, [id, ctx.orgId]);
+/** A friendly 404 (instead of a raw foreign-key error) when an id points at a row that does not exist. */
+export async function assertExists(db, table, id, label) {
+  const { rowCount } = await db.query(`select 1 from ${table} where id = $1`, [id]);
   if (!rowCount) throw notFound(label);
 }
 
@@ -55,7 +52,7 @@ async function guarded(promise, { duplicate, inUse }) {
  * @param {string} [cfg.select='t.*']              columns to return; leave out secrets (token_hash)
  * @param {string} [cfg.joins='']                  JOIN clauses that add display columns
  * @param {string} [cfg.orderBy='t.id']
- * @param {Object<string,{table:string,label:string}>} [cfg.references]  org-owned FK columns, verified on write
+ * @param {Object<string,{table:string,label:string}>} [cfg.references]  FK columns, verified on write
  * @param {(filter: Filter, ctx: object) => void} [cfg.scope]            read restrictions from ctx.scope
  * @param {(filter: Filter, query: object) => void} [cfg.filters]        list filters from the query string
  * @param {(db, ctx, input: object, before: object|null) => Promise<void>} [cfg.check]  business rules; before is null on create
@@ -74,7 +71,7 @@ export function createCrud({
   const base = `select ${select} from ${table} t ${joins}`;
 
   const filterFor = (ctx, query = {}) => {
-    const f = new Filter(ctx.orgId);
+    const f = new Filter();
     scope?.(f, ctx);
     filters?.(f, query);
     return f;
@@ -88,14 +85,14 @@ export function createCrud({
 
   async function verify(db, ctx, input, before) {
     for (const [column, ref] of Object.entries(references)) {
-      if (input[column] != null) await assertOwned(db, ctx, ref.table, input[column], ref.label);
+      if (input[column] != null) await assertExists(db, ref.table, input[column], ref.label);
     }
     await check?.(db, ctx, input, before);
   }
 
   return {
     /** → { rows, total }. Pass `limit` (and `page`) to paginate; everything else is a filter query. */
-    list: (ctx, { page = 1, limit, ...query } = {}) => withTenant(ctx, async (db) => {
+    list: (ctx, { page = 1, limit, ...query } = {}) => withTx(async (db) => {
       const f = filterFor(ctx, query);
       const paged = limit ? ` limit $${f.params.length + 1} offset $${f.params.length + 2}` : '';
       const params = limit ? [...f.params, limit, (page - 1) * limit] : f.params;
@@ -106,15 +103,15 @@ export function createCrud({
       return { rows: rows.map((r) => present(ctx, r)), total };
     }),
 
-    get: (ctx, id) => withTenant(ctx, async (db) => {
+    get: (ctx, id) => withTx(async (db) => {
       const row = await readOne(db, ctx, id);
       if (!row) throw notFound(label);
       return present(ctx, row);
     }),
 
-    create: (ctx, input, extra = {}) => withTenant(ctx, async (db) => {
+    create: (ctx, input, extra = {}) => withTx(async (db) => {
       await verify(db, ctx, input, null);
-      const ins = insertClause({ org_id: ctx.orgId, ...pick(input, columns), ...extra });
+      const ins = insertClause({ ...pick(input, columns), ...extra });
       const { rows: [{ id }] } = await guarded(
         db.query(`insert into ${table} (${ins.columns}) values (${ins.placeholders}) returning id`, ins.values),
         { duplicate: () => duplicate(input), inUse });
@@ -123,23 +120,23 @@ export function createCrud({
       return present(ctx, row);
     }),
 
-    update: (ctx, id, input, extra = {}) => withTenant(ctx, async (db) => {
+    update: (ctx, id, input, extra = {}) => withTx(async (db) => {
       const before = await readOne(db, ctx, id, { lock: true });
       if (!before) throw notFound(label);
       await verify(db, ctx, input, before);
-      const set = setClause({ ...pick(input, columns), ...extra }, 3);
+      const set = setClause({ ...pick(input, columns), ...extra }, 2);
       await guarded(
-        db.query(`update ${table} set ${set.sql} where id = $1 and org_id = $2`, [id, ctx.orgId, ...set.values]),
+        db.query(`update ${table} set ${set.sql} where id = $1`, [id, ...set.values]),
         { duplicate: () => duplicate({ ...before, ...input }), inUse });
       const after = await readOne(db, ctx, id);
       await audit(db, ctx, { action: 'update', table, id, before, after });
       return present(ctx, after);
     }),
 
-    remove: (ctx, id) => withTenant(ctx, async (db) => {
+    remove: (ctx, id) => withTx(async (db) => {
       const before = await readOne(db, ctx, id, { lock: true });
       if (!before) throw notFound(label);
-      await guarded(db.query(`delete from ${table} where id = $1 and org_id = $2`, [id, ctx.orgId]), { duplicate, inUse });
+      await guarded(db.query(`delete from ${table} where id = $1`, [id]), { duplicate, inUse });
       await audit(db, ctx, { action: 'delete', table, id, before });
       return { id };
     }),

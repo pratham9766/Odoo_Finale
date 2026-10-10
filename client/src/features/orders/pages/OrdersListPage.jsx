@@ -28,7 +28,12 @@ export default function OrdersListPage() {
   const [filterDrawer, setFilterDrawer] = useState(false);
   const debouncedSearch = useDebounce(filters.search, 300);
 
-  const { data, isLoading, isError, refetch } = useOrders();
+  const { data, isLoading, isError, refetch } = useOrders({
+    status: filters.status,
+    q: debouncedSearch,
+    page: filters.page,
+    limit: filters.pageSize,
+  });
 
   const orders = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
@@ -52,18 +57,22 @@ export default function OrdersListPage() {
       title: 'Item · Colour',
       key: 'item',
       render: (_, r) => (
-        <span>{r.lines?.[0]?.item_name} · {r.lines?.[0]?.colour}</span>
+        <span>{r.lines?.[0]?.item_name || r.lines?.[0]?.description || 'Fabric'} {r.lines?.[0]?.colour ? `· ${r.lines[0].colour}` : ''}</span>
       ),
       responsive: ['md'],
     },
     {
       title: 'Qty',
       key: 'qty',
-      render: (_, r) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {r.ordered_qty?.toLocaleString('en-IN')} {r.lines?.[0]?.uom}
-        </span>
-      ),
+      render: (_, r) => {
+        const q = r.total_qty ?? r.ordered_qty ?? r.lines?.[0]?.qty ?? 0;
+        const uom = r.uom ?? r.lines?.[0]?.uom ?? 'm';
+        return (
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {Number(q).toLocaleString('en-IN')} {uom}
+          </span>
+        );
+      },
       align: 'right',
       width: 110,
     },

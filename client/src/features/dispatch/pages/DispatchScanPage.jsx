@@ -5,128 +5,133 @@ import {
   Form, message, Typography, Card, Skeleton, Descriptions,
 } from 'antd';
 import {
-  ScanOutlined, CheckOutlined, DeleteOutlined,
-  StopOutlined, CarOutlined, WarningOutlined,
+  ScanOutlined, CheckOutlined, DeleteOutlined, FilePdfOutlined,
+  CarOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useOrg } from '@/hooks/useOrg';
 import { usePermission } from '@/hooks/usePermission';
 import { P } from '@/lib/permissions';
-import { PageHeader, SectionCard, StatusBadge, Can, ConfirmButton, QtyText } from '@/components/common';
-import { fetchDispatch, scanRoll, removePackingRow, confirmDispatch } from '../api';
+import { PageHeader, SectionCard, StatusBadge, ConfirmButton } from '@/components/common';
+import { fetchDispatch, scanRoll, removePackingRow, confirmDispatch, downloadPackingListPdf } from '../api';
 import { formatDate, formatDateTime } from '@/lib/format';
-import { useDebounce } from '@/hooks/useDebounce';
 
 const { Text } = Typography;
 
-// Error code → human message (backend error mapping)
-const SCAN_ERRORS = {
-  NOT_FOUND:        (rn) => `Roll ${rn} not found in this order`,
-  ALREADY_DISPATCHED: (rn) => `Roll ${rn} has already been dispatched`,
-  NOT_APPROVED:     (rn) => `Roll ${rn} has not passed QC — cannot dispatch`,
-  DUPLICATE:        (rn) => `Roll ${rn} already in this packing list`,
-  QUANTITY_EXCEEDED:(rn) => `Adding roll ${rn} would exceed the remaining approved quantity`,
-  WRONG_ORDER:      (rn) => `Roll ${rn} belongs to a different order`,
-};
-
-function mapScanError(code, rollNo) {
-  const fn = SCAN_ERRORS[code];
-  return fn ? fn(rollNo) : `Scan rejected: ${code}`;
-}
-
 export default function DispatchScanPage() {
   const { id } = useParams();
-  const { orgId } = useOrg();
   const { can } = usePermission();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const [manualInput, setManualInput] = useState('');
-  const [packingRows, setPackingRows] = useState([]); // successful scans
-  const [failedAttempts, setFailedAttempts] = useState([]); // failed scans (separate list)
+  const [failedAttempts, setFailedAttempts] = useState([]);
   const [scanPending, setScanPending] = useState(false);
-  const [confirmForm] = Form.useForm();
   const inputRef = useRef(null);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['dispatch', orgId, id],
-    queryFn: ({ signal }) => fetchDispatch({ id, orgId, signal }),
-    enabled: !!orgId && !!id,
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['dispatches', id],
+    queryFn: ({ signal }) => fetchDispatch({ id, signal }),
+    enabled: !!id,
   });
 
-  const dispatch = data?.data;
-  const isConfirmed = dispatch && ['in_transit', 'delivered', 'reached'].includes(dispatch.status);
+  const dispatch = data?.data || data;
+  const isConfirmed = dispatch && ['confirmed', 'in_transit', 'delivered'].includes(dispatch.status);
+  const rolls = dispatch?.rolls || [];
 
   const scanMutation = useMutation({
-    mutationFn: (roll_no) => scanRoll({ id, orgId, roll_no }),
-    onSuccess: (result, roll_no) => {
-      if (result.error) {
-        // Failed scan — keep in separate list
-        const errMsg = mapScanError(result.error.code, roll_no);
-        setFailedAttempts(prev => [{ roll_no, error: errMsg, key: `fail-${Date.now()}` }, ...prev]);
-      } else {
-        setPackingRows(prev => [...prev, { ...result.data, key: result.data.roll_no }]);
-      }
+    mutationFn: (code) => scanRoll({ id, code }),
+    onSuccess: () => {
+      message.success('Roll scanned successfully');
       setManualInput('');
       setScanPending(false);
+      qc.invalidateQueries({ queryKey: ['dispatches', id] });
       inputRef.current?.focus();
     },
-    onError: (err, roll_no) => {
-      setFailedAttempts(prev => [{ roll_no, error: err.message, key: `fail-${Date.now()}` }, ...prev]);
+    onError: (err, code) => {
+      setFailedAttempts((prev) => [{ roll_no: code, error: err.message, key: `fail-${Date.now()}` }, ...prev]);
       setScanPending(false);
+      message.error(err.message || 'Scan rejected');
     },
     retry: false,
   });
 
   const removeMutation = useMutation({
-    mutationFn: (roll_no) => removePackingRow({ id, orgId, roll_no }),
-    onSuccess: (_, roll_no) => {
-      setPackingRows(prev => prev.filter(r => r.roll_no !== roll_no));
+    mutationFn: (rollId) => removePackingRow({ id, rollId }),
+    onSuccess: () => {
+      message.info('Roll removed from packing list');
+      qc.invalidateQueries({ queryKey: ['dispatches', id] });
+    },
+    onError: (err) => {
+      message.error(err.message || 'Failed to remove roll');
     },
     retry: false,
   });
 
   const confirmMutation = useMutation({
-    mutationFn: (payload) => confirmDispatch({ id, orgId, payload }),
+    mutationFn: () => confirmDispatch({ id }),
     onSuccess: () => {
-      message.success('Dispatch confirmed — shipment locked');
-      qc.invalidateQueries({ queryKey: ['dispatch', orgId, id] });
-      qc.invalidateQueries({ queryKey: ['orders', orgId] });
+      message.success('Dispatch confirmed — invoice generated & rolls marked dispatched');
+      qc.invalidateQueries({ queryKey: ['dispatches', id] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
     },
     onError: (err) => {
-      message.error(err.message ?? 'Could not confirm the result. Refresh to check before retrying.');
-      err._handled = true;
+      message.error(err.message || 'Could not confirm dispatch');
     },
     retry: false,
   });
 
-  const handleScan = useCallback((roll_no) => {
-    const trimmed = (roll_no ?? manualInput).trim();
-    if (!trimmed || scanPending || scanMutation.isPending) return;
-    // Debounce identical codes
-    if (packingRows.some(r => r.roll_no === trimmed)) {
-      setFailedAttempts(prev => [{ roll_no: trimmed, error: `Roll ${trimmed} already in packing list`, key: `dup-${Date.now()}` }, ...prev]);
-      return;
-    }
-    setScanPending(true);
-    scanMutation.mutate(trimmed);
-  }, [manualInput, scanPending, scanMutation, packingRows]);
-
-  const totalLength = packingRows.reduce((acc, r) => acc + (r.length_m ?? 0), 0);
-
-  const canConfirm =
-    packingRows.length > 0 &&
-    can(P.DISPATCH_CONFIRM) &&
-    !scanMutation.isPending &&
-    !removeMutation.isPending &&
-    !isConfirmed;
+  const handleScan = useCallback(
+    (code) => {
+      const trimmed = (code ?? manualInput).trim();
+      if (!trimmed || scanPending || scanMutation.isPending) return;
+      if (rolls.some((r) => r.roll_no === trimmed)) {
+        message.warning(`Roll ${trimmed} is already in this dispatch`);
+        return;
+      }
+      setScanPending(true);
+      scanMutation.mutate(trimmed);
+    },
+    [manualInput, scanPending, scanMutation, rolls]
+  );
 
   if (isLoading) return <Skeleton active paragraph={{ rows: 8 }} />;
 
-  if (isError || !dispatch) return (
-    <Alert type="error" message="Dispatch not found"
-      action={<Button onClick={() => navigate('/app/dispatch')}>Back</Button>} />
-  );
+  if (isError || !dispatch) {
+    return (
+      <Alert
+        type="error"
+        message="Dispatch not found"
+        action={<Button onClick={() => navigate('/app/dispatch')}>Back</Button>}
+      />
+    );
+  }
+
+  const columns = [
+    { title: 'Roll No', dataIndex: 'roll_no', key: 'roll_no', render: (v) => <strong>{v}</strong> },
+    { title: 'Item', dataIndex: 'item', key: 'item' },
+    { title: 'Length (m)', dataIndex: 'length_m', key: 'length_m', align: 'right' },
+    { title: 'Scanned At', dataIndex: 'scanned_at', key: 'scanned_at', render: (v) => formatDateTime(v) },
+    ...(!isConfirmed
+      ? [
+          {
+            title: '',
+            key: 'action',
+            render: (_, r) => (
+              <Button
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                loading={removeMutation.isPending}
+                onClick={() => removeMutation.mutate(r.roll_id)}
+              >
+                Remove
+              </Button>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div>
@@ -136,161 +141,118 @@ export default function DispatchScanPage() {
           { title: <Link to="/app/dispatch">Dispatch</Link> },
           { title: dispatch.dispatch_no },
         ]}
-        subtitle={`${dispatch.buyer_name} · ${dispatch.order_no}`}
+        subtitle={`${dispatch.to_party || 'Buyer'} · Order: ${dispatch.order_no || '-'}`}
+        actions={[
+          <Button
+            key="pdf"
+            icon={<FilePdfOutlined />}
+            onClick={() => downloadPackingListPdf(id, `${dispatch.dispatch_no}-packing-list.pdf`)}
+          >
+            Packing List PDF
+          </Button>,
+          !isConfirmed && can(P.DISPATCH_CONFIRM) && (
+            <ConfirmButton
+              key="confirm"
+              title="Confirm Dispatch"
+              content="Confirming locks this dispatch, updates order fulfillment, and automatically generates the buyer sales invoice."
+              onConfirm={() => confirmMutation.mutate()}
+            >
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                disabled={rolls.length === 0}
+                loading={confirmMutation.isPending}
+                style={{ background: '#006B73' }}
+              >
+                Confirm & Lock Dispatch
+              </Button>
+            </ConfirmButton>
+          ),
+        ].filter(Boolean)}
       />
 
-      {isConfirmed && (
-        <Alert className="mb-4" type="info" showIcon icon={<StopOutlined />}
-          message="This dispatch has been confirmed and is locked. No further roll changes can be made." />
-      )}
-
       <Row gutter={[16, 16]}>
-        {/* Left: scan area */}
-        <Col xs={24} xl={16}>
-          {/* Scan input */}
-          {!isConfirmed && (
-            <SectionCard title="Scan or enter roll number" className="mb-4">
-              <div className="flex gap-3">
-                <Input
-                  ref={inputRef}
-                  prefix={<ScanOutlined style={{ color: '#536278' }} />}
-                  placeholder="Roll number or QR code…"
-                  value={manualInput}
-                  onChange={e => setManualInput(e.target.value)}
-                  onPressEnter={() => handleScan()}
-                  disabled={scanMutation.isPending}
-                  autoFocus
-                  size="large"
-                />
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={() => handleScan()}
-                  loading={scanMutation.isPending}
-                >
-                  Add
-                </Button>
-              </div>
-              <div style={{ fontSize: 12, color: '#536278', marginTop: 8 }}>
-                Camera scanning available in /floor/dispatch. Camera and manual entry use the same validation.
-              </div>
-            </SectionCard>
-          )}
+        <Col xs={24} lg={16}>
+          {/* Status & Totals Card */}
+          <SectionCard title="Dispatch Details">
+            <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+              <Descriptions.Item label="Status">
+                <StatusBadge status={dispatch.status} />
+              </Descriptions.Item>
+              <Descriptions.Item label="Vehicle">{dispatch.vehicle_no || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Driver">{dispatch.driver_name ? `${dispatch.driver_name} (${dispatch.driver_phone || ''})` : '-'}</Descriptions.Item>
+              <Descriptions.Item label="Rolls Packed">{dispatch.roll_count || rolls.length}</Descriptions.Item>
+              <Descriptions.Item label="Total Metres">{dispatch.total_m || rolls.reduce((acc, r) => acc + Number(r.length_m || 0), 0)} m</Descriptions.Item>
+              <Descriptions.Item label="Created At">{formatDateTime(dispatch.created_at)}</Descriptions.Item>
+            </Descriptions>
+          </SectionCard>
 
-          {/* Failed attempts — separate from packing rows */}
-          {failedAttempts.length > 0 && (
-            <SectionCard title={`Failed attempts (${failedAttempts.length})`} className="mb-4">
-              {failedAttempts.slice(0, 5).map(f => (
-                <Alert
-                  key={f.key}
-                  type="error"
-                  showIcon
-                  message={`${f.roll_no}: ${f.error}`}
-                  style={{ marginBottom: 6 }}
-                  closable
-                />
-              ))}
-              {failedAttempts.length > 5 && (
-                <Text type="secondary" style={{ fontSize: 12 }}>+{failedAttempts.length - 5} more failed attempts</Text>
-              )}
-            </SectionCard>
-          )}
-
-          {/* Packing rows */}
-          <SectionCard
-            title={`Packing list (${packingRows.length} rolls · ${totalLength.toLocaleString('en-IN')} m)`}
-          >
-            {packingRows.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: '#536278' }}>
-                No rolls scanned yet. Scan or enter roll numbers above.
-              </div>
-            ) : (
-              <Table
-                dataSource={packingRows}
-                rowKey="roll_no"
-                size="small"
-                pagination={false}
-                columns={[
-                  { title: 'Roll no.', dataIndex: 'roll_no', key: 'roll_no', render: v => <span style={{ fontWeight: 600 }}>{v}</span> },
-                  { title: 'Length', dataIndex: 'length_m', key: 'length_m', render: v => <QtyText value={v} uom="m" />, align: 'right', width: 80 },
-                  { title: 'Order', dataIndex: 'order_no', key: 'order_no', responsive: ['sm'] },
-                  ...(!isConfirmed ? [{
-                    title: '',
-                    key: 'remove',
-                    render: (_, r) => (
-                      <ConfirmButton
-                        title={`Remove roll ${r.roll_no}?`}
-                        description="It will be removed from this packing list."
-                        danger
-                        onConfirm={() => removeMutation.mutate(r.roll_no)}
-                        type="text"
-                      >
-                        <DeleteOutlined />
-                      </ConfirmButton>
-                    ),
-                    width: 50,
-                  }] : []),
-                ]}
-              />
-            )}
+          {/* Scanned rolls table */}
+          <SectionCard title={`Packed Rolls (${rolls.length})`} className="mt-4">
+            <Table
+              dataSource={rolls}
+              columns={columns}
+              rowKey="roll_id"
+              size="small"
+              pagination={{ pageSize: 15 }}
+            />
           </SectionCard>
         </Col>
 
-        {/* Right: packing summary + confirm */}
-        <Col xs={24} xl={8}>
-          <SectionCard title="Shipment summary">
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="Buyer">{dispatch.buyer_name}</Descriptions.Item>
-              <Descriptions.Item label="Order">{dispatch.order_no}</Descriptions.Item>
-              <Descriptions.Item label="Rolls added">{packingRows.length}</Descriptions.Item>
-              <Descriptions.Item label="Total length">
-                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {totalLength.toLocaleString('en-IN')} m
-                </span>
-              </Descriptions.Item>
-            </Descriptions>
+        <Col xs={24} lg={8}>
+          {!isConfirmed ? (
+            <SectionCard title="Scan Roll (Truck Loading)">
+              <p style={{ color: '#536278', fontSize: 13, marginBottom: 12 }}>
+                Enter the Roll Number or barcode token from the inspection sticker. Only QC-passed rolls of this order are accepted.
+              </p>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  ref={inputRef}
+                  placeholder="e.g. ROL-2026-0042"
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  onPressEnter={() => handleScan()}
+                  disabled={scanMutation.isPending}
+                />
+                <Button
+                  type="primary"
+                  icon={<ScanOutlined />}
+                  loading={scanMutation.isPending}
+                  onClick={() => handleScan()}
+                  style={{ background: '#006B73' }}
+                >
+                  Scan
+                </Button>
+              </Space.Compact>
 
-            <Divider />
-
-            {!isConfirmed && (
-              <Form form={confirmForm} layout="vertical" requiredMark="optional">
-                <Form.Item name="vehicle_no" label="Vehicle number" rules={[{ required: true }]}>
-                  <Input placeholder="e.g. GJ05AB1234" />
-                </Form.Item>
-                <Form.Item name="driver_name" label="Driver name">
-                  <Input placeholder="Driver full name" />
-                </Form.Item>
-                <Form.Item name="driver_phone" label="Driver mobile">
-                  <Input placeholder="10-digit mobile" inputMode="tel" />
-                </Form.Item>
-              </Form>
-            )}
-
-            <Alert
-              type="warning"
-              showIcon
-              icon={<WarningOutlined />}
-              message="Server validates before confirming"
-              description="Frontend validation cannot guarantee stock consistency. The server will revalidate all rolls before confirming. A lost response does not prove failure — refresh before retrying."
-              style={{ marginBottom: 16 }}
-            />
-
-            <ConfirmButton
-              title={`Confirm dispatch — ${packingRows.length} rolls, ${totalLength.toLocaleString('en-IN')} m`}
-              description={`Buyer: ${dispatch.buyer_name}. Once confirmed, this dispatch is locked and cannot be edited.`}
-              onConfirm={async () => {
-                try {
-                  const transport = await confirmForm.validateFields();
-                  confirmMutation.mutate({ ...transport });
-                } catch {}
-              }}
-              type="primary"
-              disabled={!canConfirm}
-              loading={confirmMutation.isPending}
-            >
-              <CheckOutlined /> Confirm dispatch
-            </ConfirmButton>
-          </SectionCard>
+              {failedAttempts.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <Text strong style={{ color: '#B42318', fontSize: 13 }}>Recent Scan Errors</Text>
+                  <div style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto' }}>
+                    {failedAttempts.map((f) => (
+                      <Alert
+                        key={f.key}
+                        type="error"
+                        showIcon
+                        message={<strong>{f.roll_no}</strong>}
+                        description={f.error}
+                        style={{ marginBottom: 6, padding: '4px 8px' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+          ) : (
+            <SectionCard title="Shipment Locked">
+              <Alert
+                type="success"
+                showIcon
+                message="Dispatch is Confirmed"
+                description="This shipment has been verified and sealed. The invoice was generated and rolls cannot be modified."
+              />
+            </SectionCard>
+          )}
         </Col>
       </Row>
     </div>

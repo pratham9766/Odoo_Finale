@@ -1,261 +1,225 @@
 import { useState } from 'react';
 import {
-  Form, Input, InputNumber, Select, Button, Divider, Alert,
-  Card, Typography, Row, Col, Steps, message, Space,
+  Form, Input, InputNumber, Select, Button,
+  Typography, Row, Col, message, Space,
 } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, CheckOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useOrg } from '@/hooks/useOrg';
+import { SaveOutlined, CheckOutlined } from '@ant-design/icons';
+import { useNavigate, Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { PageHeader, SectionCard } from '@/components/common';
-import { postReceipt, saveDraftReceipt } from '../api';
+import { createReceipt, postReceipt } from '../api';
 
-const { Title, Text } = Typography;
-
-const ITEMS = [
-  { value: 'si-001', label: 'Cotton Yarn 40s — Natural' },
-  { value: 'si-002', label: 'Cotton Yarn 30s — Red' },
-  { value: 'si-003', label: 'Cotton Yarn 30s — White' },
-  { value: 'si-004', label: 'Reactive Dye — Red' },
-  { value: 'si-005', label: 'Reactive Dye — Navy' },
-  { value: 'si-007', label: 'Cotton Fibre — Natural' },
-];
-
-const UOM_OPTIONS = ['kg', 'm', 'pcs', 'litre', 'box'];
+const { Option } = Select;
+const { Text } = Typography;
 
 export default function NewReceiptPage() {
   const navigate = useNavigate();
-  const { orgId } = useOrg();
   const [form] = Form.useForm();
   const qc = useQueryClient();
-  const [isDraft, setIsDraft] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const postMutation = useMutation({
-    mutationFn: (payload) => postReceipt({ orgId, payload }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['inventory', 'stock', orgId] });
-      qc.invalidateQueries({ queryKey: ['inventory', 'receipts', orgId] });
-      message.success('Receipt posted — stock updated');
-      navigate('/app/inventory/receipts');
-    },
-    onError: (err) => {
-      message.error(err.message ?? 'Failed to post receipt');
-      err._handled = true;
-    },
-    retry: false,
+  // Suppliers dropdown: GET /contacts?type=supplier
+  const suppliersQ = useQuery({
+    queryKey: ['contacts', 'supplier'],
+    queryFn: () => api.get('/contacts?type=supplier').then((r) => r.data?.data || r.data || []),
   });
 
-  const draftMutation = useMutation({
-    mutationFn: (payload) => saveDraftReceipt({ orgId, payload }),
-    onSuccess: () => {
-      message.success('Draft saved — stock NOT updated until posted');
-      navigate('/app/inventory/receipts');
-    },
-    retry: false,
+  // Raw yarn / items dropdown: GET /items
+  const itemsQ = useQuery({
+    queryKey: ['items'],
+    queryFn: () => api.get('/items').then((r) => r.data?.data || r.data || []),
   });
 
-  const handlePost = async () => {
+  // Orders dropdown: for which order is this yarn? (Scene 1 in PDF)
+  const ordersQ = useQuery({
+    queryKey: ['orders', 'active'],
+    queryFn: () => api.get('/orders?limit=50').then((r) => r.data?.data || r.data || []),
+  });
+
+  const suppliers = Array.isArray(suppliersQ.data) ? suppliersQ.data : [];
+  const items = Array.isArray(itemsQ.data) ? itemsQ.data : [];
+  const orders = Array.isArray(ordersQ.data) ? ordersQ.data : [];
+
+  const handleSave = async (shouldPost) => {
     try {
       const values = await form.validateFields();
-      if (values.received_qty > values.expected_qty * 1.05) {
-        message.warning('Received quantity exceeds expected by more than 5% — verify before posting');
+      setSubmitting(true);
+
+      const payload = {
+        supplier_contact_id: values.supplier_contact_id || undefined,
+        vehicle_no: values.vehicle_no || undefined,
+        notes: values.notes || undefined,
+        lines: [
+          {
+            item_id: values.item_id,
+            lot_no: values.lot_no,
+            received_qty: Number(values.received_qty),
+            expected_qty: values.expected_qty ? Number(values.expected_qty) : Number(values.received_qty),
+            rate: Number(values.rate || 0),
+            for_order_id: values.for_order_id || undefined,
+            dye_batch: values.dye_batch || undefined,
+          },
+        ],
+      };
+
+      // 1. Create draft GRN
+      const res = await createReceipt(payload);
+      const receiptId = res?.data?.id || res?.id;
+
+      // 2. If user clicked "Post GRN", immediately post to update inventory stock
+      if (shouldPost && receiptId) {
+        await postReceipt(receiptId);
+        message.success('GRN posted successfully — stock updated');
+      } else {
+        message.success('GRN draft saved');
       }
-      postMutation.mutate(values);
-    } catch { /* form validation error, already shown */ }
-  };
 
-  const handleDraft = async () => {
-    const values = form.getFieldsValue();
-    setIsDraft(true);
-    draftMutation.mutate(values);
+      qc.invalidateQueries({ queryKey: ['stock'] });
+      qc.invalidateQueries({ queryKey: ['receipts'] });
+      navigate('/app/inventory/receipts');
+    } catch (err) {
+      if (err?.errorFields) return; // Antd validation
+      message.error(err.message || 'Failed to save goods receipt');
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  const expectedQty = Form.useWatch('expected_qty', form);
-  const receivedQty = Form.useWatch('received_qty', form);
-  const shortage = expectedQty && receivedQty ? expectedQty - receivedQty : 0;
 
   return (
     <div>
       <PageHeader
-        title="New goods receipt"
+        title="Receive Goods (New GRN)"
         breadcrumbs={[
-          { title: 'Inventory' },
-          { title: <a onClick={() => navigate('/app/inventory/receipts')}>Receipts</a> },
+          { title: <Link to="/app/inventory/receipts">Goods Receipts</Link> },
           { title: 'New GRN' },
         ]}
-      />
-
-      <Alert
-        className="mb-6"
-        type="info"
-        showIcon
-        icon={<InfoCircleOutlined />}
-        message="Draft vs Posted"
-        description="Saving as draft does NOT update stock quantities. Posting is a permanent action — a posted receipt cannot be casually edited. Verify quantities carefully before posting."
       />
 
       <Form
         form={form}
         layout="vertical"
-        requiredMark="optional"
-        initialValues={{ uom: 'kg' }}
+        initialValues={{ received_qty: 100, expected_qty: 100, lot_no: `LOT-${Date.now().toString().slice(-6)}` }}
       >
-        <Row gutter={[24, 0]}>
+        <Row gutter={24}>
           <Col xs={24} lg={16}>
-            <SectionCard title="Supplier & reference">
-              <Row gutter={[16, 0]}>
-                <Col xs={24} sm={12}>
+            <SectionCard title="Receipt Information">
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item name="supplier_contact_id" label="Supplier">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="Select supplier"
+                      loading={suppliersQ.isLoading}
+                      filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="vehicle_no" label="Vehicle No.">
+                    <Input placeholder="e.g. TN 38 AB 1234" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="for_order_id" label="For Which Order? (Optional)">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="Tag arriving yarn to an active order"
+                      loading={ordersQ.isLoading}
+                      filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={orders.map((o) => ({ value: o.id, label: `${o.order_no} — ${o.buyer_name || 'Buyer'} (${o.status})` }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="notes" label="Notes / Invoice Ref">
+                    <Input placeholder="e.g. Challan #4489" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </SectionCard>
+
+            <SectionCard title="Material Line" className="mt-4">
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
                   <Form.Item
-                    name="supplier_name"
-                    label="Supplier"
-                    rules={[{ required: true, message: 'Select a supplier' }]}
+                    name="item_id"
+                    label="Item (Yarn / Raw Material)"
+                    rules={[{ required: true, message: 'Please select an item' }]}
                   >
                     <Select
                       showSearch
-                      placeholder="Select supplier…"
-                      options={[
-                        { value: 'org-supplier-004', label: 'Rajasthan Yarn Co.' },
-                        { value: 'manual', label: 'Manual / offline supplier' },
-                      ]}
+                      placeholder="Select material"
+                      loading={itemsQ.isLoading}
+                      filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                      options={items.map((i) => ({ value: i.id, label: `${i.name} [${i.kind || ''}]` }))}
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="vehicle_no" label="Vehicle number">
-                    <Input placeholder="e.g. RJ14CD5678" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="linked_po" label="Linked purchase order">
-                    <Select allowClear placeholder="Select PO (optional)" options={[]} />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="dc_no" label="Supplier DC / invoice no.">
-                    <Input placeholder="DC-2026-XXXX" />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </SectionCard>
-
-            <SectionCard title="Item details" className="mt-4">
-              <Row gutter={[16, 0]}>
-                <Col xs={24} sm={12}>
+                <Col xs={24} md={12}>
                   <Form.Item
-                    name="item_id"
-                    label="Item"
-                    rules={[{ required: true, message: 'Select an item' }]}
+                    name="lot_no"
+                    label="Lot / Batch No."
+                    rules={[{ required: true, message: 'Please enter lot number' }]}
                   >
-                    <Select showSearch placeholder="Select item…" options={ITEMS} />
+                    <Input placeholder="e.g. LOT-2026-091" />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="lot_no" label="Lot / batch number">
-                    <Input placeholder="LOT-2026-XXX" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={8}>
-                  <Form.Item
-                    name="expected_qty"
-                    label="Expected quantity"
-                    rules={[{ required: true, type: 'number', min: 0.001, message: 'Enter expected qty' }]}
-                  >
-                    <InputNumber min={0} style={{ width: '100%' }} inputMode="decimal" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={8}>
+                <Col xs={24} md={8}>
                   <Form.Item
                     name="received_qty"
-                    label="Received quantity"
-                    rules={[{ required: true, type: 'number', min: 0.001, message: 'Enter received qty' }]}
+                    label="Received Quantity (kg)"
+                    rules={[{ required: true, message: 'Please enter received quantity' }]}
                   >
-                    <InputNumber min={0} style={{ width: '100%' }} inputMode="decimal" />
+                    <InputNumber min={0.1} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={8}>
-                  <Form.Item name="uom" label="Unit" rules={[{ required: true }]}>
-                    <Select options={UOM_OPTIONS.map(u => ({ value: u, label: u }))} />
+                <Col xs={24} md={8}>
+                  <Form.Item name="expected_qty" label="Expected Quantity (kg)">
+                    <InputNumber min={0} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="rate" label="Rate per unit (₹)">
-                    <InputNumber
-                      min={0}
-                      style={{ width: '100%' }}
-                      formatter={v => `₹ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                      parser={v => v.replace(/₹\s?|(,*)/g, '')}
-                      inputMode="decimal"
-                    />
+                <Col xs={24} md={8}>
+                  <Form.Item name="rate" label="Unit Rate (₹)">
+                    <InputNumber min={0} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
               </Row>
-
-              {/* Short receipt indicator */}
-              {shortage > 0.001 && (
-                <Alert
-                  type="warning"
-                  showIcon
-                  message={`Short receipt: ${shortage.toLocaleString('en-IN')} units short`}
-                  description="Only the received quantity will be credited to stock. The shortage must be resolved by an additional receipt or PO amendment."
-                  style={{ marginTop: 12 }}
-                />
-              )}
-            </SectionCard>
-
-            <SectionCard title="Remarks" className="mt-4">
-              <Form.Item name="remarks" label="Remarks / condition notes">
-                <Input.TextArea rows={3} placeholder="Optional: damage, shortage reason, quality notes…" />
-              </Form.Item>
             </SectionCard>
           </Col>
 
-          {/* Summary rail */}
           <Col xs={24} lg={8}>
-            <SectionCard title="Receipt summary">
-              <div className="space-y-3">
-                {[
-                  { label: 'Expected', value: expectedQty ? `${expectedQty.toLocaleString('en-IN')}` : '—' },
-                  { label: 'Received', value: receivedQty ? `${receivedQty.toLocaleString('en-IN')}` : '—' },
-                  { label: 'Shortage', value: shortage > 0 ? shortage.toLocaleString('en-IN') : '—', warn: shortage > 0 },
-                ].map(row => (
-                  <div key={row.label} className="flex justify-between">
-                    <Text type="secondary">{row.label}</Text>
-                    <Text style={{ fontWeight: 600, color: row.warn ? '#B42318' : '#12233F', fontVariantNumeric: 'tabular-nums' }}>
-                      {row.value}
-                    </Text>
-                  </div>
-                ))}
-              </div>
-
-              <Divider />
-
-              <div style={{ fontSize: 13, color: '#536278', marginBottom: 16 }}>
-                <InfoCircleOutlined style={{ marginRight: 6 }} />
-                Stock is only updated when you <strong>Post</strong> the receipt. Draft saves the form without changing stock.
-              </div>
-
+            <SectionCard title="Actions">
+              <p style={{ color: '#536278', marginBottom: 16 }}>
+                Posting a GRN increments live stock on the shelf and can fulfill yarn reservations for active orders.
+              </p>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Button
                   type="primary"
+                  icon={<CheckOutlined />}
                   block
                   size="large"
-                  icon={<CheckOutlined />}
-                  onClick={handlePost}
-                  loading={postMutation.isPending}
-                  disabled={draftMutation.isPending}
+                  loading={submitting}
+                  onClick={() => handleSave(true)}
+                  style={{ background: '#006B73' }}
                 >
-                  Post receipt (updates stock)
+                  Post GRN (Update Stock)
                 </Button>
                 <Button
-                  block
                   icon={<SaveOutlined />}
-                  onClick={handleDraft}
-                  loading={draftMutation.isPending}
-                  disabled={postMutation.isPending}
+                  block
+                  size="large"
+                  loading={submitting}
+                  onClick={() => handleSave(false)}
                 >
-                  Save as draft
+                  Save as Draft
                 </Button>
-                <Button block onClick={() => navigate(-1)}>Cancel</Button>
+                <Button block onClick={() => navigate(-1)}>
+                  Cancel
+                </Button>
               </Space>
             </SectionCard>
           </Col>

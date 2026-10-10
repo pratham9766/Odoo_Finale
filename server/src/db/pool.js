@@ -13,6 +13,8 @@ const ssl = /localhost|127\.0\.0\.1/.test(env.DATABASE_URL) ? false : { rejectUn
 export const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   max: 10,
+  keepAlive: true,                // keep idle sockets alive through NAT / pooler idle timeouts
+  keepAliveInitialDelayMillis: 10_000,
   ssl,
 });
 

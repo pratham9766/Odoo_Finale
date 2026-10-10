@@ -3,8 +3,6 @@ import { boolQuery, dateString, optionalText, pageQuery, rangeQuery, updateSchem
 import { CATEGORIES } from './expenses.service.js';
 
 export const listInvoicesQuery = pageQuery.extend({
-  side: z.enum(['sales', 'purchase']).default('sales'),                 // sales = we invoiced, purchase = bills addressed to us
-  kind: z.enum(['sales', 'supply', 'freight']).optional(),
   status: z.enum(['draft', 'unpaid', 'partial', 'paid', 'cancelled']).optional(),
 });
 
@@ -16,7 +14,7 @@ export const paymentSchema = z.object({
   paid_at: dateString.optional(),                                        // default today; never in the future
 });
 
-export const listPaymentsQuery = pageQuery.merge(rangeQuery).extend({ side: z.enum(['in', 'out']).default('in') });   // in = received, out = made
+export const listPaymentsQuery = pageQuery.merge(rangeQuery);
 
 const expenseFields = {
   category: z.enum(CATEGORIES),

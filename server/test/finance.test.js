@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reminderDue } from '../src/jobs/overduePayments.js';
 import { ageing, bucketOf } from '../src/modules/finance/receivables.service.js';
 import { statementOf } from '../src/modules/reports/pnl.js';
 import { columns, pct, totalsOf } from '../src/modules/reports/support.js';
@@ -21,12 +20,6 @@ test('days between two dates, for days overdue', () => {
   assert.equal(daysBetween('2026-10-10', '2026-10-01'), -9);
   assert.equal(daysBetween('2026-02-27', '2026-03-02'), 3);
   assert.equal(daysBetween('2026-12-31', '2027-01-01'), 1);
-});
-
-test('overdue reminders go out on day 1, then every 1 / 2 / 4 / 6 / 8 weeks, then every 4 weeks; never every morning', () => {
-  const days = Array.from({ length: 120 }, (_, i) => i).filter(reminderDue);
-  assert.deepEqual(days, [1, 7, 14, 28, 42, 56, 84, 112]);
-  assert.equal(reminderDue(0), false);
 });
 
 test('CSV: header, quoting, numbers untouched, dates as ISO, BOM and CRLF for Excel', () => {

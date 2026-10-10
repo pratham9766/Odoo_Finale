@@ -6,7 +6,6 @@ import {
   CarOutlined, PrinterOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useOrg } from '@/hooks/useOrg';
 import { usePermission } from '@/hooks/usePermission';
 import { useWatchOrder } from '@/hooks/useSocketEvent';
 import { P } from '@/lib/permissions';
@@ -18,7 +17,6 @@ import { formatDate, formatDateTime } from '@/lib/format';
 export default function OrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { orgId } = useOrg();
   const { can } = usePermission();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
@@ -61,7 +59,7 @@ export default function OrderDetailPage() {
     {
       key: 'requirements',
       label: 'Requirements',
-      children: <RequirementsTab orderId={id} orgId={orgId} can={can} />,
+      children: <RequirementsTab orderId={id} can={can} />,
     },
     {
       key: 'rolls',
@@ -242,11 +240,11 @@ function OverviewTab({ order, can }) {
   );
 }
 
-function RequirementsTab({ orderId, orgId, can }) {
+function RequirementsTab({ orderId, can }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', orgId, orderId, 'requirements'],
-    queryFn: ({ signal }) => fetchOrderRequirements({ id: orderId, orgId, signal }),
-    enabled: !!orgId && !!orderId,
+    queryKey: ['orders', orderId, 'requirements'],
+    queryFn: ({ signal }) => fetchOrderRequirements({ id: orderId, signal }),
+    enabled: !!orderId,
   });
 
   const requirements = data?.data ?? [];

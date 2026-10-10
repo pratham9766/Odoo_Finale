@@ -1,4 +1,4 @@
-// Demo reset (backend plan §19): empty every tenant table, delete the demo logins from Supabase Auth, then (optionally) seed again.
+// Demo reset: empty every table, delete the demo logins from Supabase Auth, then (optionally) seed again.
 //   npm run reset -- --yes               empty + seed with the default options
 //   npm run reset -- --yes --no-seed     only empty
 //   npm run reset -- --yes --days=14     empty + a shorter history
@@ -14,7 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const KEEP = new Set(['permissions', 'schema_migrations']);
 
 if (process.env.NODE_ENV === 'production') { console.error('Refusing to reset a production database.'); process.exit(1); }
-if (!process.argv.includes('--yes')) { console.error('This empties every tenant table. Re-run with --yes to confirm.'); process.exit(1); }
+if (!process.argv.includes('--yes')) { console.error('This empties every table. Re-run with --yes to confirm.'); process.exit(1); }
 
 loadServerEnv();
 const pg = requireServer('pg');

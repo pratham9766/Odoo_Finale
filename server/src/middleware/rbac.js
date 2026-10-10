@@ -5,11 +5,6 @@ export const can = (...perms) => (req, _res, next) =>
     ? next()
     : next(new AppError(403, 'FORBIDDEN', `Missing permission: ${perms.join(' or ')}`));
 
-export const requireOrgType = (...types) => (req, _res, next) =>
-  types.some((t) => req.ctx.orgTypes.includes(t))
-    ? next()
-    : next(new AppError(403, 'FORBIDDEN', 'Not available for this organization type'));
-
 export const requireModule = (name) => (req, _res, next) =>
   req.ctx.modules[name] !== false
     ? next()

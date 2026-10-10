@@ -1,18 +1,18 @@
 // POST /work-orders/:id/logs: an operator adds output (backend plan §11.7).
 
-import { withTenant } from '../../db/withTenant.js';
-import { assertOwned, invalid } from '../../utils/crud/index.js';
+import { withTx } from '../../db/tx.js';
+import { assertExists, invalid } from '../../utils/crud/index.js';
 import { shiftContaining, shiftDateFor, shiftMinutes } from '../../utils/shifts.js';
 import { minutesBetween } from '../../utils/time.js';
-import { loadShifts } from '../orgs/orgs.service.js';
+import { loadShifts } from '../mill/mill.service.js';
 import { assertUsableMachine } from './machineRules.js';
 import { announce, lockWorkOrder, notRunning } from './workOrderSupport.js';
 
 /** The shift this log belongs to: the one given, else the one running now. */
 async function logShift(db, ctx, shiftId, at) {
-  const shifts = await loadShifts(db, ctx.orgId);
+  const shifts = await loadShifts(db);
   if (shiftId) {
-    await assertOwned(db, ctx, 'shifts', shiftId, 'Shift');
+    await assertExists(db, 'shifts', shiftId, 'Shift');
     const shift = shifts.find((s) => s.id === shiftId);
     return { shift, date: shiftDateFor(shift, at) };
   }
@@ -24,8 +24,8 @@ async function logShift(db, ctx, shiftId, at) {
 /** Whoever is assigned to this machine for the shift (the earliest assignment if there are helpers). */
 async function assignedWorker(db, ctx, machineId, shiftId, date) {
   const { rows: [a] } = await db.query(
-    `select worker_id from assignments where org_id = $1 and machine_id = $2 and shift_id = $3 and date = $4
-      order by created_at limit 1`, [ctx.orgId, machineId, shiftId, date]);
+    `select worker_id from assignments where machine_id = $1 and shift_id = $2 and date = $3
+      order by created_at limit 1`, [machineId, shiftId, date]);
   return a?.worker_id ?? null;
 }
 
@@ -38,19 +38,19 @@ async function runMinutes(db, machine, shift, at) {
 
 /** @returns {{ log, work_order: { produced_qty, target_qty } }} */
 export async function logProduction(ctx, id, { qty, worker_id, shift_id }, { at = new Date() } = {}) {
-  const { wo, ...result } = await withTenant(ctx, async (db) => {
+  const { wo, ...result } = await withTx(async (db) => {
     const wo = await lockWorkOrder(db, ctx, id);
     if (wo.status !== 'running') throw notRunning(wo, 'log production');
     const machine = await assertUsableMachine(db, ctx, wo.machine_id);
 
     const { shift, date } = await logShift(db, ctx, shift_id, at);
-    if (worker_id) await assertOwned(db, ctx, 'workers', worker_id, 'Worker');
+    if (worker_id) await assertExists(db, 'workers', worker_id, 'Worker');
     const worker = worker_id ?? await assignedWorker(db, ctx, machine.id, shift.id, date);
 
     const { rows: [log] } = await db.query(
-      `insert into production_logs (org_id, work_order_id, machine_id, shift_id, worker_id, qty, run_minutes, logged_at, created_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning *`,
-      [ctx.orgId, wo.id, machine.id, shift.id, worker, qty, await runMinutes(db, machine, shift, at), at, ctx.userId]);
+      `insert into production_logs (work_order_id, machine_id, shift_id, worker_id, qty, run_minutes, logged_at, created_by)
+       values ($1, $2, $3, $4, $5, $6, $7, $8) returning *`,
+      [wo.id, machine.id, shift.id, worker, qty, await runMinutes(db, machine, shift, at), at, ctx.userId]);
     const { rows: [updated] } = await db.query(
       `update work_orders set produced_qty = produced_qty + $2 where id = $1 returning produced_qty, target_qty`, [wo.id, qty]);
     return { wo, log, work_order: updated };

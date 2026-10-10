@@ -1,8 +1,8 @@
-// Entry point of the finance module (backend plan §10.11): Vipul mounts this one router at the tenant root.
-//   GET  /invoices?side=&kind=&status=         invoice.view
+// Finance module: invoices (from dispatches), payments from buyers, expenses (incl. supplier bills).
+//   GET  /invoices?status=                     invoice.view
 //   GET  /invoices/:id[/pdf]                   invoice.view
 //   POST /invoices/from-dispatch/:id           invoice.create   (confirming a dispatch normally does this)
-//   GET/POST /payments                         invoice.view / payment.record   (either party records; the invoice follows)
+//   GET/POST /payments                         invoice.view / payment.record
 //   CRUD /expenses                             expense.manage
 //   GET  /finance/receivables | /payables      invoice.view
 

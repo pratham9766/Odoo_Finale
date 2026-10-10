@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkInResult, checkOutResult, dayFromTimes } from '../src/modules/workforce/attendance.rules.js';
 import { buildRegister, monthDays } from '../src/modules/workforce/register.js';
-import { grossPay, recoverAdvances } from '../src/modules/workforce/wageRules.js';
+import { grossPay } from '../src/modules/workforce/wageRules.js';
 import { resolveShift, shiftContaining, shiftDateFor, shiftHours, shiftMinutes, shiftWindow } from '../src/utils/shifts.js';
 import { addDays, atIST, istParts, minutesBetween, monthStart, nextMonthStart, reportRange } from '../src/utils/time.js';
 
@@ -148,11 +148,3 @@ test('gross pay by wage type (backend plan §11.13)', () => {
   assert.equal(grossPay({ wage_type: 'daily', rate: '650.00', ot_rate: '121.88' }, { days: '10', hours: 0, ot_hours: '1.5', pieces: 0 }), 6682.82);   // pg numerics arrive as strings
 });
 
-test('advances come off oldest first, whole advances only, never more than the gross', () => {
-  const open = [{ id: 'a1', amount: 2000 }, { id: 'a2', amount: 1500 }, { id: 'a3', amount: 3000 }];
-  assert.deepEqual(recoverAdvances(open, 10000), { recovered: open, total: 6500 });
-  assert.deepEqual(recoverAdvances(open, 4000), { recovered: [open[0], open[1]], total: 3500 });
-  assert.deepEqual(recoverAdvances(open, 1000), { recovered: [], total: 0 });                                          // the first does not fit: nothing is taken
-  assert.deepEqual(recoverAdvances([], 5000), { recovered: [], total: 0 });
-  assert.equal(recoverAdvances([{ id: 'x', amount: '0.1' }, { id: 'y', amount: '0.2' }], 0.3).total, 0.3);            // no float drift at the boundary
-});

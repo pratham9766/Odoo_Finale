@@ -91,9 +91,8 @@ export default function LoginPage() {
         </Form>
 
         <div className="text-center mt-6">
-          <Text style={{ fontSize: 15, color: '#53657A' }}>
-            New to SAMETA?{' '}
-            <Link to="/signup" style={{ color: '#007780', fontWeight: 600 }}>Create account</Link>
+          <Text type="secondary" style={{ fontSize: 14 }}>
+            Staff accounts are invited by the mill owner or seeded.
           </Text>
         </div>
       </div>

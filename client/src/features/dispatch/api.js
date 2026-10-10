@@ -1,30 +1,38 @@
-import { api } from '@/lib/api';
+import { api, download } from '@/lib/api';
 
-// CONTRACT NOTE: Scan payload is {roll_no} — see FRONTEND_CONTRACT_NOTES.md #1
-// Camera and manual entry both use the same mutation to avoid divergent shapes.
-
-export async function fetchDispatches({ orgId, signal }) {
-  return api.get('/dispatch', { signal, headers: { 'x-org-id': orgId } });
+// ─── List ──────────────────────────────────────────────────────────────────
+export async function fetchDispatches({ status, page = 1, limit = 50, signal } = {}) {
+  const params = new URLSearchParams({ page, limit });
+  if (status && status !== 'all') params.set('status', status);
+  return api.get(`/dispatches?${params}`, { signal });
 }
 
-export async function fetchDispatch({ id, orgId, signal }) {
-  return api.get(`/dispatch/${id}`, { signal, headers: { 'x-org-id': orgId } });
+// ─── Detail ───────────────────────────────────────────────────────────────
+export async function fetchDispatch({ id, signal }) {
+  return api.get(`/dispatches/${id}`, { signal });
 }
 
-export async function createDispatch({ orgId, payload }) {
-  return api.post('/dispatch', payload, { headers: { 'x-org-id': orgId } });
+// ─── Create ───────────────────────────────────────────────────────────────
+export async function createDispatch(payload) {
+  return api.post('/dispatches', payload);
 }
 
-// Unified scan mutation — same payload from camera AND manual entry
-export async function scanRoll({ id, orgId, roll_no }) {
-  return api.post(`/dispatch/${id}/scan`, { roll_no }, { headers: { 'x-org-id': orgId } });
+// ─── Scan Roll onto Truck ─────────────────────────────────────────────────
+export async function scanRoll({ id, code, roll_no }) {
+  return api.post(`/dispatches/${id}/scan`, { code: code || roll_no, roll_no });
 }
 
-export async function removePackingRow({ id, orgId, roll_no }) {
-  return api.delete(`/dispatch/${id}/scan/${encodeURIComponent(roll_no)}`, { headers: { 'x-org-id': orgId } });
+// ─── Remove Roll from Packing List ─────────────────────────────────────────
+export async function removePackingRow({ id, rollId }) {
+  return api.delete(`/dispatches/${id}/rolls/${encodeURIComponent(rollId)}`);
 }
 
-export async function confirmDispatch({ id, orgId, payload }) {
-  // Server must revalidate before confirming
-  return api.post(`/dispatch/${id}/confirm`, payload, { headers: { 'x-org-id': orgId } });
+// ─── Confirm Dispatch & Auto-generate Invoice ──────────────────────────────
+export async function confirmDispatch({ id, payload }) {
+  return api.post(`/dispatches/${id}/confirm`, payload || {});
+}
+
+// ─── Download Packing List PDF ─────────────────────────────────────────────
+export async function downloadPackingListPdf(id, filename) {
+  return download(`/dispatches/${id}/packing-list.pdf`, filename || `packing-list-${id}.pdf`);
 }
