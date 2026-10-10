@@ -1,93 +1,30 @@
-import axios from 'axios';
-import { supabase } from './supabase';
+import { cleanPath } from './contracts.js';
 
-// ─── Org header management ────────────────────────────────────────────────
-// Store captured orgId per request to avoid race conditions during org switch
-let _currentOrgId = null;
-export const setApiOrg = (orgId) => { _currentOrgId = orgId; };
-export const getCurrentOrgId = () => _currentOrgId;
-
-// ─── Main API client ──────────────────────────────────────────────────────
-export const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/v1`,
-  timeout: 15000,
-});
-
-api.interceptors.request.use(async (config) => {
-  // Attach JWT
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-
-  // Attach org header — capture at request time, not from mutable global
-  const orgId = config._orgId ?? _currentOrgId;
-  if (orgId && !config.headers['x-org-id']) {
-    config.headers['x-org-id'] = orgId;
-  }
-
-  return config;
-});
-
-// ─── Error class ──────────────────────────────────────────────────────────
 export class ApiError extends Error {
-  constructor(status, code, message, details) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.code = code;
-    this.details = details;
+  constructor(message, status = 0, code = 'NETWORK', details) {
+    super(message); this.status = status; this.code = code; this.details = details;
   }
 }
 
-api.interceptors.response.use(
-  (res) => res.data, // unwrap { data, meta } envelope
-  async (err) => {
-    if (err.code === 'ERR_CANCELED') return Promise.reject(err);
-    const status = err.response?.status ?? 0;
-    const e = err.response?.data?.error ?? {};
-    if (status === 401) {
-      await supabase.auth.signOut().catch(() => {});
-    }
-    return Promise.reject(
-      new ApiError(status, e.code ?? 'NETWORK', e.message ?? 'Network error', e.details)
-    );
-  }
-);
-
-// ─── Kiosk client (device token, no user JWT) ─────────────────────────────
-export const kioskApi = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/v1`,
-  timeout: 10000,
-});
-
-kioskApi.interceptors.response.use(
-  (res) => res.data,
-  (err) => {
-    const status = err.response?.status ?? 0;
-    const e = err.response?.data?.error ?? {};
-    return Promise.reject(new ApiError(status, e.code ?? 'NETWORK', e.message ?? 'Network error', e.details));
-  }
-);
-
-// ─── File download helper ─────────────────────────────────────────────────
-export async function download(path, filename) {
+// Capture credentials and tenant per request; never mutate a global org header.
+export async function request(path, { token, orgId, method = 'GET', body, signal, baseUrl = 'http://localhost:4000' } = {}) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) controller.abort();
+  const timeout = setTimeout(abort, 15000);
   try {
-    const response = await api.get(path, { responseType: 'blob' });
-    // Check if the blob is actually an error JSON
-    const blob = response instanceof Blob ? response : new Blob([response]);
-    if (blob.type?.includes('application/json')) {
-      const text = await blob.text();
-      const parsed = JSON.parse(text);
-      if (parsed.error) throw new ApiError(400, parsed.error.code, parsed.error.message);
-    }
-    const url = URL.createObjectURL(blob);
-    const a = Object.assign(document.createElement('a'), { href: url, download: filename });
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(0, 'DOWNLOAD_FAILED', 'Could not download file');
-  }
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1${cleanPath(path)}`, {
+      method, signal: controller.signal,
+      headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(orgId ? { 'x-org-id': orgId } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new ApiError(payload?.error?.message || `Request failed (${response.status}).`, response.status, payload?.error?.code, payload?.error?.details);
+    if (!payload || !Object.hasOwn(payload, 'data')) throw new ApiError('The server returned an unexpected response.', response.status, 'INVALID_RESPONSE');
+    return payload;
+  } catch (error) {
+    if (error instanceof ApiError || signal?.aborted) throw error;
+    throw new ApiError(error.name === 'AbortError' ? 'The request timed out. Check your connection and try again.' : 'Cannot reach the server. Check your connection and try again.');
+  } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }
