@@ -48,7 +48,7 @@ export default function Boms() {
 
   return (
     <>
-      <PageTitle eyebrow="MASTER DATA" title="Recipes (BOM)" description="How much of each yarn or material one metre or kilo of a product needs. The yarn check and order planning use these."
+      <PageTitle title="Recipes (BOM)" description="How much of each yarn or material one metre or kilo of a product needs. The yarn check and order planning use these."
         action={session.can('bom.create') && <Button type="primary" onClick={() => open(null)}>New recipe</Button>} />
       {session.can('stock.view') && <MaterialCheck />}
       <section className="panel">

@@ -3,6 +3,7 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 :root {
+  --topbar-h: 56px;   /* height of the sticky top bar; sticky page headers sit just below it */
   /* Mill palette: forest green, cream and thread gold. (Old variable names kept so every screen re-themes.) */
   --c-pink-light: #F5F0E4;      /* cream tint */
   --c-lilac-soft: #E7DFCC;      /* linen border */
@@ -265,14 +266,14 @@ nav a.active svg {
   position: sticky;
   top: 0;
   z-index: 15;
-  height: 72px;
+  height: var(--topbar-h);
   background: rgba(248, 247, 243, 0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 32px;
+  padding: 8px 32px;
   gap: 16px;
 }
 
@@ -295,8 +296,8 @@ nav a.active svg {
 }
 
 .mill-chip-icon {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--c-pink-light);
   border: 1px solid var(--border-main);
@@ -388,16 +389,30 @@ nav a.active svg {
 }
 
 .main-content {
-  padding: 36px;
+  padding: 20px 36px 36px;
   flex: 1;
 }
 
-.page-title {
+/* Page header: one compact, sticky bar under the top bar, shared by every page (Orders uses the same rule). */
+.page-title,
+.orders-page-header {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 24px;
-  margin-bottom: 24px;
+  margin: 0 0 16px;
+  padding: 8px 0 10px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-main);
+}
+
+.page-title h1 {
+  font-size: 28px;
+  line-height: 1.15;
+  margin: 0 0 2px;
 }
 
 .page-title p {
@@ -761,13 +776,13 @@ nav a.active svg {
     padding: 4px;
   }
   .main-content {
-    padding: 28px;
+    padding: 16px 28px 28px;
   }
   .order-line {
     grid-template-columns: repeat(3, 1fr);
   }
   .topbar {
-    padding: 20px;
+    padding: 8px 20px;
   }
 }
 
@@ -784,8 +799,9 @@ nav a.active svg {
   }
   .topbar {
     height: auto;
+    min-height: var(--topbar-h);
     flex-wrap: wrap;
-    padding: 16px;
+    padding: 8px 16px;
     gap: 10px;
   }
   .org-select {
@@ -809,12 +825,21 @@ nav a.active svg {
     display: none;
   }
   .main-content {
-    padding: 24px 16px;
+    padding: 12px 16px 24px;
   }
-  .page-title {
+  .page-title,
+  .orders-page-header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
+    padding: 6px 0 8px;
+    margin-bottom: 12px;
+  }
+  .page-title h1 {
+    font-size: 22px;
+  }
+  .page-title p {
+    font-size: 13px;
   }
   h1 {
     font-size: 28px;

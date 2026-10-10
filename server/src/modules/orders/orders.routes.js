@@ -3,10 +3,12 @@ import { can } from '../../middleware/rbac.js';
 import { validate, idParam } from '../../middleware/validate.js';
 import { send } from '../../utils/http.js';
 import * as s from './orders.service.js';
+import { ordersSummary } from './orders.summary.js';
 import { createOrderSchema, orderQuery, confirmSchema, cancelSchema } from './orders.schema.js';
 
 const r = Router();
 
+r.get('/orders/summary', can('orders.view'), send(() => ordersSummary()));
 r.get('/orders', can('orders.view'), validate({ query: orderQuery }), send((req) => s.listOrders(req.ctx, req.valid.query)));
 r.post('/orders', can('orders.create'), validate({ body: createOrderSchema }), send((req) => s.createOrder(req.ctx, req.valid.body), 201));
 r.get('/orders/:id', can('orders.view'), validate({ params: idParam }), send((req) => s.getOrder(req.ctx, req.valid.params.id)));

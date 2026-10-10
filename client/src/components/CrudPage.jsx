@@ -33,7 +33,7 @@ function Control({ field }) {
  *   toForm         (row) => form values when editing
  */
 export default function CrudPage({
-  eyebrow = 'SETUP', title, description, path, params, perms = {}, updateMethod = 'PATCH', columns, fields,
+  title, description, path, params, perms = {}, updateMethod = 'PATCH', columns, fields,
   body, toForm, noun = 'record', search = false, extraActions, embedded = false,
 }) {
   const session = useSession();
@@ -100,7 +100,7 @@ export default function CrudPage({
   if (embedded) return <>{perms.create && session.can(perms.create) && <div style={{ marginBottom: 12 }}><Button type="primary" onClick={() => openForm()}>Add {noun}</Button></div>}{content}</>;
   return (
     <>
-      <PageTitle eyebrow={eyebrow} title={title} description={description} action={perms.create && session.can(perms.create) && <Button type="primary" onClick={() => openForm()}>Add {noun}</Button>} />
+      <PageTitle title={title} description={description} action={perms.create && session.can(perms.create) && <Button type="primary" onClick={() => openForm()}>Add {noun}</Button>} />
       {content}
     </>
   );

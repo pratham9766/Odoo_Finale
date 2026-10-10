@@ -51,6 +51,8 @@ export const releaseReservations = (db, orderId) =>
  * the reservations consumed. Throws INSUFFICIENT_STOCK when the reservations don't cover a line.
  * Returns the created material_issues rows.
  */
+const ISSUE_TOLERANCE = 0.005;
+
 export async function issueForWorkOrder(db, ctx, { workOrderId, orderId, items }) {
   const issued = [];
   for (const { item_id: itemId, qty } of items) {
@@ -86,7 +88,7 @@ export async function issueForWorkOrder(db, ctx, { workOrderId, orderId, items }
       issued.push(mi);
       left = round3(left - take);
     }
-    if (left > 0.0005) {
+    if (left > ISSUE_TOLERANCE) {   // reservations are rounded to 3 places per lot, so a few grams of rounding is not a shortage
       throw new AppError(409, 'INSUFFICIENT_STOCK', `Not enough reserved stock to issue ${round3(qty)} (short by ${left})`, { item_id: itemId, short: left });
     }
   }

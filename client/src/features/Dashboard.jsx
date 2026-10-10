@@ -81,7 +81,6 @@ export default function Dashboard() {
     <div className="dash-layout">
     <div className="dashboard">
       <header className="dash-hero">
-        <div className="eyebrow">{session.context.mill.name}</div>
         <h1>Dashboard</h1>
         <p>Welcome, {name}. Here is the mill right now.</p>
       </header>

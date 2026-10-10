@@ -93,7 +93,7 @@ export default function Finance() {
   const session = useSession();
   return (
     <>
-      <PageTitle eyebrow="ACCOUNTS" title="Accounts" description="Invoices made from dispatches, the payments against them, what the mill spends, and who owes whom." />
+      <PageTitle title="Accounts" description="Invoices made from dispatches, the payments against them, what the mill spends, and who owes whom." />
       <section className="panel">
         <Tabs items={[
           ...(session.can('invoice.view') ? [{ key: 'inv', label: 'Sales invoices', children: <Invoices /> }, { key: 'rec', label: 'Receivables', children: <Dues kind="receivables" /> }] : []),

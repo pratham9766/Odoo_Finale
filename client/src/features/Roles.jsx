@@ -132,7 +132,6 @@ export default function Roles() {
   return (
     <>
       <PageTitle
-        eyebrow="ADMIN"
         title="Roles & permissions"
         description="Create roles and tick exactly what each one can view, create, update and delete. Then invite people into them from Staff."
         action={session.can('roles.create') && <Button type="primary" onClick={() => openForm(null)}>New role</Button>}

@@ -9,4 +9,4 @@ export function Status({ value }) {
   const color = ['passed','delivered','material_ready','running'].includes(value) ? 'green' : ['breakdown','rejected','cancelled'].includes(value) ? 'red' : ['draft','idle'].includes(value) ? 'default' : 'blue';
   return <Tag color={color}>{(value || 'Unknown').replaceAll('_', ' ')}</Tag>;
 }
-export function PageTitle({ eyebrow = 'MILL OPERATIONS', title, description, action }) { return <header className="page-title"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{description}</p></div>{action}</header>; }
+export function PageTitle({ title, description, action }) { return <header className="page-title"><div><h1>{title}</h1><p>{description}</p></div>{action}</header>; }

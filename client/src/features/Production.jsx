@@ -35,7 +35,7 @@ export function MachineBoard({ mine = false, floor = false }) {
   const kpis = board.payload?.kpis;
   return (
     <>
-      <PageTitle eyebrow={floor ? 'MY SHIFT' : 'PRODUCTION'} title={mine ? 'My machines' : 'Machine board'}
+      <PageTitle title={mine ? 'My machines' : 'Machine board'}
         description={mine ? 'The machines you are assigned to this shift. Log your output here.' : 'Live status of every machine, and today’s output.'}
         action={<Button onClick={() => board.refetch()} loading={board.isFetching}>Refresh</Button>} />
       {kpis && !mine && (
@@ -78,7 +78,7 @@ export function WorkOrders() {
   const assign = (id, machine_id) => act.mutate({ method: 'PATCH', path: `/work-orders/${id}`, body: { machine_id } });
   return (
     <>
-      <PageTitle eyebrow="PRODUCTION" title="Work orders" description="One work order per stage of an order. Put planned work on a machine, then start it." />
+      <PageTitle title="Work orders" description="One work order per stage of an order. Put planned work on a machine, then start it." />
       <section className="panel">
         <Select allowClear placeholder="All statuses" value={status} onChange={setStatus} style={{ width: 180, marginBottom: 12 }} options={['planned', 'running', 'paused', 'done', 'cancelled'].map((v) => ({ value: v, label: v }))} />
         <QueryState query={list}>
@@ -142,7 +142,7 @@ export function Assignments({ embedded = false }) {
       )}
     </section>
   );
-  return embedded ? body : <><PageTitle eyebrow="PRODUCTION" title="Assignments" description="Put workers on machines for a shift." />{body}</>;
+  return embedded ? body : <><PageTitle title="Assignments" description="Put workers on machines for a shift." />{body}</>;
 }
 
 export function Maintenance() {
@@ -155,7 +155,7 @@ export function Maintenance() {
   const canFix = session.can('maintenance.fix') || session.can('breakdown.close');
   return (
     <>
-      <PageTitle eyebrow="PRODUCTION" title="Maintenance" description="Breakdown tickets. Starting a fix marks the machine under maintenance; resolving it puts the machine back to idle." />
+      <PageTitle title="Maintenance" description="Breakdown tickets. Starting a fix marks the machine under maintenance; resolving it puts the machine back to idle." />
       <section className="panel">
         <Select allowClear placeholder="All tickets" value={status} onChange={setStatus} style={{ width: 180, marginBottom: 12 }} options={['open', 'in_progress', 'resolved'].map((v) => ({ value: v, label: v.replace('_', ' ') }))} />
         <QueryState query={list}>

@@ -70,7 +70,7 @@ export default function Reports() {
   const allowed = REPORTS.filter((r) => session.can(r.permission));
   return (
     <>
-      <PageTitle eyebrow="OWNER" title="Reports" description="Cost per order, production per machine, wages and profit. Every table can be downloaded as CSV." />
+      <PageTitle title="Reports" description="Cost per order, production per machine, wages and profit. Every table can be downloaded as CSV." />
       <section className="panel">
         {allowed.length === 0 ? <NoData description="Your role has no report permissions." /> : <Tabs destroyInactiveTabPane items={allowed.map((r) => ({ key: r.name, label: r.title, children: <ReportView report={r} /> }))} />}
       </section>

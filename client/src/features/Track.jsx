@@ -5,14 +5,13 @@ import { request } from '@/lib/api';
 import { Status } from '@/components/States';
 import { date, quantity } from '@/lib/format';
 
-const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 /** The buyer's page: opened from the link the mill sends. No login, no prices. */
 export default function Track() {
   const { token } = useParams();
   const q = useQuery({
     queryKey: ['track', token],
-    queryFn: ({ signal }) => request(`/public/track/${encodeURIComponent(token)}`, { baseUrl, signal }),
+    queryFn: ({ signal }) => request(`/public/track/${encodeURIComponent(token)}`, { signal }),
     retry: false,
     refetchInterval: 60000,
   });

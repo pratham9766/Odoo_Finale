@@ -12,6 +12,7 @@ import { explode, summarize } from '../catalog/bom.service.js';
 import { reserveFifo, releaseReservations } from '../inventory/inventory.core.js';
 import { autoDraftPos } from '../procurement/procurement.service.js';
 import { applyStatus, PRE_PRODUCTION } from './orderStatus.js';
+import { BUCKETS } from './orders.summary.js';
 
 // ---------- helpers ----------
 
@@ -79,7 +80,9 @@ export const listOrders = (ctx, q) =>
   withTx(async (db) => {
     const w = where().add('o.risk = ?', q.risk);
     if (q.status) w.raw('o.status = any(?::text[])', q.status.split(','));
-    if (q.q) w.raw('o.order_no ilike ?', `%${q.q}%`);
+    if (q.priority) w.raw('o.priority = any(?::text[])', q.priority.split(','));
+    if (q.bucket) w.raw(BUCKETS[q.bucket]);
+    if (q.q) w.raw('(o.order_no ilike ? or c.name ilike ?)', `%${q.q}%`, `%${q.q}%`);
     const { rows, meta } = await paged(
       db,
       `select o.id, o.order_no, o.status, o.priority, o.deadline, o.progress_pct, o.current_stage, o.expected_completion,
@@ -87,6 +90,8 @@ export const listOrders = (ctx, q) =>
               c.name as buyer_name,
               (select coalesce(sum(l.qty), 0) from order_lines l where l.order_id = o.id) as total_qty,
               (select min(l.uom) from order_lines l where l.order_id = o.id) as uom,
+              (select i.name from order_lines l join items i on i.id = l.item_id where l.order_id = o.id order by l.qty desc limit 1) as fabric_name,
+              (select l.colour from order_lines l where l.order_id = o.id order by l.qty desc limit 1) as fabric_colour,
               (select coalesce(sum(l.qty * l.rate), 0) from order_lines l where l.order_id = o.id) as total
          from orders o left join contacts c on c.id = o.buyer_contact_id ${w.sql}`,
       w.params, q, 'deadline, created_at desc');

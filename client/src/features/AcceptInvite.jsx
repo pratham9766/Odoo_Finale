@@ -5,7 +5,6 @@ import { Alert, Button, Card, Divider, Form, Input, Result, Skeleton } from 'ant
 import { request } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
-const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const PHONE = /^\+?[0-9 ()-]{7,20}$/;
 
 /** Public page (no login): the person invited by email enters their details and picks a password. */
@@ -18,7 +17,7 @@ export default function AcceptInvite() {
 
   const invite = useQuery({
     queryKey: ['invite', token],
-    queryFn: ({ signal }) => request(`/public/invites/${encodeURIComponent(token)}`, { baseUrl, signal }),
+    queryFn: ({ signal }) => request(`/public/invites/${encodeURIComponent(token)}`, { signal }),
     retry: false,
   });
 
@@ -27,7 +26,7 @@ export default function AcceptInvite() {
     setExists(false);
     setSaving(true);
     try {
-      await request(`/public/invites/${encodeURIComponent(token)}/accept`, { baseUrl, method: 'POST', body: values });
+      await request(`/public/invites/${encodeURIComponent(token)}/accept`, { method: 'POST', body: values });
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: invite.data.data.email, password: values.password });
       navigate(signInError ? '/login' : '/app', { replace: true });
     } catch (err) {

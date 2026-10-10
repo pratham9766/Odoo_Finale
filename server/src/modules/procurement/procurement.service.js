@@ -19,12 +19,12 @@ export async function insertPo(db, ctx, { supplier_contact_id = null, for_order_
   const poNo = await nextNumber(db, 'PO');
   const { rows: [po] } = await db.query(
     `insert into purchase_orders (po_no, supplier_contact_id, for_order_id, need_by, notes, created_by, created_at)
-     values ($1,$2,$3,$4,$5,$6,$7,$8, coalesce($9, now())) returning id, po_no`,
+     values ($1,$2,$3,$4,$5,$6, coalesce($7, now())) returning id, po_no`,
     [poNo, supplier_contact_id, for_order_id, need_by, notes, ctx.userId ?? null, at]);
   for (const l of lines) {
     await db.query(
       `insert into po_lines (po_id, item_id, description, supplier_item_ref, qty, uom, rate)
-       select $1,$2,$3,$4,$5,$6,$7, i.uom, $8 from items i where i.id = $4`,
+       select $1,$2,$3,$4,$5, i.uom, $6 from items i where i.id = $2`,
       [po.id, l.item_id, names.get(l.item_id), l.supplier_item_ref ?? null, l.qty, l.rate ?? 0]);
   }
   return po;
