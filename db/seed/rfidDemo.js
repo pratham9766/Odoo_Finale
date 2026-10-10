@@ -33,6 +33,22 @@ export async function seedRfidDemo(db, { deviceId, deviceKey } = {}, log = conso
     await db.query(`insert into rfid_devices (code, name, kind) values ('VIRTUAL_SCANNER', 'Virtual scanner (simulator)', 'virtual')
                     on conflict (code) do nothing`);
 
+    // a reset with another seed can recreate the roles without the RFID permissions (migration 020 only granted them once)
+    await db.query(`insert into permissions (key, domain, description, confidential) values
+       ('rfid.view','workforce','View RFID cards, scanners and scan history',false),
+       ('rfid.manage','workforce','Assign, replace and deactivate RFID cards; register scanners',false),
+       ('rfid.simulate','workforce','Use the virtual RFID scanner (demo / development only)',false)
+     on conflict (key) do nothing`);
+    const { rowCount: ownerGrants } = await db.query(
+      `insert into role_permissions (role_id, permission_key)
+       select r.id, p.key from roles r cross join permissions p where r.rank = 100 and p.key like 'rfid.%'
+       on conflict do nothing`);
+    const { rowCount: viewGrants } = await db.query(
+      `insert into role_permissions (role_id, permission_key)
+       select distinct rp.role_id, 'rfid.view' from role_permissions rp where rp.permission_key = 'attendance.view'
+       on conflict do nothing`);
+    if (ownerGrants + viewGrants) log(`  RFID permissions restored (${ownerGrants} owner, ${viewGrants} view grants)`);
+
     for (const d of DEMO_WORKERS) {
       // the stage of that name that has machines (the demo mill's later stages); null when there is none
       const { rows: [stage] } = d.stage
