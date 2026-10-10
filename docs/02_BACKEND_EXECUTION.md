@@ -216,7 +216,7 @@ db/
 │  007_production.sql         008_quality.sql           009_gate_dispatch_transport.sql
 │  010_workforce.sql          011_finance.sql           012_system_ai.sql
 │  013_rls.sql                014_functions.sql         015_views.sql
-│  016_grants.sql             017_seed_permissions.sql
+│  016_grants.sql             017_seed_permissions.sql  018_mobile.sql
 └─ seed/
    seed.js  config.js  generators/*.js
 ```
@@ -1072,6 +1072,47 @@ create table platform_announcements (
   created_at timestamptz not null default now()
 );
 ```
+
+### 5.13 `018_mobile.sql` (for the mobile app — see [04_MOBILE_APP_EXECUTION.md](04_MOBILE_APP_EXECUTION.md))
+
+```sql
+create table push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  expo_token text not null,
+  platform text not null check (platform in ('android','ios')),
+  device_name text,
+  active boolean not null default true,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (org_id, expo_token)
+);
+
+create table idempotency_keys (
+  org_id uuid not null references organizations(id) on delete cascade,
+  key text not null,
+  method text not null, path text not null,
+  status_code int not null, response jsonb,
+  created_at timestamptz not null default now(),
+  primary key (org_id, key)
+);
+
+create table print_queue (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  kind text not null check (kind in ('roll_label','worker_badge')),
+  ref_id uuid not null,
+  status text not null default 'pending' check (status in ('pending','printed')),
+  created_at timestamptz not null default now(), created_by uuid
+);
+
+select enable_tenant_rls(t) from unnest(array['push_tokens','idempotency_keys','print_queue']::regclass[]) as t;
+```
+
+- **Push sender** (`utils/push.js`): the notifier resolves target users (by `user_id` or `required_permission`), loads their active `push_tokens` for that org, and POSTs batches of up to 100 messages to `https://exp.host/--/api/v2/push/send` (`{ to, title, body, data: { url, type, id }, sound: 'default' }`). Tickets with `DeviceNotRegistered` set `active = false`. Never put amounts or wages in push text.
+- **Idempotency middleware** (`middleware/idempotency.js`): on POST / PATCH with an `Idempotency-Key` header, look up `(org_id, key)`. If found, return the stored status and response. If not, run the handler and store the result. A daily cron deletes keys older than 24 h.
+- **`client_time`**: production logs, rolls, QC inspections, breakdowns, trip status, attendance punches, gate entries and GRN post accept an optional `client_time`. It's used as the event time only if it's in the past 24 h and not in the future; otherwise the server time is used.
 
 ---
 
@@ -2201,6 +2242,19 @@ All paths are under `/api/v1`. "Perm" = required permission. Tenant routes need 
 | GET | `/ai/insights` · POST `/ai/insights/:id/dismiss` | member (filtered by `required_permission`) |
 | GET | `/public/track/:token` | none |
 | GET | `/admin/orgs` · POST `/admin/orgs/:id/status` · GET `/admin/usage` · POST `/admin/announcements` | `profiles.is_platform_admin` |
+
+### 10.13 Mobile app additions
+
+| Method | Path | Perm |
+|---|---|---|
+| POST | `/me/push-tokens` `{ token, org_id, platform, device_name }` | member of `org_id` |
+| DELETE | `/me/push-tokens/:token` | own token |
+| GET | `/app/version` | none — `{ min_version, latest_version }` |
+| GET | `/production/board?mine=true` | `production.log` — machines assigned to me this shift |
+| GET | `/supplier/quality-feedback` | `po.view` (supplier org) — defect rate per lot at each mill, via a security-definer summary (no mill internals) |
+| POST | `/rolls/:id/print` | `production.log` — adds a roll label to `print_queue` |
+| GET / POST | `/print-queue` · `/print-queue/:id/done` | `dispatch.view` or `receipt.create` |
+| — | `Idempotency-Key` header on queued POST / PATCH | same as the endpoint |
 
 ---
 
