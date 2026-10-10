@@ -11,8 +11,8 @@ export const poSchema = z.object({
   notes: z.string().max(1000).optional(),
   lines: z.array(z.object({
     item_id: uuid,
-    qty: z.number().positive(),
-    rate: z.number().min(0).default(0),
+    qty: z.number().positive().max(1e9),
+    rate: z.number().min(0).max(1e7).default(0),
     supplier_item_ref: z.string().trim().max(60).optional(),
   })).min(1),
 });

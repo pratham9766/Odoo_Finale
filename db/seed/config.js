@@ -128,6 +128,8 @@ export const PROFILE = {
       fibres, yarns, dyes, scrap, qualities,
       garments: [{ sku: 'GAR-SHIRT', name: "Men's formal shirt", std_rate: 480, quality: 'POP', fabric_m: 1.6, cutting_waste_pct: 10 }],
     },
+    // who the mill buys each kind of raw material from by default (used when an order's shortage drafts purchase orders)
+    preferredSuppliers: { fibre: 'Gujarat Cotton Traders', yarn: 'Supplier X Yarn Mills', dye: 'Dyechem Industries' },
     contacts: [
       { type: 'buyer', name: 'Urban Threads Apparel', city: 'Surat', phone: '+91 98250 11001', email: 'purchase@urbanthreads.demo', gstin: '24AABCU9603R1ZM', address: '45 Ring Road' },
       { type: 'buyer', name: 'Tiruppur Knit Exports', city: 'Tiruppur', phone: '+91 98430 22002', email: 'orders@tiruppurknit.demo', gstin: '33AAACT2211K1Z8', address: '12 Kangeyam Road' },

@@ -1,6 +1,8 @@
 // The one place that knows the business time zone. Timestamps are stored in UTC; people see Asia/Kolkata (backend plan §1).
 // India has no daylight saving, so a fixed +05:30 offset is exact and keeps all of this plain arithmetic.
 
+import { AppError } from './errors.js';
+
 export const TZ = 'Asia/Kolkata';
 const IST_OFFSET_MIN = 330;
 const MINUTE = 60_000;
@@ -43,6 +45,7 @@ export function nextMonthStart(date) {
 
 /** Date range for a report: what the caller sent, else the last `days` days up to today (both ends inclusive). */
 export function reportRange({ from, to } = {}, days = 30, now = new Date()) {
+  if (from && to && from > to) throw new AppError(422, 'VALIDATION_FAILED', 'The start date is after the end date');
   const end = to ?? todayIST(now);
   return { from: from ?? addDays(end, -(days - 1)), to: end };
 }

@@ -14,9 +14,9 @@ export const createOrderSchema = z.object({
     item_id: uuid,
     colour: z.string().max(50).optional(),
     description: z.string().max(200).optional(),
-    qty: z.number().positive(),
+    qty: z.number().positive().max(100_000_000),
     uom: z.enum(['m', 'kg', 'roll', 'pcs']),
-    rate: z.number().nonnegative().default(0),
+    rate: z.number().nonnegative().max(10_000_000).default(0),
   })).min(1),
 });
 

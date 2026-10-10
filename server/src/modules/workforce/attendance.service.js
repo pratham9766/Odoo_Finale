@@ -43,6 +43,7 @@ async function checkWorkers(db, ctx, ids) {
  */
 export async function saveAttendance(ctx, { date, shift_id: shiftId, entries }) {
   await withTx(async (db) => {
+    if (date > todayIST()) throw invalid('date', 'Attendance cannot be marked for a future date');
     await assertExists(db, 'shifts', shiftId, 'Shift');
     if (!isInScope(ctx, 'shift', shiftId)) throw new AppError(403, 'OUT_OF_SCOPE', 'This shift is outside your assigned area');
     const { rows: [shift] } = await db.query(`select id, name, start_time, end_time, grace_min from shifts where id = $1`, [shiftId]);

@@ -36,6 +36,9 @@ async function priceStripped(ctx, rows) {
 
 // ---------- create ----------
 
+// what the mill sells; fibre, dye, packing and scrap are inputs and can never be on a buyer's order
+const SELLABLE_KINDS = ['yarn', 'grey_fabric', 'finished_fabric', 'garment'];
+
 // `at` (optional, seed only) back-dates the order; HTTP never passes it
 export async function createOrder(ctx, input, { at = null } = {}) {
   // the mill records the order for one of its buyer contacts
@@ -45,9 +48,11 @@ export async function createOrder(ctx, input, { at = null } = {}) {
 
   const order = await withTx(async (db) => {
     must((await db.query(`select 1 from contacts where id = $1 and type = 'buyer'`, [input.buyer_contact_id])).rows[0], 'Buyer contact');
-    const { rows: items } = await db.query('select id, name from items where id = any($1) and active', [itemIds]);
+    const { rows: items } = await db.query('select id, name, kind from items where id = any($1) and active', [itemIds]);
     const names = new Map(items.map((i) => [i.id, i.name]));
     for (const l of input.lines) if (!names.has(l.item_id)) throw new AppError(422, 'VALIDATION_FAILED', 'One of the items is not available for order');
+    const unsellable = items.find((i) => !SELLABLE_KINDS.includes(i.kind));
+    if (unsellable) throw new AppError(422, 'VALIDATION_FAILED', `${unsellable.name} is a ${unsellable.kind.replaceAll('_', ' ')}: buyers can only order yarn, fabric or garments`);
 
     const orderNo = await nextNumber(db, 'ORD');
     const { rows: [o] } = await db.query(

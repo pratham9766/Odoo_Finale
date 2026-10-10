@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { optionalText, text, updateSchema, uuid } from '../../utils/crud/schema.js';
+import { gstinField } from '../../utils/gstin.js';
 import { MODULES } from './modules.catalog.js';
 
 export const stageIdParams = z.object({ stageId: uuid });
@@ -15,9 +16,7 @@ const isTimeZone = (tz) => {
 
 export const updateMillSchema = z.object({
   name: text(120).optional(),
-  gstin: z.string().trim().toUpperCase()
-    .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, 'GSTIN must be 15 characters, e.g. 27AAACE1234F1Z5')
-    .nullable().optional(),
+  gstin: gstinField.nullable().optional(),
   address: optionalText(500),
   city: optionalText(80),
   state: optionalText(80),

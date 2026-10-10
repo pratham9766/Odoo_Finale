@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { pageQuery, zBoolStr, zDate } from '../../middleware/validate.js';
 
 const uuid = z.string().uuid();
-const qty = z.number().finite();
+const qty = z.number().finite().min(-1e9).max(1e9);
 
 export const stockQuery = z.object({
   ...pageQuery,

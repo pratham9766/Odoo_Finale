@@ -6,6 +6,7 @@ const PG_MAP = {
   23514: [422, 'CHECK_FAILED', 'Value not allowed'],
   23502: [422, 'VALIDATION_FAILED', 'A required value is missing'],
   '22P02': [422, 'VALIDATION_FAILED', 'Invalid value format'],
+  '22003': [422, 'VALIDATION_FAILED', 'A number is too large'],
   42501: [403, 'FORBIDDEN', 'Not allowed'], // RLS violation
   57014: [504, 'TIMEOUT', 'Query took too long'],
 };
@@ -27,6 +28,9 @@ export function errorHandler(err, _req, res, _next) {
   }
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: { code: 'VALIDATION_FAILED', message: 'Malformed JSON body' } });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'The request is too large' } });
   }
   const byConstraint = err.constraint && CONSTRAINT_MAP[err.constraint];
   if (byConstraint) {

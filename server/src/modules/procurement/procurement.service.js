@@ -10,7 +10,7 @@ const PO_STATUS_FLOW = { accept: 'accepted', partial: 'partially_accepted', reje
 // ---------- shared insert (used by createPO and order auto-drafting) ----------
 
 export async function insertPo(db, ctx, { supplier_contact_id = null, for_order_id = null, need_by = null, notes = null, lines, at = null }) {
-  if (supplier_contact_id) must((await db.query('select 1 from contacts where id = $1', [supplier_contact_id])).rows[0], 'Supplier contact');
+  if (supplier_contact_id) must((await db.query(`select 1 from contacts where id = $1 and type = 'supplier'`, [supplier_contact_id])).rows[0], 'Supplier contact');
   const { rows: items } = await db.query('select id, name from items where id = any($1)', [lines.map((l) => l.item_id)]);
   const names = new Map(items.map((i) => [i.id, i.name]));
   for (const l of lines) if (!names.has(l.item_id)) throw notFound('Item');
@@ -68,7 +68,7 @@ export const listPos = (ctx, q) =>
     const { rows, meta } = await paged(
       db,
       `select p.id, p.po_no, p.status, p.need_by, p.promise_date, p.created_at, p.for_order_id,
-              coalesce(so.name, c.name) as supplier_name, bo.name as buyer_name,
+              c.name as supplier_name,
               (select count(*)::int from po_lines l where l.po_id = p.id) as line_count,
               (select coalesce(sum(l.qty * l.rate), 0) from po_lines l where l.po_id = p.id) as total
          from purchase_orders p left join contacts c on c.id = p.supplier_contact_id ${w.sql}`,
