@@ -1,0 +1,374 @@
+/* SAMETA — Global styles
+   Tailwind preflight is OFF (AntD manages base resets)
+   This file provides: layout shell rules, global typography, custom utilities */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Reset: full-width workspace, no Vite starter centering ─────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  background-color: #F5F7F9;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── AntD layout shell overrides ───────────────────────────────────────── */
+.ant-layout {
+  min-height: 100dvh;
+  background: #F5F7F9;
+}
+
+.ant-layout-sider {
+  background: #14243E !important;
+}
+
+.ant-layout-sider .ant-menu {
+  background: transparent !important;
+  border-inline-end: none !important;
+}
+
+.ant-layout-sider .ant-menu-item,
+.ant-layout-sider .ant-menu-submenu-title {
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 6px !important;
+  margin: 2px 8px !important;
+  width: calc(100% - 16px) !important;
+}
+
+.ant-layout-sider .ant-menu-item:hover,
+.ant-layout-sider .ant-menu-submenu-title:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-layout-sider .ant-menu-item-selected {
+  background: #007780 !important;
+  color: #ffffff !important;
+}
+
+.ant-layout-sider .ant-menu-sub {
+  background: transparent !important;
+}
+
+.ant-layout-sider .ant-menu-sub .ant-menu-item {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.ant-layout-sider .ant-menu-sub .ant-menu-item-selected {
+  background: #007780 !important;
+  color: #ffffff !important;
+}
+
+/* ─── Main content: never constrained ───────────────────────────────────── */
+.tl-main-content {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 24px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .tl-main-content {
+    padding: 12px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .tl-main-content {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .tl-main-content {
+    padding: 32px;
+  }
+}
+
+/* ─── Topbar ─────────────────────────────────────────────────────────────── */
+.tl-topbar {
+  background: #ffffff !important;
+  padding: 0 24px !important;
+  height: 64px !important;
+  line-height: 64px !important;
+  border-bottom: 1px solid #DCE4EA;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+@media (max-width: 768px) {
+  .tl-topbar {
+    padding: 0 12px !important;
+  }
+}
+
+/* ─── KPI Cards ──────────────────────────────────────────────────────────── */
+.tl-kpi-card {
+  background: #ffffff;
+  border: 1px solid #DCE4EA;
+  border-radius: 8px;
+  padding: 20px 24px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
+}
+
+.tl-kpi-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.tl-kpi-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 8px 0 0 8px;
+}
+
+.tl-kpi-card.status-ok::before    { background: #18794E; }
+.tl-kpi-card.status-warn::before  { background: #F08C00; }
+.tl-kpi-card.status-bad::before   { background: #B42318; }
+.tl-kpi-card.status-info::before  { background: #007780; }
+.tl-kpi-card.status-muted::before { background: #DCE4EA; }
+
+/* ─── Section cards ──────────────────────────────────────────────────────── */
+.tl-card {
+  background: #ffffff;
+  border: 1px solid #DCE4EA;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tl-card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #DCE4EA;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tl-card-body {
+  padding: 20px;
+}
+
+/* ─── Floor layout (phone/tablet) ────────────────────────────────────────── */
+.tl-floor-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #F5F7F9;
+}
+
+.tl-floor-header {
+  background: #14243E;
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.tl-floor-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+.tl-floor-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid #DCE4EA;
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 200;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+}
+
+.tl-floor-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  gap: 2px;
+  font-size: 11px;
+  color: #536278;
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-decoration: none;
+  min-height: 56px;
+  transition: color 0.15s;
+}
+
+.tl-floor-nav-item.active,
+.tl-floor-nav-item:hover {
+  color: #007780;
+}
+
+/* ─── BigButtons (floor screens) ─────────────────────────────────────────── */
+.tl-big-btn {
+  height: 64px !important;
+  font-size: 18px !important;
+  border-radius: 10px !important;
+}
+
+/* ─── Status badges custom colors ────────────────────────────────────────── */
+.tl-badge-running    { color: #18794E; background: #DCFCE7; border-color: #BBF7D0; }
+.tl-badge-idle       { color: #925400; background: #FEF3C7; border-color: #FDE68A; }
+.tl-badge-breakdown  { color: #B42318; background: #FEE2E2; border-color: #FECACA; }
+.tl-badge-pending    { color: #536278; background: #F5F7F9; border-color: #DCE4EA; }
+.tl-badge-passed     { color: #18794E; background: #DCFCE7; border-color: #BBF7D0; }
+.tl-badge-rework     { color: #1D4ED8; background: #DBEAFE; border-color: #BFDBFE; }
+.tl-badge-rejected   { color: #B42318; background: #FEE2E2; border-color: #FECACA; }
+
+/* ─── Machine card ───────────────────────────────────────────────────────── */
+.tl-machine-card {
+  background: #ffffff;
+  border: 1px solid #DCE4EA;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.tl-machine-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #007780;
+}
+
+.tl-machine-card.running  { border-top: 3px solid #18794E; }
+.tl-machine-card.idle     { border-top: 3px solid #F08C00; }
+.tl-machine-card.breakdown{ border-top: 3px solid #B42318; }
+.tl-machine-card.maintenance{ border-top: 3px solid #536278; }
+
+/* ─── Demo indicator ─────────────────────────────────────────────────────── */
+.tl-demo-banner {
+  background: #FEF3C7;
+  border-bottom: 1px solid #FDE68A;
+  padding: 4px 24px;
+  font-size: 12px;
+  color: #925400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── Public/auth layouts ────────────────────────────────────────────────── */
+.tl-auth-layout {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 45% 55%;
+  background: #14243E;
+}
+
+@media (max-width: 1023px) {
+  .tl-auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tl-auth-side-panel {
+    display: none;
+  }
+}
+
+.tl-auth-form-panel {
+  background: #F5F7F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  overflow-y: auto;
+}
+
+.tl-auth-form-inner {
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+}
+
+/* ─── Table utilities ─────────────────────────────────────────────────────── */
+.tl-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* ─── Landing page ───────────────────────────────────────────────────────── */
+.tl-landing-hero {
+  background: #14243E;
+  color: white;
+  padding: 80px 24px;
+}
+
+@media (max-width: 768px) {
+  .tl-landing-hero {
+    padding: 48px 16px;
+  }
+}
+
+/* ─── Attendance grid ────────────────────────────────────────────────────── */
+.tl-attend-cell {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.tl-attend-cell.P  { background: #DCFCE7; color: #18794E; }
+.tl-attend-cell.A  { background: #FEE2E2; color: #B42318; }
+.tl-attend-cell.H  { background: #FEF3C7; color: #925400; }
+.tl-attend-cell.L  { background: #DBEAFE; color: #1D4ED8; }
+.tl-attend-cell.OT { background: #EDE9FE; color: #6D28D9; font-size: 9px; }
+.tl-attend-cell.na  { background: #F5F7F9; color: #536278; }
+
+/* ─── Print styles ───────────────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+}
+
+/* ─── Reduce motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
