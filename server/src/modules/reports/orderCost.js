@@ -1,4 +1,4 @@
-// Cost per order (reports.cost 🔒): revenue, material, labour, machine, freight, profit and margin for each order (v_order_cost).
+// Cost per order (reports.cost 🔒): revenue, material, labour, machine, profit and margin for each order (v_order_cost).
 
 import { withTx } from '../../db/tx.js';
 import { rangeQuery } from '../../utils/crud/index.js';

@@ -1,4 +1,4 @@
-// Wage runs, advances and payslips (backend plan §10.10). Wages are confidential (🔒). Absolute paths, like attendance.routes.js.
+// Wage runs and payslips (backend plan §10.10). Wages are confidential (🔒). Absolute paths, like attendance.routes.js.
 //   GET/POST /wages/runs, GET /wages/runs/:id      wages.view / wages.run
 //   POST /wages/runs/:id/approve | /pay            wages.pay   (the approver is not the preparer when somebody else can approve)
 //   GET /wages/payslips/:workerId?month=&format=   wages.view, or the worker's own payslip (checked in the service)

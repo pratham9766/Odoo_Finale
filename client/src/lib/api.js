@@ -28,3 +28,18 @@ export async function request(path, { token, method = 'GET', body, signal, baseU
     throw new ApiError(error.name === 'AbortError' ? 'The request timed out. Check your connection and try again.' : 'Cannot reach the server. Check your connection and try again.');
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }
+
+/** Download a PDF/CSV that needs the login token: fetch it, then hand it to the browser as a file. */
+export async function download(path, { token, baseUrl = 'http://localhost:4000', filename }) {
+  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1${cleanPath(path)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new ApiError(payload?.error?.message || `Download failed (${response.status}).`, response.status, payload?.error?.code);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

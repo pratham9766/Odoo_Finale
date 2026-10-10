@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Alert, Button, Drawer } from 'antd';
+import NotificationBell from '@/components/NotificationBell';
 import { useSession } from '@/context/Session';
 
-function LogoWeaveIcon({ size = 26 }) {
+export function LogoWeaveIcon({ size = 26 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M7 14L22 29M14 7L29 22" stroke="#d0af71" strokeWidth="2.4" strokeLinecap="round" />
@@ -13,38 +14,53 @@ function LogoWeaveIcon({ size = 26 }) {
   );
 }
 
-function Icon({ children }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 10 }}>
-      {children}
-    </svg>
-  );
-}
-
-const ICONS = {
-  home: <><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
-  orders: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></>,
-  stock: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></>,
-  production: <><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></>,
-  staff: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
-  roles: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></>,
-};
+// An entry shows when the person holds any one of its permissions. `perms: null` = everyone.
+const NAV = [
+  { items: [{ to: '/app', label: 'Dashboard', end: true }] },
+  { caption: 'SALES', items: [
+    { to: '/app/orders', label: 'Orders', perms: ['orders.view'] },
+    { to: '/app/contacts', label: 'Buyers & suppliers', perms: ['contacts.view'] },
+  ] },
+  { caption: 'STORES', items: [
+    { to: '/app/stock', label: 'Inventory', perms: ['stock.view'] },
+    { to: '/app/receipts', label: 'Goods receipts', perms: ['receipt.view', 'receipt.create'] },
+    { to: '/app/items', label: 'Items', perms: ['items.view'] },
+    { to: '/app/boms', label: 'Recipes (BOM)', perms: ['bom.view'] },
+  ] },
+  { caption: 'PRODUCTION', items: [
+    { to: '/app/production', label: 'Machine board', perms: ['production.view'] },
+    { to: '/app/work-orders', label: 'Work orders', perms: ['production.view'] },
+    { to: '/app/assignments', label: 'Assignments', perms: ['assignment.view', 'assignment.create'] },
+    { to: '/app/maintenance', label: 'Maintenance', perms: ['breakdown.report', 'maintenance.fix', 'breakdown.close'] },
+    { to: '/app/machines', label: 'Machines', perms: ['machines.view'] },
+  ] },
+  { caption: 'QUALITY & DISPATCH', items: [
+    { to: '/app/quality', label: 'Quality control', perms: ['qc.view'] },
+    { to: '/app/dispatch', label: 'Dispatch', perms: ['dispatch.view'] },
+  ] },
+  { caption: 'PEOPLE', items: [
+    { to: '/app/attendance', label: 'Attendance', perms: ['attendance.view'] },
+    { to: '/app/workers', label: 'Workers', perms: ['workers.view'] },
+    { to: '/app/wages', label: 'Wages', perms: ['wages.view'] },
+  ] },
+  { caption: 'MONEY', items: [
+    { to: '/app/finance', label: 'Accounts', perms: ['invoice.view', 'payment.view', 'expense.view'] },
+    { to: '/app/reports', label: 'Reports', perms: ['reports.cost', 'reports.pnl', 'reports.production', 'reports.qc', 'reports.attendance', 'wages.view'] },
+  ] },
+  { caption: 'ADMIN', items: [
+    { to: '/app/staff', label: 'Staff', perms: ['staff.view'] },
+    { to: '/app/roles', label: 'Roles & permissions', perms: ['roles.view'] },
+    { to: '/app/settings', label: 'Mill settings', perms: ['settings.update', 'settings.create'] },
+  ] },
+];
 
 export default function AppLayout() {
   const session = useSession();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(null);
   const close = () => setOpen(false);
-
-  // every entry shows only when the role has the permission; Workspace is open to everyone
-  const link = (to, label, icon, permission, extra = {}) =>
-    (!permission || session.can(permission)) && (
-      <NavLink to={to} onClick={close} {...extra}>
-        <Icon>{ICONS[icon]}</Icon>
-        {label}
-      </NavLink>
-    );
-  const showAdmin = session.can('staff.view') || session.can('roles.view');
+  const allowed = (item) => !item.perms || item.perms.some((p) => session.can(p));
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length);
 
   const nav = (
     <>
@@ -52,26 +68,14 @@ export default function AppLayout() {
         <LogoWeaveIcon size={28} />
         <span style={{ color: '#ffffff', letterSpacing: '-0.5px' }}>sameta</span>
       </div>
-
-      <div className="nav-caption">WORKSPACE</div>
-
-      <nav aria-label="Main navigation">
-        {link('/app', 'Workspace', 'home', null, { end: true })}
-        {link('/app/orders', 'Orders', 'orders', 'orders.view')}
-        {link('/app/stock', 'Inventory', 'stock', 'stock.view')}
-        {link('/app/production', 'Production floor', 'production', 'production.view')}
-      </nav>
-
-      {showAdmin && (
-        <>
-          <div className="nav-caption">ADMIN</div>
-          <nav aria-label="Administration">
-            {link('/app/staff', 'Staff', 'staff', 'staff.view')}
-            {link('/app/roles', 'Roles & permissions', 'roles', 'roles.view')}
+      {groups.map((g, i) => (
+        <div key={g.caption || i}>
+          {g.caption && <div className="nav-caption">{g.caption}</div>}
+          <nav aria-label={g.caption || 'Main navigation'}>
+            {g.items.map((item) => <NavLink key={item.to} to={item.to} end={item.end} onClick={close}>{item.label}</NavLink>)}
           </nav>
-        </>
-      )}
-
+        </div>
+      ))}
       <div className="sidebar-footer">
         CONNECTED MILL OPERATIONS
         <br />
@@ -90,9 +94,7 @@ export default function AppLayout() {
 
       <div className="workspace">
         <header className="topbar">
-          <Button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation">
-            Menu
-          </Button>
+          <Button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation">Menu</Button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, fontWeight: 600, color: '#192A51' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -104,22 +106,11 @@ export default function AppLayout() {
           </div>
 
           <div className="topbar-right">
+            <NotificationBell />
             <Link to="/app/profile" className="role-label" title="My profile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {session.context.user?.full_name || session.context.user?.email} · {session.context.role.name}
             </Link>
-
-            <Button
-              style={{ borderRadius: 8, height: 36, borderColor: '#e5e7eb' }}
-              onClick={async () => {
-                try {
-                  await session.signOut();
-                } catch (err) {
-                  setError(err.message);
-                }
-              }}
-            >
-              Sign out
-            </Button>
+            <Button style={{ borderRadius: 8, height: 36, borderColor: '#e5e7eb' }} onClick={async () => { try { await session.signOut(); } catch (err) { setError(err.message); } }}>Sign out</Button>
           </div>
         </header>
 
@@ -128,9 +119,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
 
-        <footer className="workspace-footer">
-          SAMETA <span>Mill operations, in sync.</span>
-        </footer>
+        <footer className="workspace-footer">SAMETA <span>Mill operations, in sync.</span></footer>
       </div>
     </div>
   );

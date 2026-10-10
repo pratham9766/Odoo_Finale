@@ -1,0 +1,65 @@
+/* Styles for the operations screens (dashboard, production, QC, dispatch, finance, floor). */
+
+/* a row of headline numbers */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-main);
+  border-radius: 10px;
+  color: var(--text-primary);
+}
+a.kpi:hover { border-color: var(--c-mauve-primary); }
+.kpi span { font-size: 12px; letter-spacing: 0.02em; color: var(--text-secondary); }
+.kpi strong { font-size: 24px; line-height: 1.15; }
+.kpi small { font-size: 12px; color: var(--text-muted); }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.grid-2 > .panel { margin-bottom: 16px; }
+
+.panel h3 { margin: 0 0 12px; color: var(--text-primary); font-size: 16px; }
+
+/* output of the last 7 days: one column per day */
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 110px; margin-top: 8px; }
+.bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; }
+.bar i { width: 100%; background: var(--c-mauve-primary); border-radius: 4px 4px 0 0; min-height: 4px; }
+.bar small { font-size: 11px; color: var(--text-muted); }
+
+/* machine cards: keep the action buttons inside the card */
+.machine-card .ant-progress { margin: 6px 0 0; }
+
+/* shop-floor layout for tablets: bigger targets, no sidebar */
+.floor-shell { min-height: 100vh; background: var(--bg-app); }
+.floor-top {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 16px; background: var(--c-navy-deep); color: #fff;
+}
+.floor-brand { display: flex; align-items: center; gap: 8px; margin-right: auto; }
+.floor-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.floor-tabs a {
+  padding: 10px 18px; border-radius: 8px; color: #e7e1ee; font-weight: 600; font-size: 16px;
+}
+.floor-tabs a.active { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.floor-right { display: flex; align-items: center; gap: 12px; }
+.floor-right button { color: #fff; }
+.floor-user { color: #e7e1ee; }
+.floor-main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+.floor-main .ant-btn { min-height: 40px; }
+.floor-main .ant-table { font-size: 15px; }
+
+@media (max-width: 640px) {
+  .kpi strong { font-size: 20px; }
+}

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Spin } from 'antd';
 import { supabase } from '@/lib/supabase';
-import { request } from '@/lib/api';
+import { request, download } from '@/lib/api';
 import { QueryState } from '@/components/States';
 import Login from '@/features/Login';
 
@@ -54,6 +54,7 @@ function MillSession({ session, children }) {
   const permissions = data.permissions || [];
   const value = {
     userId, api, signOut,
+    download: (path, filename) => download(path, { token, baseUrl, filename }),
     context: { mill: data.mill, role: data.role, user: data.user, permissions, scope: data.scope || {} },
     can: permission => permissions.includes(permission),
     refreshAccess: () => access.refetch(),
