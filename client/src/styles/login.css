@@ -460,6 +460,12 @@ body:has(.login-view-root)::-webkit-scrollbar-thumb:hover {
   letter-spacing: -0.2px;
 }
 
+.metric-negative-trend {
+  color: #fca5a5;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
 /* Tablet Device Mockup */
 .tablet-preview-stage {
   max-width: 680px;

@@ -50,7 +50,7 @@ export default function Wages() {
   const list = useGet('/wages/runs', { limit: 50 });
   return (
     <>
-      <PageTitle eyebrow="WORKFORCE" title="Wages" description="Month-end pay worked out from attendance, overtime and piece work. Prepare the run, check it, approve it, then mark it paid."
+      <PageTitle title="Wages" description="Month-end pay worked out from attendance, overtime and piece work. Prepare the run, check it, approve it, then mark it paid."
         action={session.can('wages.run') && (
           <Space>
             <Input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ width: 160 }} />

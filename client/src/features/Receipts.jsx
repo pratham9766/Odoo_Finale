@@ -14,7 +14,7 @@ export function Receipts() {
   const list = useGet('/receipts', { limit: 100, status });
   return (
     <>
-      <PageTitle eyebrow="INVENTORY" title="Goods receipts" description="Yarn and material arriving at the gate. A receipt adds to stock only when it is posted."
+      <PageTitle title="Goods receipts" description="Yarn and material arriving at the gate. A receipt adds to stock only when it is posted."
         action={session.can('receipt.create') && <Link to="/app/receipts/new"><Button type="primary">New receipt</Button></Link>} />
       <section className="panel">
         <Select allowClear placeholder="All statuses" value={status} onChange={setStatus} style={{ width: 180, marginBottom: 12 }}
@@ -49,7 +49,7 @@ export function NewReceipt() {
 
   return (
     <>
-      <PageTitle eyebrow="INVENTORY" title="New goods receipt" description="Enter what arrived. Save it as a draft, check it, then post it to add it to stock." />
+      <PageTitle title="New goods receipt" description="Enter what arrived. Save it as a draft, check it, then post it to add it to stock." />
       <section className="panel form-panel">
         <Form form={form} layout="vertical" requiredMark={false} onFinish={submit} initialValues={{ lines: [{ rate: 0 }] }}>
           <div className="form-grid">
@@ -93,7 +93,7 @@ export function ReceiptDetail() {
   return (
     <>
       <Link to="/app/receipts">← All receipts</Link>
-      <PageTitle eyebrow="INVENTORY" title={g?.grn_no || 'Goods receipt'} description="Posting adds the received quantities to stock, one lot per line."
+      <PageTitle title={g?.grn_no || 'Goods receipt'} description="Posting adds the received quantities to stock, one lot per line."
         action={g?.status === 'draft' && (
           <Space>
             {session.can('receipt.post') && <Popconfirm title="Post this receipt into stock?" onConfirm={() => act.mutate({ path: `/receipts/${id}/post` })}><Button type="primary" loading={act.isPending}>Post to stock</Button></Popconfirm>}

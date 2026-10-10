@@ -80,7 +80,7 @@ export function Quality({ floor = false }) {
   const s = summary.payload;
   return (
     <>
-      <PageTitle eyebrow={floor ? 'QC STATION' : 'QUALITY'} title="Quality control" description="Inspect each roll: pass, rework or reject. Every result stays on the roll's trace." />
+      <PageTitle title="Quality control" description="Inspect each roll: pass, rework or reject. Every result stays on the roll's trace." />
       {s && (
         <div className="kpi-row">
           <div className="kpi"><span>Waiting for QC</span><strong>{s.queue?.pending_qc ?? 0}</strong></div>
@@ -112,7 +112,7 @@ export function RollTrace() {
   return (
     <>
       <Link to="/app/quality">← Quality</Link>
-      <PageTitle eyebrow="TRACEABILITY" title={`Roll ${rollNo}`} description="From yarn lot to buyer." action={session.can('production.log') && <Button onClick={() => session.download(`/rolls/${encodeURIComponent(rollNo)}/label.pdf`, `label-${rollNo}.pdf`)}>Print label</Button>} />
+      <PageTitle title={`Roll ${rollNo}`} description="From yarn lot to buyer." action={session.can('production.log') && <Button onClick={() => session.download(`/rolls/${encodeURIComponent(rollNo)}/label.pdf`, `label-${rollNo}.pdf`).catch(() => {})}>Print label</Button>} />
       <QueryState query={trace}>
         {t && (
           <>

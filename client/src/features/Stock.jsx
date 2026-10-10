@@ -88,7 +88,7 @@ export default function Stock() {
   const session = useSession();
   return (
     <>
-      <PageTitle eyebrow="INVENTORY" title="Inventory" description="What is on hand, reserved and ready for the next order, and the finished rolls waiting for dispatch."
+      <PageTitle title="Inventory" description="What is on hand, reserved and ready for the next order, and the finished rolls waiting for dispatch."
         action={session.can('receipt.view') || session.can('receipt.create') ? <Link to="/app/receipts"><Button>Goods receipts</Button></Link> : null} />
       <section className="panel">
         <Tabs items={[

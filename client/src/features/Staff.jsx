@@ -111,7 +111,6 @@ export default function Staff() {
   return (
     <>
       <PageTitle
-        eyebrow="ADMIN"
         title="Staff"
         description="Invite people by email. They set their own password and fill in their details."
         action={session.can('staff.create') && <Button type="primary" onClick={() => setInviteOpen(true)}>Invite staff</Button>}

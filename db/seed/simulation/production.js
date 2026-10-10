@@ -34,7 +34,7 @@ const nextBreakdownAfter = (sim, at) => sim.after(at, sim.rng.int(PATTERNS.break
 export async function breakdown(sim, machine, down) {
   const hours = sim.rng.int(PATTERNS.breakdownHours.min, PATTERNS.breakdownHours.max);
   const fault = sim.rng.pick(FAULTS);
-  const ticket = await reportBreakdown(sim.ctx.prod, machine.id, { reason: fault, priority: hours > 4 ? 'high' : 'medium' }, { at: down });
+  const ticket = await reportBreakdown(sim.ctx.prod, machine.id, { reason: fault, priority: hours > 4 ? 'high' : 'normal' }, { at: down });
   await startTicket(sim.ctx.maint, ticket.id, { at: sim.after(down, sim.rng.int(15, 45)) });
   const back = sim.after(down, hours * 60);
   await resolveTicket(sim.ctx.maint, ticket.id, { resolution: `${fault}: repaired`, parts_used: sim.rng.chance(0.5) ? 'Spare kit' : null }, { at: back });

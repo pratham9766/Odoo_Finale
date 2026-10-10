@@ -3,45 +3,17 @@
    ========================================================================= */
 
 .orders-page-container {
-  max-width: 1560px;
-  margin: 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 
-/* Page Header */
-.orders-page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 24px;
-  position: relative;
-}
-
-.orders-page-header::before {
-  content: "";
-  position: absolute;
-  top: -20px;
-  right: 0;
-  width: 480px;
-  height: 120px;
-  background: radial-gradient(ellipse at top right, rgba(208, 175, 113, 0.08) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.orders-header-eyebrow {
-  font-size: 11px;
-  letter-spacing: 2px;
-  font-weight: 700;
-  color: #8b95a5;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
+/* Page Header: layout + sticky behaviour live in index.css (shared with .page-title) */
 .orders-header-title {
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 750;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
   color: #111827;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   line-height: 1.15;
 }
 
@@ -778,32 +750,27 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 1280px) {
-  .kpi-summary-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* below this the register needs the full width; the widgets wrap underneath it */
+/* below this width the register would be squeezed, so the widgets move under it as a row of cards */
 @media (max-width: 1440px) {
   .orders-main-split {
     grid-template-columns: minmax(0, 1fr);
   }
   .orders-widgets-column {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     align-items: start;
+  }
+}
+@media (max-width: 1280px) {
+  .kpi-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 768px) {
+  .orders-header-title { font-size: 22px; }
   .kpi-summary-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .orders-page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
   }
   .order-filters-bar {
     flex-wrap: wrap;
@@ -819,3 +786,20 @@
 .order-register-panel .ant-table-tbody > tr > td {
   padding-inline: 10px;
 }
+
+/* KPI cards are links to the filtered register */
+a.kpi-card { display: block; color: inherit; text-decoration: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+a.kpi-card:hover { color: inherit; border-color: var(--c-gold-bright); box-shadow: 0 4px 14px rgba(16, 60, 50, 0.08); }
+.kpi-icon-square.blue { background: #e8f0fe; color: #2563eb; }
+.kpi-icon-square.amber { background: #fdf3dc; color: #d97706; }
+.kpi-icon-square.red { background: #fde8e6; color: #dc2626; }
+
+.order-bucket-chip {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  padding: 4px 6px 4px 12px; border-radius: 999px; background: #f1eee6; font-size: 13px; font-weight: 600; color: var(--c-ink);
+}
+.order-bucket-chip button { border: 0; background: transparent; cursor: pointer; font-size: 16px; line-height: 1; color: var(--text-secondary); padding: 0 6px; }
+
+.attention-widget-header { margin-bottom: 4px; }
+.attention-widget-link { color: #92400e; }
+.dispatch-empty { text-align: center; padding: 14px 0; font-size: 12.5px; margin: 0; }

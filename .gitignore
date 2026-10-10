@@ -7,3 +7,6 @@ coverage/
 dist/
 .DS_Store
 server/.demo-accounts.local.json
+
+# Vite dependency pre-bundle cache
+.vite/

@@ -10,6 +10,7 @@ import { dailyProcurement, openingStock, provisionOrder } from './procurement.js
 import { produceOrder, scheduleBreakdowns } from './production.js';
 import { qcRolls, shipOrder } from './sales.js';
 import { approveOvertime, attendanceDay, monthlyExpenses, wageRun } from './people.js';
+import { extras } from './extras.js';
 import { loadWorld } from './world.js';
 
 const DOWN_MACHINE = 'W-5';              // the machine that is broken down right now
@@ -168,6 +169,7 @@ export async function finish(sim) {
   const orders = await sim.sql(`select id from orders`);
   for (const { id } of orders) await recomputeOrderStatus(id);
 
+  await extras(sim);
   await consistencyChecks(sim);
   return {};
 }

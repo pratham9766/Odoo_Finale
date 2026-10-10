@@ -32,7 +32,7 @@ export default function Profile() {
 
   return (
     <>
-      <PageTitle eyebrow="ACCOUNT" title="My profile" description={<>{session.context.mill.name} · <Tag color="blue">{session.context.role.name}</Tag></>} />
+      <PageTitle title="My profile" description={<>{session.context.mill.name} · <Tag color="blue">{session.context.role.name}</Tag></>} />
       <section className="panel" style={{ maxWidth: 640 }}>
         <QueryState query={me}>
           <Form

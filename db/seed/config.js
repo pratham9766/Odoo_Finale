@@ -136,6 +136,26 @@ export const PROFILE = {
       { type: 'supplier', name: 'Supplier X Yarn Mills', city: 'Coimbatore', phone: '+91 98940 55005', email: 'dispatch@supplierx.demo', gstin: '33AAACS5566N1Z2', address: '77 Avinashi Road' },
       { type: 'supplier', name: 'Dyechem Industries', city: 'Ahmedabad', phone: '+91 98790 66006', email: 'orders@dyechem.demo', gstin: '24AAACD6677P1Z9', address: 'Naroda GIDC' },
     ],
+    // the rest of the team: roles the owner would create in Settings → Roles, three of them with a login and two still invited by email.
+    // Permission patterns: an exact key, or "domain.*" for every key of that domain.
+    team: {
+      roles: [
+        { name: 'Production Manager', rank: 70, perms: ['orders.*', 'production.*', 'assignment.*', 'machine.*', 'machines.view', 'breakdown.*', 'maintenance.fix', 'qc.view', 'dispatch.*', 'stock.view', 'items.view', 'bom.view', 'contacts.view', 'attendance.*', 'workers.view', 'reports.production', 'reports.qc', 'reports.attendance'] },
+        { name: 'QC Inspector', rank: 40, perms: ['qc.*', 'production.view', 'orders.view', 'items.view'] },
+        { name: 'Accountant', rank: 60, perms: ['invoice.*', 'payment.*', 'expense.*', 'po.view', 'orders.view', 'orders.view_price', 'contacts.view', 'wages.*', 'workers.view', 'reports.cost', 'reports.pnl', 'reports.attendance'] },
+        { name: 'Store Keeper', rank: 40, perms: ['stock.*', 'receipt.*', 'po.*', 'items.view', 'bom.view', 'contacts.view', 'orders.view'] },
+        { name: 'Floor Supervisor', rank: 50, perms: ['production.view', 'production.log', 'assignment.*', 'attendance.mark', 'attendance.view', 'breakdown.report', 'machines.view', 'workers.view'] },
+      ],
+      users: [
+        { email: 'manager@everest.demo', name: 'Suresh Patel', role: 'Production Manager', phone: '+91 98250 71001', city: 'Surat' },
+        { email: 'qc@everest.demo', name: 'Kavita Desai', role: 'QC Inspector', phone: '+91 98250 71002', city: 'Surat' },
+        { email: 'accounts@everest.demo', name: 'Nilesh Shah', role: 'Accountant', phone: '+91 98250 71003', city: 'Surat' },
+      ],
+      invites: [
+        { email: 'store@everest.demo', role: 'Store Keeper' },
+        { email: 'supervisor@everest.demo', role: 'Floor Supervisor' },
+      ],
+    },
     // scope names are resolved to ids; empty / missing scope = the whole mill
     // the only login: the owner. Everyone else is invited by email from Settings → Staff, with roles the owner creates.
     users: [

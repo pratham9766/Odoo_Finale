@@ -128,7 +128,7 @@ export default function Attendance({ floor = false }) {
   const session = useSession();
   return (
     <>
-      <PageTitle eyebrow={floor ? 'SUPERVISOR' : 'WORKFORCE'} title="Attendance" description="Mark who is in, see who is absent, and keep the monthly register that wages are worked out from." />
+      <PageTitle title="Attendance" description="Mark who is in, see who is absent, and keep the monthly register that wages are worked out from." />
       <section className="panel">
         <Tabs items={[
           { key: 'today', label: 'Today', children: <Today /> },

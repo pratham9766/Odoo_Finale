@@ -12,6 +12,7 @@ import { seedCatalog } from './generators/catalog.js';
 import { seedContacts } from './generators/contacts.js';
 import { seedFactory } from './generators/factory.js';
 import { seedMill } from './generators/mill.js';
+import { seedTeam } from './generators/team.js';
 import { seedWorkers } from './generators/workers.js';
 import { createRng } from './lib/rng.js';
 import { loadServerEnv, requireServer } from '../lib/serverDeps.js';
@@ -40,13 +41,14 @@ export async function seedAll(db, { createUser, createDefaultRoles, log = () => 
     const catalog = await seedCatalog(db, PROFILE, factory);
     const contacts = await seedContacts(db, PROFILE);
     const access = await seedAccess(db, PROFILE, { ...factory, ...workers }, { createUser, createDefaultRoles });
+    const team = await seedTeam(db, PROFILE, { createUser });
 
     const summary = {
       name: mill.name,
       machines: Object.keys(factory.machineId).length, workers: Object.keys(workers.workerId).length,
-      items: Object.keys(catalog.itemId).length, boms: catalog.bomCount, contacts: contacts.length, users: access.users,
+      items: Object.keys(catalog.itemId).length, boms: catalog.bomCount, contacts: contacts.length, users: access.users + team.users, roles: team.roles + 1,
     };
-    log(`${mill.name}: ${summary.machines} machines, ${summary.workers} workers, ${summary.items} items, ${summary.boms} BOMs, ${summary.contacts} buyers/suppliers, ${summary.users} logins`);
+    log(`${mill.name}: ${summary.machines} machines, ${summary.workers} workers, ${summary.items} items, ${summary.boms} BOMs, ${summary.contacts} buyers/suppliers, ${summary.roles} roles, ${summary.users} logins`);
     await db.query('commit');
     return summary;
   } catch (err) {
@@ -56,6 +58,9 @@ export async function seedAll(db, { createUser, createDefaultRoles, log = () => 
 }
 
 // ---- command line -------------------------------------------------------------------------
+
+// plain local Postgres (docker) needs no SSL; Supabase does
+const sslFor = (url) => (/localhost|127\.0\.0\.1/.test(url) ? false : { rejectUnauthorized: false });
 
 const need = (name) => process.env[name] || (() => { throw new Error(`${name} is not set (see server/.env.example)`); })();
 
@@ -70,10 +75,17 @@ async function main() {
   const { supabaseUserCreator } = await import('./supabaseUsers.js');
   const { createDefaultRoles } = await import('../../server/src/modules/staff/defaultRoles.js');
 
-  const createUser = await supabaseUserCreator({ url: need('SUPABASE_URL'), serviceKey: need('SUPABASE_SERVICE_ROLE_KEY'), password: DEMO_PASSWORD });
-  const client = new pg.Client({ connectionString: need('MIGRATION_DATABASE_URL'), ssl: { rejectUnauthorized: false } });
+  const createRemoteUser = await supabaseUserCreator({ url: need('SUPABASE_URL'), serviceKey: need('SUPABASE_SERVICE_ROLE_KEY'), password: DEMO_PASSWORD });
+  const client = new pg.Client({ connectionString: need('MIGRATION_DATABASE_URL'), ssl: sslFor(need('MIGRATION_DATABASE_URL')) });
   client.on('error', (e) => console.warn(`[seed] masters connection dropped after use (${e.code ?? e.message}); not needed any more`));
   await client.connect();
+  const isLocal = !sslFor(need('MIGRATION_DATABASE_URL'));
+  // on a local database the login still lives in Supabase Auth; its id is mirrored into the local auth.users stub so foreign keys hold
+  const createUser = async (user) => {
+    const id = await createRemoteUser(user);
+    if (isLocal) await client.query('insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing', [id, user.email]);
+    return id;
+  };
   try {
     await seedAll(client, { createUser, createDefaultRoles, log: console.log });
 
@@ -81,7 +93,7 @@ async function main() {
       const { simulate } = await import('./simulation/run.js');
       const days = Number(flag('days')) || undefined;
       // a long job must survive a dropped connection: a pool reconnects, and one retry covers the query that was in flight
-      const pool = new pg.Pool({ connectionString: need('MIGRATION_DATABASE_URL'), ssl: { rejectUnauthorized: false }, max: 3, keepAlive: true, keepAliveInitialDelayMillis: 10_000 });
+      const pool = new pg.Pool({ connectionString: need('MIGRATION_DATABASE_URL'), ssl: sslFor(need('MIGRATION_DATABASE_URL')), max: 3, keepAlive: true, keepAliveInitialDelayMillis: 10_000 });
       pool.on('error', (e) => console.warn(`[seed] idle connection dropped (${e.code ?? e.message}); reconnecting on next query`));
       const TRANSIENT = new Set(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', '57P01', '08006', '08003']);
       const admin = {
@@ -112,5 +124,5 @@ async function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((err) => { console.error(`\nSeed failed: ${err.message}`); process.exit(1); });
+  main().catch((err) => { console.error(`\nSeed failed: ${err.message}`); if (process.env.SEED_DEBUG) console.error(err.stack, err.details ?? ""); process.exit(1); });
 }
