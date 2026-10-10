@@ -115,7 +115,7 @@ export default function Orders() {
   const [lastRefreshed] = useState(() => new Date());
 
   const query = useQuery({
-    queryKey: [session.userId, session.orgId, 'orders', page, status, q, priority],
+    queryKey: [session.userId, 'orders', page, status, q, priority],
     queryFn: ({ signal }) => {
       const searchParams = new URLSearchParams({ page: String(page), limit: '25' });
       if (status) searchParams.set('status', status);

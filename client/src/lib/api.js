@@ -6,8 +6,8 @@ export class ApiError extends Error {
   }
 }
 
-// Capture credentials and tenant per request; never mutate a global org header.
-export async function request(path, { token, orgId, method = 'GET', body, signal, baseUrl = 'http://localhost:4000' } = {}) {
+// Credentials are captured per request. There is one mill, so no tenant header is sent.
+export async function request(path, { token, method = 'GET', body, signal, baseUrl = 'http://localhost:4000' } = {}) {
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
@@ -16,7 +16,7 @@ export async function request(path, { token, orgId, method = 'GET', body, signal
   try {
     const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/v1${cleanPath(path)}`, {
       method, signal: controller.signal,
-      headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(orgId ? { 'x-org-id': orgId } : {}) },
+      headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const payload = await response.json().catch(() => null);

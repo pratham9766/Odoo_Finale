@@ -1,15 +1,7 @@
 import { useState } from 'react';
-import { Alert, Button, Dropdown, Form, Input } from 'antd';
+import { Alert, Button, Form, Input } from 'antd';
 import { supabase } from '@/lib/supabase';
-import DemoLogin from './DemoLogin';
 import '@/styles/login.css';
-
-const LANG_MENU_ITEMS = [
-  { key: 'EN', label: 'EN' },
-  { key: 'HN', label: 'HN' },
-  { key: 'MR', label: 'MR' },
-  { key: 'KN', label: 'KN' },
-];
 
 /* Symmetrical woven lattice logo icon */
 function LogoWeaveIcon({ size = 28 }) {
@@ -83,7 +75,6 @@ function OrdersDocumentIcon() {
 export default function Login({ initialError }) {
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
-  const [currentLang, setCurrentLang] = useState('EN');
 
   async function submit(values) {
     setBusy(true);
@@ -110,25 +101,6 @@ export default function Login({ initialError }) {
         </div>
         <div className="login-nav-right">
           <span className="nav-platform-tag">Textile Operations Platform</span>
-          <span className="nav-divider">|</span>
-          <a href="#help" className="nav-help-link" onClick={e => e.preventDefault()}>Help</a>
-          <Dropdown
-            menu={{
-              items: LANG_MENU_ITEMS,
-              selectable: true,
-              selectedKeys: [currentLang],
-              onClick: ({ key }) => setCurrentLang(key),
-            }}
-            trigger={['click']}
-            placement="bottomRight"
-          >
-            <button className="nav-lang-picker" type="button" aria-label="Select Language">
-              <span>{currentLang}</span>
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </Dropdown>
         </div>
       </header>
 
@@ -213,11 +185,6 @@ export default function Login({ initialError }) {
                 </div>
               </Form>
 
-              {import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_SWITCHER === 'true' && (
-                <div className="login-card-demo-wrapper">
-                  <DemoLogin />
-                </div>
-              )}
             </section>
           </div>
 
