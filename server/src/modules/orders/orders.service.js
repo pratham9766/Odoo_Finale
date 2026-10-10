@@ -103,7 +103,9 @@ export const listOrders = (ctx, q) =>
               so.name as seller_name, coalesce(bo.name, c.name) as buyer_name,
               (select coalesce(sum(l.qty), 0) from order_lines l where l.order_id = o.id) as total_qty,
               (select min(l.uom) from order_lines l where l.order_id = o.id) as uom,
-              (select coalesce(sum(l.qty * l.rate), 0) from order_lines l where l.order_id = o.id) as total
+              (select coalesce(sum(l.qty * l.rate), 0) from order_lines l where l.order_id = o.id) as total,
+              (select min(coalesce(l.description, i.name)) from order_lines l left join items i on i.id = l.item_id where l.order_id = o.id) as fabric_name,
+              (select min(l.colour) from order_lines l where l.order_id = o.id) as fabric_colour
          from orders o join organizations so on so.id = o.seller_org_id
          left join organizations bo on bo.id = o.buyer_org_id left join contacts c on c.id = o.buyer_contact_id ${w.sql}`,
       w.params, q, 'deadline, created_at desc');
