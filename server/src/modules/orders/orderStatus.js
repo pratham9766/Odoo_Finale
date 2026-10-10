@@ -31,13 +31,14 @@ export async function estimateCompletion(db, orderId) {
 }
 
 // writes the status + order event inside the caller's transaction; returns { changed, from, to }
-export async function applyStatus(db, orderId, to, { visibleToBuyer = true } = {}) {
+// `at` (optional) back-dates the order event; the seed replays history with it
+export async function applyStatus(db, orderId, to, { visibleToBuyer = true, at = null } = {}) {
   const { rows: [o] } = await db.query('select status from orders where id = $1 for update', [orderId]);
   if (!o || o.status === to) return { changed: false, from: o?.status, to };
   await db.query('update orders set status = $2 where id = $1', [orderId, to]);
   await db.query(
-    `insert into order_events (order_id, seller_org_id, buyer_org_id, event, visible_to_buyer)
-     select id, seller_org_id, buyer_org_id, $2, $3 from orders where id = $1`, [orderId, to, visibleToBuyer]);
+    `insert into order_events (order_id, seller_org_id, buyer_org_id, event, visible_to_buyer, created_at)
+     select id, seller_org_id, buyer_org_id, $2, $3, coalesce($4, now()) from orders where id = $1`, [orderId, to, visibleToBuyer, at]);
   return { changed: true, from: o.status, to };
 }
 

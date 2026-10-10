@@ -1,13 +1,15 @@
-// owner: Hrishikesh (shared helpers; extend freely)
-export const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-export const round3 = (n) => Math.round((Number(n) + Number.EPSILON) * 1000) / 1000;
+// Money helpers. Amounts are INR numeric(14,2); values from pg may be numbers or strings.
 
-export const inr = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n ?? 0);
+const grouped = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// GST-style line: amount = qty × rate, tax on top
-export function lineAmount(qty, rate, taxPct = 0) {
-  const amount = round2(qty * rate);
-  const tax = round2((amount * taxPct) / 100);
-  return { amount, tax, total: round2(amount + tax) };
-}
+/** Round to paise. EPSILON keeps 1.005 → 1.01 instead of 1.00. */
+export const round2 = (v) => Math.round((Number(v) + Number.EPSILON) * 100) / 100;
+
+/** 1234567.5 → "12,34,567.50" (Indian digit grouping). */
+export const formatAmount = (v) => grouped.format(Number(v ?? 0));
+
+/** 1234567.5 → "₹12,34,567.50". PDFs pass symbol "Rs. " because the built-in fonts have no ₹ glyph. */
+export const formatINR = (v, symbol = '₹') => `${symbol}${formatAmount(v)}`;
+
+// Kept so existing imports of round3 from money.js keep working; the definition lives in textile.js.
+export { round3 } from './textile.js';

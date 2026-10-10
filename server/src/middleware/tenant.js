@@ -52,3 +52,17 @@ export async function tenant(req, _res, next) {
     next(err);
   }
 }
+
+/**
+ * Contract (seed simulation, scripts): the same ctx the tenant middleware builds, for a user acting in an org outside HTTP.
+ * Throws NOT_A_MEMBER when the user has no active membership.
+ */
+export async function loadContext(orgId, userId) {
+  const m = await withTenant({ orgId, userId }, async (db) => {
+    const row = await loadMemberContext(db, userId, orgId);
+    const { rows: [p] } = await db.query('select email from profiles where id = $1', [userId]);
+    return row && { ...row, email: p?.email ?? null };
+  });
+  if (!m) throw new AppError(403, 'NOT_A_MEMBER', 'User is not a member of this organization');
+  return buildCtx({ id: userId, email: m.email }, orgId, m);
+}

@@ -40,7 +40,8 @@ async function priceStripped(ctx, rows) {
 
 // ---------- create ----------
 
-export async function createOrder(ctx, input) {
+// `at` (optional, seed only) back-dates the order; HTTP never passes it
+export async function createOrder(ctx, input, { at = null } = {}) {
   const isBuyerPlacing = input.seller_org_id !== ctx.orgId;
   const sellerOrgId = input.seller_org_id;
   const buyerOrgId = isBuyerPlacing ? ctx.orgId : input.buyer_org_id ?? null;
@@ -48,7 +49,7 @@ export async function createOrder(ctx, input) {
     throw new AppError(422, 'VALIDATION_FAILED', 'Choose a connected buyer or an offline buyer contact');
   }
   if (buyerOrgId && input.buyer_contact_id) throw new AppError(422, 'VALIDATION_FAILED', 'Use either a connected buyer or a contact');
-  if (input.deadline < new Date().toISOString().slice(0, 10)) throw new AppError(422, 'VALIDATION_FAILED', 'Deadline is in the past');
+  if (input.deadline < new Date(at ?? Date.now()).toISOString().slice(0, 10)) throw new AppError(422, 'VALIDATION_FAILED', 'Deadline is in the past');
 
   // item names for the order lines (a buyer cannot read the seller's items, so the snapshot is taken here)
   const itemIds = input.lines.map((l) => l.item_id);
@@ -66,10 +67,11 @@ export async function createOrder(ctx, input) {
     const orderNo = isBuyerPlacing ? `REQ-${Date.now().toString(36).toUpperCase()}${randomCode(2).toUpperCase()}` : await nextNumber(db, ctx.orgId, 'ORD');
     const { rows: [o] } = await db.query(
       `insert into orders (order_no, seller_org_id, buyer_org_id, buyer_contact_id, buyer_ref, deadline, priority,
-                           delivery_address, notes, status, created_by)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10) returning *`,
+                           delivery_address, notes, status, created_by, created_at, order_date)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10, coalesce($11::timestamptz, now()),
+               coalesce(($11::timestamptz at time zone 'Asia/Kolkata')::date, current_date)) returning *`,
       [orderNo, sellerOrgId, buyerOrgId, input.buyer_contact_id ?? null, input.buyer_ref ?? null, input.deadline, input.priority,
-       input.delivery_address ?? null, input.notes ?? null, ctx.userId]);
+       input.delivery_address ?? null, input.notes ?? null, ctx.userId, at]);
     for (const l of input.lines) {
       await db.query(
         `insert into order_lines (order_id, seller_org_id, buyer_org_id, item_id, colour, description, qty, uom, rate)
@@ -77,8 +79,8 @@ export async function createOrder(ctx, input) {
         [o.id, sellerOrgId, buyerOrgId, l.item_id, l.colour ?? null, l.description ?? names.get(l.item_id), l.qty, l.uom, l.rate]);
     }
     await db.query(
-      `insert into order_events (order_id, seller_org_id, buyer_org_id, event, created_by) values ($1,$2,$3,'created',$4)`,
-      [o.id, sellerOrgId, buyerOrgId, ctx.userId]);
+      `insert into order_events (order_id, seller_org_id, buyer_org_id, event, created_by, created_at) values ($1,$2,$3,'created',$4, coalesce($5, now()))`,
+      [o.id, sellerOrgId, buyerOrgId, ctx.userId, at]);
     await audit(db, ctx, { action: 'create', table: 'orders', id: o.id, after: { order_no: o.order_no } });
     return o;
   });
@@ -189,13 +191,13 @@ export const requirements = (ctx, id) =>
   });
 
 // release + re-reserve; idempotent, so it serves confirm, the manual "reserve" button and the GRN listener
-async function reserveOrderMaterial(db, ctx, orderId) {
+async function reserveOrderMaterial(db, ctx, orderId, at = null) {
   await releaseReservations(db, orderId);
   const trees = await explodeOrder(db, orderId);
   const short = new Map(); // item_id -> extra qty that could not be reserved (concurrent consumption)
   const walk = async (n) => {
     if (n.from_stock > 0) {
-      const got = await reserveFifo(db, ctx, { orderId, itemId: n.item.id, qty: n.from_stock });
+      const got = await reserveFifo(db, ctx, { orderId, itemId: n.item.id, qty: n.from_stock, at });
       if (got < n.from_stock - 0.0005) short.set(n.item.id, round3((short.get(n.item.id) ?? 0) + n.from_stock - got));
     }
     for (const c of n.children) await walk(c);
@@ -210,15 +212,15 @@ async function reserveOrderMaterial(db, ctx, orderId) {
   return { trees, summary, ready: summary.buy_list.length === 0 };
 }
 
-export const reserve = (ctx, id) => runReserve(ctx, id);
+export const reserve = (ctx, id, { at = null } = {}) => runReserve(ctx, id, at);
 
-async function runReserve(ctx, id) {
+async function runReserve(ctx, id, at = null) {
   const res = await withTenant(ctx, async (db) => {
     const o = await loadOrderRow(db, id, { lock: true });
     assertSeller(ctx, o);
     if (!PRE_PRODUCTION.includes(o.status)) throw new AppError(409, 'INVALID_STATE_TRANSITION', `Material is already committed (order is ${o.status})`);
-    const r = await reserveOrderMaterial(db, ctx, id);
-    const change = await applyStatus(db, id, r.ready ? 'material_ready' : 'waiting_material', { visibleToBuyer: r.ready });
+    const r = await reserveOrderMaterial(db, ctx, id, at);
+    const change = await applyStatus(db, id, r.ready ? 'material_ready' : 'waiting_material', { visibleToBuyer: r.ready, at });
     return { order: o, summary: r.summary, ready: r.ready, change };
   });
   if (res.change.changed) {
@@ -240,7 +242,7 @@ export async function recheckWaitingOrders(orgId) {
 
 // ---------- confirm / cancel / tracking ----------
 
-export async function confirmOrder(ctx, id, { auto_po = false } = {}) {
+export async function confirmOrder(ctx, id, { auto_po = false } = {}, { at = null } = {}) {
   const res = await withTenant(ctx, async (db) => {
     const o = await loadOrderRow(db, id, { lock: true });
     assertSeller(ctx, o);
@@ -248,11 +250,11 @@ export async function confirmOrder(ctx, id, { auto_po = false } = {}) {
 
     let orderNo = o.order_no;
     if (orderNo.startsWith('REQ-')) orderNo = await nextNumber(db, ctx.orgId, 'ORD'); // the mill's real number
-    await db.query(`update orders set order_no = $2, confirmed_at = now() where id = $1`, [id, orderNo]);
-    const confirmed = await applyStatus(db, id, 'confirmed');
+    await db.query(`update orders set order_no = $2, confirmed_at = coalesce($3, now()) where id = $1`, [id, orderNo, at]);
+    const confirmed = await applyStatus(db, id, 'confirmed', { at });
 
-    const r = await reserveOrderMaterial(db, ctx, id);
-    const material = await applyStatus(db, id, r.ready ? 'material_ready' : 'waiting_material', { visibleToBuyer: r.ready });
+    const r = await reserveOrderMaterial(db, ctx, id, at);
+    const material = await applyStatus(db, id, r.ready ? 'material_ready' : 'waiting_material', { visibleToBuyer: r.ready, at });
     let drafts = { pos: [], unassigned: r.summary.buy_list };
     if (auto_po && r.summary.buy_list.length) {
       drafts = await autoDraftPos(db, ctx, { orderId: id, buyList: r.summary.buy_list, needBy: o.deadline });

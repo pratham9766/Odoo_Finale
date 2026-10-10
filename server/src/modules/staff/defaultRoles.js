@@ -107,3 +107,24 @@ export function defaultRolesFor(types, allPermissions) {
   }
   return [...byName.values()];
 }
+
+/**
+ * Contract (seed + onboarding): create the default roles and their permissions for an org.
+ * `db` must run with app_org() = orgId (withTenant) or bypass RLS (the seed's migration role).
+ * @returns {Promise<Map<string, string>>} role name → role id
+ */
+export async function createDefaultRoles(db, orgId, types) {
+  const { rows: perms } = await db.query('select key, domain from permissions');
+  const ids = new Map();
+  for (const def of defaultRolesFor(types, perms)) {
+    const { rows: [r] } = await db.query(
+      `insert into roles (org_id, name, rank, is_system) values ($1,$2,$3,true) returning id`, [orgId, def.name, def.rank]);
+    ids.set(def.name, r.id);
+    if (def.perms.size) {
+      await db.query(
+        `insert into role_permissions (role_id, permission_key, org_id) select $1, k, $2 from unnest($3::text[]) k`,
+        [r.id, orgId, [...def.perms]]);
+    }
+  }
+  return ids;
+}

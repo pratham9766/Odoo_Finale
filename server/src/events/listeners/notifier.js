@@ -1,7 +1,6 @@
 import { on } from '../bus.js';
 import { withSystem } from '../../db/withTenant.js';
 import { notify } from '../../modules/notifications/notify.js';
-import { env } from '../../config/env.js';
 import email from '../../utils/email.js';
 
 // Notifications fan out per event (event catalog §12). Each handler writes into the
@@ -53,7 +52,7 @@ export function registerNotifier() {
       return MAIL_STATUS.has(to) ? emailsWithPermission(db, buyerOrgId, 'orders.view') : [];
     });
     if (mails.length) {
-      await email.send({ to: mails, template: 'order_status', data: { order_no: orderNo, mill, status: to, link: `${env.CLIENT_URL}/orders/${orderId}` } });
+      await email.send({ to: mails, template: 'order_status', data: { order_no: orderNo, mill_name: mill, status: to } });
     }
   });
 

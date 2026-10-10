@@ -6,7 +6,7 @@ import { sha256 } from '../../utils/otp.js';
 import { audit } from '../../utils/audit.js';
 import { emit } from '../../events/bus.js';
 import { loadMemberContext } from '../../middleware/tenant.js';
-import { defaultRolesFor } from '../staff/defaultRoles.js';
+import { createDefaultRoles } from '../staff/defaultRoles.js';
 
 const NO_ORG = (user) => ({ orgId: null, userId: user.id });
 
@@ -104,23 +104,8 @@ export async function createOrg(user, input) {
     );
 
     // default roles + permissions
-    const { rows: perms } = await db.query('select key, domain from permissions');
-    const defs = defaultRolesFor(input.types, perms);
-    let ownerRoleId;
-    for (const def of defs) {
-      const { rows: [r] } = await db.query(
-        `insert into roles (org_id, name, rank, is_system) values ($1,$2,$3,true) returning id`,
-        [orgId, def.name, def.rank],
-      );
-      if (def.name === 'Owner') ownerRoleId = r.id;
-      if (def.perms.size) {
-        await db.query(
-          `insert into role_permissions (role_id, permission_key, org_id)
-           select $1, k, $2 from unnest($3::text[]) k`,
-          [r.id, orgId, [...def.perms]],
-        );
-      }
-    }
+    const roles = await createDefaultRoles(db, orgId, input.types);
+    const ownerRoleId = roles.get('Owner');
     await db.query(`insert into memberships (org_id, user_id, role_id) values ($1,$2,$3)`, [orgId, user.id, ownerRoleId]);
 
     if (input.types.includes('manufacturer')) {
@@ -136,10 +121,10 @@ export async function createOrg(user, input) {
         );
       }
       for (const sh of input.shifts?.length ? input.shifts : DEFAULT_SHIFTS) {
-        const crosses = sh.end_time <= sh.start_time;
+        // crosses_midnight is a generated column (010)
         await db.query(
-          `insert into shifts (org_id, name, start_time, end_time, grace_min, crosses_midnight) values ($1,$2,$3,$4,$5,$6)`,
-          [orgId, sh.name, sh.start_time, sh.end_time, sh.grace_min ?? 10, crosses],
+          `insert into shifts (org_id, name, start_time, end_time, grace_min) values ($1,$2,$3,$4,$5)`,
+          [orgId, sh.name, sh.start_time, sh.end_time, sh.grace_min ?? 10],
         );
       }
       for (const [code, name, sev] of DEFECTS) {

@@ -186,11 +186,11 @@ The six scenes we must solve:
 │                                                                            │
 │ Event bus → status engine · notifier · socket emitter · audit              │
 │ Cron → low stock · deadline risk · overdue · absent alerts · insights      │
-│ pdfkit · Resend/Nodemailer · Claude API                                    │
+│ pdfkit · Resend/Nodemailer · Gemini API                                    │
 └──────┬──────────────────────┬──────────────────────┬───────────────────────┘
        │ pg as app_user       │ pg as ai_reader       │ HTTPS
 ┌──────▼──────────────────────▼───────┐      ┌────────▼─────────┐
-│ SUPABASE                             │      │ Claude API       │
+│ SUPABASE                             │      │ Gemini API       │
 │ PostgreSQL + RLS · Auth · Storage    │      │ NL→SQL, insights │
 └──────────────────────────────────────┘      └──────────────────┘
 ```
@@ -239,11 +239,11 @@ Frontend: useSocketEvent → queryClient.invalidateQueries(...)
 ```
 Question → POST /api/v1/ai/chat
   → prompt with allowed view schemas (filtered by user permissions) + examples + today + history
-  → Claude returns structured JSON {sql, chart, explanation}
+  → Gemini returns structured JSON {sql, chart, explanation}
   → sqlGuard (SELECT/WITH only, allowed views only, LIMIT, no comments/semicolons)
   → run as ai_reader, READ ONLY transaction, statement_timeout 5s, app.org_id from session
-  → rows → Claude writes a short answer → UI shows answer + table + chart + "View SQL"
-Cron (daily) → insight SQL rules → Claude writes 1–2 lines → ai_insights → dashboard cards
+  → rows → Gemini writes a short answer → UI shows answer + table + chart + "View SQL"
+Cron (daily) → insight SQL rules → Gemini writes 1–2 lines → ai_insights → dashboard cards
 ```
 
 ### 6.6 Deployment
@@ -251,7 +251,7 @@ Cron (daily) → insight SQL rules → Claude writes 1–2 lines → ai_insights
 | Part | Host | Key env |
 |---|---|---|
 | Frontend | Vercel / Netlify | `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
-| Backend | Render / Railway | `DATABASE_URL` (app_user), `AI_DATABASE_URL` (ai_reader), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (storage/admin only), `ANTHROPIC_API_KEY`, `EMAIL_API_KEY`, `CLIENT_URL` |
+| Backend | Render / Railway | `DATABASE_URL` (app_user), `AI_DATABASE_URL` (ai_reader), `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (storage/admin only), `GEMINI_API_KEY`, `EMAIL_API_KEY`, `CLIENT_URL` |
 | Database | Supabase | SQL migrations in `db/migrations` |
 
 ---
@@ -266,7 +266,7 @@ Cron (daily) → insight SQL rules → Claude writes 1–2 lines → ai_insights
 | Database | **Supabase PostgreSQL** with RLS, views, constraints |
 | Auth | Supabase Auth |
 | Storage | Supabase Storage |
-| AI | Claude API via `@anthropic-ai/sdk` (model `claude-opus-5-5`; `claude-sonnet-5-5` if cost matters) |
+| AI | Google Gemini via `@google/genai` (model `gemini-3.5-flash-lite`, set with `AI_MODEL`) |
 | Email | Resend or Nodemailer |
 | Mobile app | Expo (React Native, JavaScript), Expo Router, React Native Paper, TanStack Query (persisted), expo-camera, expo-notifications, offline action queue |
 | Shared code | `packages/shared` (npm workspaces): API functions, query keys, status labels, formatters, permissions, textile maths |

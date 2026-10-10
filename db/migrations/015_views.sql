@@ -1,6 +1,9 @@
--- 015: reporting views (security_invoker so RLS applies to the caller)
--- owner: Hrishikesh (initial version extracted from docs/02_BACKEND_EXECUTION.md §7)
+-- 015_views.sql
+-- Reporting views (backend plan §7). Every view is security_invoker, so RLS applies to the caller;
+-- without it a view owned by postgres would bypass RLS.
+-- Depends on: 002–012 (all tables the views read).
 
+-- 7.1 Stock
 create view v_stock with (security_invoker = true) as
 select i.org_id, i.id as item_id, i.name, i.kind, i.colour, i.uom, i.reorder_level,
        coalesce(m.on_hand, 0) as on_hand,
@@ -29,6 +32,8 @@ select r.org_id, r.id as roll_id, r.roll_no, r.order_id, o.order_no, r.item_id, 
 from rolls r join orders o on o.id = r.order_id join items i on i.id = r.item_id
 where r.status in ('passed','packed');
 
+
+-- 7.2 Production, QC, wastage
 create view v_machine_board with (security_invoker = true) as
 select m.org_id, m.id as machine_id, m.code, m.status, m.status_since, s.name as stage, s.sequence,
        wo.id as work_order_id, wo.wo_no, o.order_no, wo.target_qty, wo.produced_qty,
@@ -59,17 +64,21 @@ group by 1, 2, 3;
 
 create view v_defects_by_cause with (security_invoker = true) as
 select d.org_id, dt.name as defect, q.inspected_at::date as day,
-       rh.machine_id, m.code as machine_code, rh.shift_id, r.dye_batch,
-       sl.supplier_org_id, sum(d.count) as defects
+       rh.machine_id, m.code as machine_code, rh.shift_id, sh.name as shift, r.dye_batch,
+       sl.supplier_org_id, coalesce(so.name, sc.name) as supplier, sum(d.count) as defects
 from qc_defects d
 join defect_types dt on dt.id = d.defect_type_id
 join qc_inspections q on q.id = d.inspection_id
 join rolls r on r.id = q.roll_id
 left join roll_history rh on rh.roll_id = r.id and rh.event = 'woven'
 left join machines m on m.id = rh.machine_id
+left join shifts sh on sh.id = rh.shift_id
 left join roll_yarn_lots ryl on ryl.roll_id = r.id
 left join stock_lots sl on sl.id = ryl.lot_id
-group by 1, 2, 3, 4, 5, 6, 7, 8;
+left join organizations so on so.id = sl.supplier_org_id
+left join contacts sc on sc.id = sl.supplier_contact_id
+group by d.org_id, dt.name, q.inspected_at::date, rh.machine_id, m.code, rh.shift_id, sh.name, r.dye_batch,
+         sl.supplier_org_id, coalesce(so.name, sc.name);
 
 create view v_wastage with (security_invoker = true) as
 select wo.org_id, wo.id as work_order_id, wo.wo_no, wo.order_id, wo.stage_id, s.name as stage,
@@ -84,6 +93,8 @@ left join (select work_order_id, sum(good_qty) as good_qty, sum(coalesce(good_we
                   sum(waste_qty) as waste_qty from work_order_outputs group by 1) out on out.work_order_id = wo.id
 where wo.status = 'done';
 
+
+-- 7.3 Workforce
 create view v_worker_hourly_cost with (security_invoker = true) as
 select w.org_id, w.id as worker_id,
        case w.wage_type when 'daily' then w.rate / 8.0 when 'hourly' then w.rate else 0 end as hourly_cost,
@@ -105,6 +116,8 @@ select wr.org_id, wr.month, wr.status, wl.worker_id, w.name, w.wage_type,
        wl.days, wl.hours, wl.ot_hours, wl.pieces, wl.gross, wl.advances, wl.deductions, wl.net
 from wage_runs wr join wage_lines wl on wl.wage_run_id = wr.id join workers w on w.id = wl.worker_id;
 
+
+-- 7.4 Order cost and P&L
 create view v_order_cost with (security_invoker = true) as
 with
 material as (
@@ -190,4 +203,3 @@ create view v_trip_status with (security_invoker = true) as
 select t.id as trip_id, t.trip_no, t.status, t.dispatch_id, t.transporter_org_id, t.requester_org_id,
        t.receiver_org_id, t.eta, t.delivered_at
 from trips t;
-

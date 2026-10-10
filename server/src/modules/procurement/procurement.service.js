@@ -12,7 +12,7 @@ const PO_STATUS_FLOW = { accept: 'accepted', partial: 'partially_accepted', reje
 
 // ---------- shared insert (used by createPO and order auto-drafting) ----------
 
-export async function insertPo(db, ctx, { supplier_org_id = null, supplier_contact_id = null, for_order_id = null, need_by = null, notes = null, lines }) {
+export async function insertPo(db, ctx, { supplier_org_id = null, supplier_contact_id = null, for_order_id = null, need_by = null, notes = null, lines, at = null }) {
   if (supplier_org_id && !(await isSupplierOf(db, supplier_org_id, ctx.orgId))) {
     throw new AppError(403, 'NOT_PARTNERS', 'This supplier is not connected to you');
   }
@@ -23,9 +23,9 @@ export async function insertPo(db, ctx, { supplier_org_id = null, supplier_conta
 
   const poNo = await nextNumber(db, ctx.orgId, 'PO');
   const { rows: [po] } = await db.query(
-    `insert into purchase_orders (po_no, buyer_org_id, supplier_org_id, supplier_contact_id, for_order_id, need_by, notes, created_by)
-     values ($1,$2,$3,$4,$5,$6,$7,$8) returning id, po_no`,
-    [poNo, ctx.orgId, supplier_org_id, supplier_contact_id, for_order_id, need_by, notes, ctx.userId ?? null]);
+    `insert into purchase_orders (po_no, buyer_org_id, supplier_org_id, supplier_contact_id, for_order_id, need_by, notes, created_by, created_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8, coalesce($9, now())) returning id, po_no`,
+    [poNo, ctx.orgId, supplier_org_id, supplier_contact_id, for_order_id, need_by, notes, ctx.userId ?? null, at]);
   for (const l of lines) {
     await db.query(
       `insert into po_lines (po_id, buyer_org_id, supplier_org_id, item_id, description, supplier_item_ref, qty, uom, rate)
@@ -96,11 +96,12 @@ export const getPo = (ctx, id) =>
 
 // ---------- lifecycle ----------
 
-export const createPo = (ctx, input) =>
+// `at` (optional, seed only) back-dates PO events; HTTP never passes it
+export const createPo = (ctx, input, { at = null } = {}) =>
   withTenant(ctx, async (db) => {
     const po = await insertPo(db, ctx, {
       supplier_org_id: input.supplier_org_id, supplier_contact_id: input.supplier_contact_id,
-      for_order_id: input.for_order_id, need_by: input.need_by, notes: input.notes, lines: input.lines,
+      for_order_id: input.for_order_id, need_by: input.need_by, notes: input.notes, lines: input.lines, at,
     });
     await audit(db, ctx, { action: 'create', table: 'purchase_orders', id: po.id, after: { po_no: po.po_no } });
     return loadPo(db, po.id);
@@ -117,7 +118,7 @@ export const approvePo = (ctx, id) =>
     return loadPo(db, id);
   });
 
-export async function sendPo(ctx, id) {
+export async function sendPo(ctx, id, { at = null } = {}) {
   const po = await withTenant(ctx, async (db) => {
     const { rows: [p] } = await db.query('select * from purchase_orders where id = $1 for update', [id]);
     must(p, 'Purchase order');
@@ -126,7 +127,7 @@ export async function sendPo(ctx, id) {
     if (ctx.settings?.po_approval_required === true && !p.approved_by) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This PO needs approval before it can be sent');
     }
-    await db.query(`update purchase_orders set status = 'sent', sent_at = now() where id = $1`, [id]);
+    await db.query(`update purchase_orders set status = 'sent', sent_at = coalesce($2, now()) where id = $1`, [id, at]);
     await audit(db, ctx, { action: 'send', table: 'purchase_orders', id });
     return loadPo(db, id);
   });
@@ -134,7 +135,7 @@ export async function sendPo(ctx, id) {
   return po;
 }
 
-export async function respondPo(ctx, id, input) {
+export async function respondPo(ctx, id, input, { at = null } = {}) {
   const po = await withTenant(ctx, async (db) => {
     const { rows: [p] } = await db.query('select * from purchase_orders where id = $1 for update', [id]);
     must(p, 'Purchase order');
@@ -160,8 +161,8 @@ export async function respondPo(ctx, id, input) {
     if (status === 'partially_accepted' && lines.every((l) => accepted.get(l.id) >= l.qty)) status = 'accepted';
     if (status === 'partially_accepted' && lines.every((l) => (accepted.get(l.id) ?? 0) === 0)) status = 'rejected';
     await db.query(
-      `update purchase_orders set status = $2, promise_date = $3, response_note = $4, responded_at = now() where id = $1`,
-      [id, status, input.promise_date ?? null, input.note ?? null]);
+      `update purchase_orders set status = $2, promise_date = $3, response_note = $4, responded_at = coalesce($5, now()) where id = $1`,
+      [id, status, input.promise_date ?? null, input.note ?? null, at]);
     await audit(db, ctx, { action: 'respond', table: 'purchase_orders', id, after: { status } });
     return loadPo(db, id);
   });

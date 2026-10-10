@@ -55,7 +55,7 @@ export const inviteStaff = (ctx, { email: to, role_id, scope }) =>
     await audit(db, ctx, { action: 'invite', table: 'staff_invites', id: inv.id, after: { email: to, role: role.name } });
     const link = `${env.CLIENT_URL}/invite/staff/${token}`;
     // email after the row exists; failures must not lose the invite (link is returned for manual sharing)
-    email.send({ to, template: 'staff_invite', data: { org_name: ctx.orgName, role: role.name, link } }).catch((e) => console.error('[invite email]', e.message));
+    email.send({ to, template: 'staff_invite', data: { org_name: ctx.orgName, role_name: role.name, token } }).catch((e) => console.error('[invite email]', e.message));
     return { ...inv, role: role.name, link };
   });
 

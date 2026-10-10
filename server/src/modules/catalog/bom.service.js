@@ -109,16 +109,16 @@ export const explodeRequest = (ctx, { item_id, qty, net_stock }) =>
 export function convert(input) {
   const { op, ...a } = input;
   const fn = {
-    fabric_m_to_kg: () => ({ kg: textile.fabricMToKg(a.m, a.width_m, a.gsm) }),
-    fabric_kg_to_m: () => ({ m: textile.fabricKgToM(a.kg, a.width_m, a.gsm) }),
+    fabric_m_to_kg: () => ({ kg: textile.fabricMetresToKg(a.m, a.width_m, a.gsm) }),
+    fabric_kg_to_m: () => ({ m: textile.fabricKgToMetres(a.kg, a.width_m, a.gsm) }),
     yarn_m_per_kg: () => ({ m_per_kg: textile.yarnMetresPerKg(a.ne) }),
-    yarn_kg_to_m: () => ({ m: textile.yarnKgToM(a.kg, a.ne) }),
-    yarn_m_to_kg: () => ({ kg: textile.yarnMToKg(a.m, a.ne) }),
+    yarn_kg_to_m: () => ({ m: textile.yarnKgToMetres(a.kg, a.ne) }),
+    yarn_m_to_kg: () => ({ kg: textile.yarnMetresToKg(a.m, a.ne) }),
     dye_kg: () => ({ kg: textile.dyeKg(a.fabric_kg, a.shade_pct) }),
-    rolls_to_m: () => ({ m: textile.rollsToM(a.rolls, a.roll_length_m) }),
-    m_to_rolls: () => ({ rolls: textile.mToRolls(a.m, a.roll_length_m) }),
-    warp_weft: () => textile.warpWeft(a.yarn_kg, a.warp_pct),
-    gross_up: () => ({ input: textile.grossUp(a.output, a.wastage_pct) }),
+    rolls_to_m: () => ({ m: textile.rollsToMetres(a.rolls, a.roll_length_m) }),
+    m_to_rolls: () => ({ rolls: textile.metresToRolls(a.m, a.roll_length_m) }),
+    warp_weft: () => textile.splitWarpWeft(a.yarn_kg, a.warp_pct),
+    gross_up: () => ({ input: round3(textile.grossInput(a.output, a.wastage_pct)) }),
   }[op];
   return fn();
 }

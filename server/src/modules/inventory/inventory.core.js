@@ -27,15 +27,15 @@ export async function lotOnHand(db, lotId) {
 }
 
 // reserve up to `qty` of an item for an order, FIFO by lot. Returns the quantity actually reserved.
-export async function reserveFifo(db, ctx, { orderId, itemId, qty }) {
+export async function reserveFifo(db, ctx, { orderId, itemId, qty, at = null }) {
   await lockItem(db, itemId);
   let left = qty;
   for (const lot of await freeLots(db, itemId)) {
     if (left <= 0) break;
     const take = Math.min(left, lot.free);
     await db.query(
-      `insert into reservations (org_id, item_id, lot_id, order_id, qty, created_by) values ($1,$2,$3,$4,$5,$6)`,
-      [ctx.orgId, itemId, lot.id, orderId, round3(take), ctx.userId ?? null],
+      `insert into reservations (org_id, item_id, lot_id, order_id, qty, created_by, created_at) values ($1,$2,$3,$4,$5,$6, coalesce($7, now()))`,
+      [ctx.orgId, itemId, lot.id, orderId, round3(take), ctx.userId ?? null, at],
     );
     left = round3(left - take);
   }

@@ -21,3 +21,7 @@ export function safeEqualHex(a, b) {
   if (!a || !b || a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 }
+
+// names used by the dispatch module (same scheme: driver delivery verifies sha256(tripId + otp))
+export const generateOtp = newOtp;
+export const hashOtp = otpHash;

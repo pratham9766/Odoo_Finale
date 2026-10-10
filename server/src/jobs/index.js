@@ -1,15 +1,17 @@
+import { readdir } from 'node:fs/promises';
 import cron from 'node-cron';
 import { pool } from '../db/pool.js';
 import { withSystem } from '../db/withTenant.js';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 
-// Registry: name -> { schedule, run(orgId, db) }.
-// Each job module (owner in §22.1) calls register() from its own file; this file imports them.
+// Registry of cron jobs. Two shapes are supported:
+//   per-org: register(name, schedule, (orgId, db) => ...)   — runJob loops the active orgs, one transaction each
+//   global:  export const x = { name, schedule, run() }     — the job loops the orgs itself (see forEachActiveOrg.js)
 const jobs = new Map();
 
 export function register(name, schedule, run) {
-  jobs.set(name, { schedule, run });
+  jobs.set(name, { schedule, run, global: false });
 }
 
 async function activeOrgs() {
@@ -17,11 +19,12 @@ async function activeOrgs() {
   return rows.map((r) => r.id);
 }
 
-// run one job for every active org; one failing org never stops the others
 export async function runJob(name) {
   await loadJobs();
   const job = jobs.get(name);
   if (!job) throw new AppError(404, 'NOT_FOUND', `Unknown job ${name}`);
+  if (job.global) return { job: name, result: await job.run() };
+  // per-org: one failing org never stops the others
   const orgs = await activeOrgs();
   let failed = 0;
   for (const orgId of orgs) {
@@ -35,6 +38,8 @@ export async function runJob(name) {
   return { job: name, orgs: orgs.length, failed };
 }
 
+export const jobList = () => [...jobs].map(([name, j]) => ({ name, schedule: j.schedule }));
+
 let loading;
 // idempotent: the scheduler and on-demand runs both call this
 export function loadJobs() {
@@ -42,14 +47,17 @@ export function loadJobs() {
   return loading;
 }
 
+const HELPERS = new Set(['index.js', 'forEachActiveOrg.js', 'notifyOnce.js']);
+
+// every jobs/*.js file is a job module: it either calls register() or exports { name, schedule, run }
 async function importJobFiles() {
-  // optional job files are imported if they exist so teammates can drop them in without touching this file
-  const files = ['lowStock', 'deadlineRisk', 'overduePayments', 'absentAlerts', 'missingCheckout', 'unmovedStock', 'insights'];
+  const files = (await readdir(new URL('.', import.meta.url))).filter((f) => f.endsWith('.js') && !HELPERS.has(f));
   for (const f of files) {
-    try {
-      await import(`./${f}.js`);
-    } catch (err) {
-      if (err.code !== 'ERR_MODULE_NOT_FOUND' || !String(err.message).includes(`${f}.js`)) throw err;
+    const mod = await import(`./${f}`);
+    for (const value of Object.values(mod)) {
+      if (value && typeof value === 'object' && typeof value.run === 'function' && value.name && value.schedule && !jobs.has(value.name)) {
+        jobs.set(value.name, { schedule: value.schedule, run: value.run, global: true });
+      }
     }
   }
 }

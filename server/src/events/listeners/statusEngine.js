@@ -20,10 +20,20 @@ async function orderIdFromTrip(orgId, tripId) {
     (await db.query('select d.order_id from trips t join dispatches d on d.id = t.dispatch_id where t.id = $1', [tripId])).rows[0]?.order_id);
 }
 
+async function orderIdFromRoll(orgId, rollId) {
+  return withSystem(orgId, async (db) => (await db.query('select order_id from rolls where id = $1', [rollId])).rows[0]?.order_id);
+}
+
 export function register() {
   // payloads carry the mill's org id as orgId / sellerOrgId plus an orderId (or enough to find it)
   const direct = async ({ orgId, sellerOrgId, orderId }) => orderId && recomputeOrderStatus(sellerOrgId ?? orgId, orderId);
-  for (const ev of ['order.confirmed', 'workorder.started', 'workorder.finished', 'qc.done']) on(ev, direct);
+  for (const ev of ['order.confirmed', 'order.planned', 'workorder.started', 'workorder.finished']) on(ev, direct);
+
+  // QC results carry only the roll; a pass can make the order ready_to_ship
+  on('qc.done', async ({ orgId, rollId, orderId }) => {
+    const id = orderId ?? (await orderIdFromRoll(orgId, rollId));
+    if (id) await recomputeOrderStatus(orgId, id);
+  });
 
   on('production.logged', ({ orgId, orderId }) => orderId && debounced(`prod:${orderId}`, () => recomputeOrderStatus(orgId, orderId)));
 
@@ -43,3 +53,6 @@ export function register() {
     if (orderId) await recomputeOrderStatus(orgId, orderId);
   });
 }
+
+// jobs (deadlineRisk) import the engine from here
+export { recomputeOrderStatus };

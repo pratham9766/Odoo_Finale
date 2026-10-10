@@ -106,7 +106,7 @@ export const inviteByEmail = (ctx, { email: to, relation }) =>
     );
     await audit(db, ctx, { action: 'invite', table: 'partnerships', id: row.id, after: { email: to, relation } });
     const link = `${env.CLIENT_URL}/invite/partner/${token}`;
-    email.send({ to, template: 'partner_invite', data: { org_name: ctx.orgName, relation, link } }).catch((e) => console.error('[partner email]', e.message));
+    email.send({ to, template: 'partner_invite', data: { requester_name: ctx.orgName, relation, token } }).catch((e) => console.error('[partner email]', e.message));
     return { ...row, link };
   });
 

@@ -83,7 +83,8 @@ export const getReceipt = (ctx, id) =>
     return { ...g, lines: g.lines.map((l) => hidePrices(ctx, l)) };
   });
 
-export const createReceipt = (ctx, i) =>
+// `at` (optional, seed only) back-dates the receipt; HTTP never passes it
+export const createReceipt = (ctx, i, { at = null } = {}) =>
   withTenant(ctx, async (db) => {
     if (i.supplier_org_id && !(await isSupplierOf(db, i.supplier_org_id, ctx.orgId))) {
       throw new AppError(403, 'NOT_PARTNERS', 'This supplier is not connected to you');
@@ -96,10 +97,10 @@ export const createReceipt = (ctx, i) =>
     }
     const grnNo = await nextNumber(db, ctx.orgId, 'GRN');
     const { rows: [g] } = await db.query(
-      `insert into goods_receipts (org_id, grn_no, supplier_org_id, supplier_contact_id, po_id, dispatch_id, gate_entry_id, vehicle_no, notes, created_by)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id`,
+      `insert into goods_receipts (org_id, grn_no, supplier_org_id, supplier_contact_id, po_id, dispatch_id, gate_entry_id, vehicle_no, notes, created_by, created_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, coalesce($11, now())) returning id`,
       [ctx.orgId, grnNo, i.supplier_org_id ?? null, i.supplier_contact_id ?? null, i.po_id ?? null, i.dispatch_id ?? null,
-       i.gate_entry_id ?? null, i.vehicle_no ?? null, i.notes ?? null, ctx.userId]);
+       i.gate_entry_id ?? null, i.vehicle_no ?? null, i.notes ?? null, ctx.userId, at]);
     for (const l of i.lines) {
       await db.query(
         `insert into receipt_lines (org_id, receipt_id, item_id, lot_no, warehouse_id, po_line_id, expected_qty, received_qty, rate, dye_batch, for_order_id)
@@ -112,7 +113,7 @@ export const createReceipt = (ctx, i) =>
   });
 
 // §11.6 — one transaction: lots, ledger, order reservations, PO progress
-export async function postReceipt(ctx, id) {
+export async function postReceipt(ctx, id, { at = null } = {}) {
   const out = await withTenant(ctx, async (db) => {
     const { rows: [g] } = await db.query('select * from goods_receipts where id = $1 for update', [id]);
     must(g, 'Receipt');
@@ -124,24 +125,24 @@ export async function postReceipt(ctx, id) {
     let value = 0;
     for (const l of live) {
       const { rows: [lot] } = await db.query(
-        `insert into stock_lots (org_id, item_id, warehouse_id, lot_no, unit_cost, supplier_org_id, supplier_contact_id, receipt_id, dye_batch, created_by)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        `insert into stock_lots (org_id, item_id, warehouse_id, lot_no, unit_cost, supplier_org_id, supplier_contact_id, receipt_id, dye_batch, created_by, received_at, created_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, coalesce($11, now()), coalesce($11, now()))
          on conflict (org_id, item_id, lot_no) do update set
            unit_cost = case when stock_lots.unit_cost = 0 then excluded.unit_cost else stock_lots.unit_cost end
          returning id`,
-        [ctx.orgId, l.item_id, l.warehouse_id, l.lot_no, l.rate, g.supplier_org_id, g.supplier_contact_id, id, l.dye_batch, ctx.userId]);
+        [ctx.orgId, l.item_id, l.warehouse_id, l.lot_no, l.rate, g.supplier_org_id, g.supplier_contact_id, id, l.dye_batch, ctx.userId, at]);
       await db.query(
-        `insert into stock_movements (org_id, item_id, lot_id, type, qty, ref_type, ref_id, created_by)
-         values ($1,$2,$3,'in',$4,'grn',$5,$6)`, [ctx.orgId, l.item_id, lot.id, l.received_qty, id, ctx.userId]);
+        `insert into stock_movements (org_id, item_id, lot_id, type, qty, ref_type, ref_id, created_by, created_at)
+         values ($1,$2,$3,'in',$4,'grn',$5,$6, coalesce($7, now()))`, [ctx.orgId, l.item_id, lot.id, l.received_qty, id, ctx.userId, at]);
       if (l.for_order_id) {
         await db.query(
-          `insert into reservations (org_id, item_id, lot_id, order_id, qty, created_by) values ($1,$2,$3,$4,$5,$6)`,
-          [ctx.orgId, l.item_id, lot.id, l.for_order_id, l.received_qty, ctx.userId]);
+          `insert into reservations (org_id, item_id, lot_id, order_id, qty, created_by, created_at) values ($1,$2,$3,$4,$5,$6, coalesce($7, now()))`,
+          [ctx.orgId, l.item_id, lot.id, l.for_order_id, l.received_qty, ctx.userId, at]);
       }
       if (l.po_line_id) await db.query('update po_lines set received_qty = received_qty + $2 where id = $1', [l.po_line_id, l.received_qty]);
       value += l.received_qty * l.rate;
     }
-    await db.query(`update goods_receipts set status = 'posted', posted_at = now() where id = $1`, [id]);
+    await db.query(`update goods_receipts set status = 'posted', posted_at = coalesce($2, now()) where id = $1`, [id, at]);
 
     if (g.po_id) {
       const { rows: [{ open_lines }] } = await db.query(
@@ -227,3 +228,6 @@ async function decide(ctx, id, approve) {
 }
 export const approveAdjustment = (ctx, id) => decide(ctx, id, true);
 export const rejectAdjustment = (ctx, id) => decide(ctx, id, false);
+
+// stock primitives live in inventory.core.js; re-exported so modules can import them from the service
+export { issueForWorkOrder, produce, reserveFifo, releaseReservations, freeLots } from './inventory.core.js';
