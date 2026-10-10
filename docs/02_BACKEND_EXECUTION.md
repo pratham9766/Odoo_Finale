@@ -29,6 +29,7 @@
 19. [Deployment](#19-deployment)
 20. [Phase checklist](#20-phase-checklist)
 21. [Security checklist](#21-security-checklist)
+22. [Backend team split (Vipul + Hrishikesh)](#22-backend-team-split-vipul--hrishikesh)
 
 ---
 
@@ -593,11 +594,11 @@ create table machines (
   org_id uuid not null references organizations(id) on delete cascade,
   code text not null, name text,
   stage_id uuid not null references stages(id),
-  capacity_per_hour numeric(12,3) not null, capacity_uom text not null,
-  hourly_overhead numeric(12,2) not null default 0,
+  capacity_per_hour numeric(12,3) not null check (capacity_per_hour > 0), capacity_uom text not null,
+  hourly_overhead numeric(12,2) not null default 0 check (hourly_overhead >= 0),
   status text not null default 'idle' check (status in ('idle','running','breakdown','maintenance')),
   status_since timestamptz not null default now(),
-  current_work_order_id uuid,
+  current_work_order_id uuid,                     -- fk added below, after work_orders
   active boolean not null default true,
   unique (org_id, code)
 );
@@ -611,7 +612,7 @@ create table work_orders (
   stage_id uuid not null references stages(id),
   output_item_id uuid not null references items(id),
   machine_id uuid references machines(id),
-  target_qty numeric(14,3) not null, uom text not null,
+  target_qty numeric(14,3) not null check (target_qty > 0), uom text not null,
   produced_qty numeric(14,3) not null default 0,
   waste_qty numeric(14,3) not null default 0,
   is_rework boolean not null default false,
@@ -621,6 +622,12 @@ create table work_orders (
   created_at timestamptz not null default now(), created_by uuid,
   unique (org_id, wo_no)
 );
+create index work_orders_order_idx on work_orders(org_id, order_id);
+create index work_orders_status_idx on work_orders(org_id, status);
+create index work_orders_machine_idx on work_orders(org_id, machine_id);
+
+alter table machines add constraint machines_current_wo_fk
+  foreign key (current_work_order_id) references work_orders(id) on delete set null;
 
 create table material_issues (
   id uuid primary key default gen_random_uuid(),
@@ -632,6 +639,8 @@ create table material_issues (
   unit_cost numeric(14,4) not null,
   created_at timestamptz not null default now(), created_by uuid
 );
+create index material_issues_wo_idx on material_issues(work_order_id);
+create index material_issues_lot_idx on material_issues(org_id, lot_id);   -- lot → work orders (trace)
 
 create table production_logs (
   id uuid primary key default gen_random_uuid(),
@@ -644,26 +653,31 @@ create table production_logs (
   run_minutes int not null default 0 check (run_minutes >= 0),
   logged_at timestamptz not null default now(), created_by uuid
 );
-create index on production_logs(org_id, machine_id, logged_at);
+create index production_logs_machine_idx on production_logs(org_id, machine_id, logged_at);
+create index production_logs_wo_idx on production_logs(work_order_id);
+create index production_logs_worker_idx on production_logs(org_id, worker_id, logged_at);  -- piece wages
 
 create table work_order_outputs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   work_order_id uuid not null references work_orders(id),
-  good_qty numeric(14,3) not null, good_weight_kg numeric(14,3),
-  waste_qty numeric(14,3) not null default 0, waste_item_id uuid references items(id),
+  good_qty numeric(14,3) not null check (good_qty >= 0), good_weight_kg numeric(14,3),
+  waste_qty numeric(14,3) not null default 0 check (waste_qty >= 0), waste_item_id uuid references items(id),
   waste_type text,
   created_at timestamptz not null default now(), created_by uuid
 );
+create index work_order_outputs_wo_idx on work_order_outputs(work_order_id);
 
 create table assignments (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
-  date date not null, shift_id uuid not null,
-  worker_id uuid not null, machine_id uuid not null references machines(id),
+  date date not null, shift_id uuid not null,   -- fk in 010
+  worker_id uuid not null,                      -- fk in 010
+  machine_id uuid not null references machines(id),
   created_at timestamptz not null default now(), created_by uuid,
   unique (org_id, date, shift_id, worker_id)
 );
+create index assignments_machine_idx on assignments(org_id, date, shift_id, machine_id);  -- default worker for a log
 
 create table machine_events (
   id uuid primary key default gen_random_uuid(),
@@ -672,8 +686,12 @@ create table machine_events (
   status text not null check (status in ('idle','running','breakdown','maintenance')),
   reason text,
   started_at timestamptz not null default now(), ended_at timestamptz,
-  created_by uuid
+  created_by uuid,
+  check (ended_at is null or ended_at >= started_at)
 );
+create index machine_events_machine_idx on machine_events(org_id, machine_id, started_at);
+-- at most one open event per machine: close the previous event before opening the next
+create unique index machine_events_one_open on machine_events(machine_id) where ended_at is null;
 
 create table maintenance_tickets (
   id uuid primary key default gen_random_uuid(),
@@ -681,14 +699,17 @@ create table maintenance_tickets (
   ticket_no text not null,
   machine_id uuid not null references machines(id),
   machine_event_id uuid references machine_events(id),
-  reason text not null, priority text not null default 'high',
-  assigned_to uuid,                               -- membership id of technician
+  reason text not null,
+  priority text not null default 'high' check (priority in ('low','normal','high','urgent')),
+  assigned_to uuid references memberships(id) on delete set null,   -- technician
   status text not null default 'open' check (status in ('open','in_progress','resolved')),
   resolution text, parts_used text,
   opened_at timestamptz not null default now(), resolved_at timestamptz,
   created_by uuid,
   unique (org_id, ticket_no)
 );
+create index maintenance_tickets_status_idx on maintenance_tickets(org_id, status);
+create index maintenance_tickets_machine_idx on maintenance_tickets(machine_id);
 ```
 
 ### 5.8 `008_quality.sql`
@@ -703,24 +724,29 @@ create table rolls (
   order_line_id uuid not null references order_lines(id),
   item_id uuid not null references items(id),
   work_order_id uuid not null references work_orders(id),     -- final-stage work order
-  length_m numeric(10,2) not null, weight_kg numeric(10,3),
+  length_m numeric(10,2) not null check (length_m > 0), weight_kg numeric(10,3),
   dye_batch text,
   status text not null default 'pending_qc'
     check (status in ('produced','pending_qc','passed','rework','rejected','packed','dispatched','delivered')),
   created_at timestamptz not null default now(), created_by uuid,
   unique (org_id, roll_no)
 );
+create index rolls_order_idx on rolls(org_id, order_id);
+create index rolls_status_idx on rolls(org_id, status);      -- QC queue
+create index rolls_wo_idx on rolls(work_order_id);
 
 create table roll_history (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   roll_id uuid not null references rolls(id) on delete cascade,
   stage_id uuid references stages(id), machine_id uuid references machines(id),
-  shift_id uuid, worker_id uuid, work_order_id uuid references work_orders(id),
+  shift_id uuid, worker_id uuid,                 -- fks in 010
+  work_order_id uuid references work_orders(id),
   event text not null,           -- 'spun','woven','dyed','created','inspected','reworked','dispatched'
   data jsonb not null default '{}'::jsonb,
   at timestamptz not null default now()
 );
+create index roll_history_roll_idx on roll_history(roll_id, at);
 
 create table roll_yarn_lots (
   org_id uuid not null references organizations(id) on delete cascade,
@@ -728,6 +754,7 @@ create table roll_yarn_lots (
   lot_id uuid not null references stock_lots(id),
   primary key (roll_id, lot_id)
 );
+create index roll_yarn_lots_lot_idx on roll_yarn_lots(lot_id);   -- lot → rolls (bad supplier lot)
 
 create table qc_inspections (
   id uuid primary key default gen_random_uuid(),
@@ -737,8 +764,11 @@ create table qc_inspections (
   result text not null check (result in ('pass','rework','reject')),
   is_override boolean not null default false, override_reason text,
   remarks text, photo_path text,
-  inspected_at timestamptz not null default now()
+  inspected_at timestamptz not null default now(),
+  check (not is_override or nullif(btrim(override_reason), '') is not null)
 );
+create index qc_inspections_roll_idx on qc_inspections(roll_id, inspected_at);
+create index qc_inspections_day_idx on qc_inspections(org_id, inspected_at);
 
 create table qc_defects (
   id uuid primary key default gen_random_uuid(),
@@ -747,6 +777,7 @@ create table qc_defects (
   defect_type_id uuid not null references defect_types(id),
   count int not null check (count > 0), severity int not null default 1
 );
+create index qc_defects_inspection_idx on qc_defects(inspection_id);
 ```
 
 ### 5.9 `009_gate_dispatch_transport.sql`
@@ -847,9 +878,11 @@ create table shifts (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   name text not null, start_time time not null, end_time time not null,
-  grace_min int not null default 10,
-  crosses_midnight boolean not null default false,
-  unique (org_id, name)
+  grace_min int not null default 10 check (grace_min >= 0),
+  -- derived, so it can never disagree with the times (C shift 22:00–06:00 → true)
+  crosses_midnight boolean generated always as (end_time < start_time) stored,
+  unique (org_id, name),
+  check (start_time <> end_time)
 );
 
 create table workers (
@@ -859,9 +892,9 @@ create table workers (
   skill text, stage_id uuid references stages(id), default_shift_id uuid references shifts(id),
   employment_type text not null default 'permanent' check (employment_type in ('permanent','contract')),
   wage_type text not null check (wage_type in ('daily','hourly','piece')),
-  rate numeric(10,2) not null default 0,          -- per day or per hour
-  ot_rate numeric(10,2) not null default 0,       -- per OT hour
-  piece_rate numeric(10,4) not null default 0,    -- per uom produced
+  rate numeric(10,2) not null default 0 check (rate >= 0),             -- per day or per hour
+  ot_rate numeric(10,2) not null default 0 check (ot_rate >= 0),       -- per OT hour
+  piece_rate numeric(10,4) not null default 0 check (piece_rate >= 0), -- per uom produced
   qr_token text not null unique,
   user_id uuid references auth.users(id),
   active boolean not null default true,
@@ -873,6 +906,8 @@ alter table production_logs add constraint pl_shift_fk foreign key (shift_id) re
 alter table production_logs add constraint pl_worker_fk foreign key (worker_id) references workers(id);
 alter table assignments add constraint as_shift_fk foreign key (shift_id) references shifts(id);
 alter table assignments add constraint as_worker_fk foreign key (worker_id) references workers(id);
+alter table roll_history add constraint rh_shift_fk foreign key (shift_id) references shifts(id);
+alter table roll_history add constraint rh_worker_fk foreign key (worker_id) references workers(id);
 
 create table kiosk_devices (
   id uuid primary key default gen_random_uuid(),
@@ -892,12 +927,13 @@ create table attendance_punches (
   device_id uuid references kiosk_devices(id), photo_path text,
   created_by uuid
 );
+create index attendance_punches_worker_idx on attendance_punches(org_id, worker_id, punched_at);  -- 60 s duplicate check
 
 create table attendance (                       -- daily summary per worker per shift
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
   worker_id uuid not null references workers(id),
-  date date not null, shift_id uuid not null references shifts(id),
+  date date not null, shift_id uuid not null references shifts(id),   -- night shift: date = shift start date
   check_in timestamptz, check_out timestamptz,
   worked_hours numeric(5,2) not null default 0,
   late_min int not null default 0, early_leave_min int not null default 0,
@@ -906,8 +942,10 @@ create table attendance (                       -- daily summary per worker per 
     check (status in ('present','late','half_day','absent','leave','weekly_off','holiday')),
   needs_correction boolean not null default false,
   approved_by uuid,
-  unique (worker_id, date, shift_id)
+  unique (worker_id, date, shift_id),
+  check (check_out is null or check_in is null or check_out >= check_in)
 );
+create index attendance_date_idx on attendance(org_id, date, shift_id);   -- today board, register
 
 create table attendance_corrections (
   id uuid primary key default gen_random_uuid(),
@@ -918,6 +956,7 @@ create table attendance_corrections (
   approved_by uuid, decided_at timestamptz,
   created_at timestamptz not null default now()
 );
+create index attendance_corrections_status_idx on attendance_corrections(org_id, status);
 
 create table leave_requests (
   id uuid primary key default gen_random_uuid(),
@@ -925,26 +964,20 @@ create table leave_requests (
   worker_id uuid not null references workers(id),
   from_date date not null, to_date date not null, type text not null, reason text,
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
-  approved_by uuid, created_at timestamptz not null default now()
+  approved_by uuid, created_at timestamptz not null default now(),
+  check (to_date >= from_date)
 );
+create index leave_requests_worker_idx on leave_requests(org_id, worker_id, from_date);
 
 create table holidays (
   org_id uuid not null references organizations(id) on delete cascade,
   date date not null, name text not null, primary key (org_id, date)
 );
 
-create table wage_advances (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null references organizations(id) on delete cascade,
-  worker_id uuid not null references workers(id),
-  amount numeric(10,2) not null, date date not null,
-  recovered_in_run uuid
-);
-
 create table wage_runs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,
-  month date not null,                         -- first day of month
+  month date not null check (extract(day from month) = 1),   -- first day of month
   status text not null default 'draft' check (status in ('draft','approved','paid')),
   total_gross numeric(14,2) not null default 0, total_net numeric(14,2) not null default 0,
   prepared_by uuid, approved_by uuid, paid_at timestamptz,
@@ -960,8 +993,18 @@ create table wage_lines (
   hours numeric(7,2) not null default 0, ot_hours numeric(6,2) not null default 0,
   pieces numeric(14,3) not null default 0,
   gross numeric(12,2) not null, advances numeric(12,2) not null default 0,
-  deductions numeric(12,2) not null default 0, net numeric(12,2) not null
+  deductions numeric(12,2) not null default 0, net numeric(12,2) not null,
+  unique (wage_run_id, worker_id)
 );
+
+create table wage_advances (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  worker_id uuid not null references workers(id),
+  amount numeric(10,2) not null check (amount > 0), date date not null,
+  recovered_in_run uuid references wage_runs(id) on delete set null
+);
+create index wage_advances_open_idx on wage_advances(org_id, worker_id) where recovered_in_run is null;
 ```
 
 ### 5.11 `011_finance.sql`
@@ -2835,6 +2878,8 @@ Manual checklist before demo: every portal login works, socket updates appear on
 
 ## 20. Phase checklist
 
+> Who owns each item: see [§22 Backend team split](#22-backend-team-split-vipul--hrishikesh). The build order there replaces the phase order below for the backend.
+
 ### Phase 0 — Setup
 - [ ] `server/` initialised, ESM, scripts, lint
 - [ ] Supabase project, buckets, auth settings
@@ -2912,3 +2957,112 @@ Manual checklist before demo: every portal login works, socket updates appear on
 - [ ] Socket events carry no confidential fields
 - [ ] Confidential fields stripped in API responses without 🔒 permissions
 - [ ] AI SQL passes the guard, runs read-only with timeout, and the result is treated as data
+
+---
+
+## 22. Backend team split (Vipul + Hrishikesh)
+
+Two people build the whole backend. This section replaces the backend part of the four-person split in [01_OVERALL_PLAN.md §19](01_OVERALL_PLAN.md#19-team-split).
+
+| Member | Role | One-line ownership |
+|---|---|---|
+| **Vipul** | Backend lead | Platform foundation, security, tenancy, the order → stock → purchase chain, B2B partners and transport, status engine, realtime, AI, deployment, code review |
+| **Hrishikesh** | Backend developer | Factory floor: settings and masters, production, maintenance, QC and trace, dispatch and invoice, attendance and wages, finance, reports, PDFs, cron jobs, seed simulation |
+
+**Main idea:** build the full mill flow first, with offline buyers and suppliers stored as `contacts` (all six PDF scenes). Add the connected B2B portals (buyer, supplier, transporter) and AI after that. If time runs out, the demo still covers every PDF scene.
+
+### 22.1 Ownership by module
+
+Each person owns these folders and files. The owner writes the code; the other person changes them only through a PR the owner reviews.
+
+| Area | Vipul (lead) | Hrishikesh |
+|---|---|---|
+| Setup | `server/` skeleton, `config/env.js`, `app.js`, `index.js`, `modules/index.js` (router mount), `db/migrate.js`, Supabase project, buckets, DB roles | — |
+| DB core | `db/pool.js`, `db/aiPool.js`, `db/withTenant.js` | — |
+| Middleware | `auth`, `tenant`, `rbac` (`can`, `inScope`, `requireOrgType`, `requireModule`, `hidePrices`), `validate`, `errorHandler`, `rateLimit` | — |
+| Utils | `errors.js`, `numbering.js`, `audit.js`, `paginate.js`, `otp.js`, `storage.js` | `pdf.js`, `email.js`, `textile.js`, `money.js` |
+| Events / realtime | `events/bus.js`, `listeners/index.js`, `statusEngine.js`, `notifier.js`, `socketEmitter.js`, `inventoryReactions.js`, `realtime/socket.js` | `dispatchReactions.js`, `attendanceReactions.js` |
+| Migrations | `001`, `002`, `003`, `004`, `005`, `006`, `012`, `013`, `014`, `016`, `017` | `007`, `008`, `009`, `010`, `011`, `015` |
+| Modules | `auth` (`/me`), `staff`, `partners`, `catalog` (items, BOM, explode, convert), `inventory`, `procurement`, `orders`, `transport`, `public`, `platform`, `notifications`, `ai` | `orgs` (settings: stages, stage losses, shifts, defect types, warehouses), `production`, `maintenance`, `quality`, `gate`, `dispatch`, `workforce` (workers, kiosk, attendance, leave, wages), `finance`, `reports` |
+| Jobs | `jobs/index.js` (scheduler), `insights.js` | `lowStock.js`, `deadlineRisk.js`, `overduePayments.js`, `absentAlerts.js`, `missingCheckout.js`, `unmovedStock.js` |
+| Seed | `defaultRoles.js` (role → permission bundles) | `db/seed/*` (seed v1 + 90-day simulation), `reset.js` |
+| Tests | `rls.test.js`, `rbac.test.js`, `bom.test.js`, `status.test.js`, `sqlGuard.test.js` | `dispatch.test.js`, `attendance.test.js` |
+
+### 22.2 Contracts between the two (agree on Day 1)
+
+Hrishikesh's modules call these functions from Vipul's code. Agree on the signatures first. Vipul ships stubs on Day 1 so Hrishikesh is not blocked.
+
+| Function | Owner | Used for |
+|---|---|---|
+| `withTenant(ctx, fn)`, `withSystem(orgId, fn)` | Vipul | Every service |
+| `can(...)`, `inScope(kind, pick)`, `isInScope(ctx, kind, id)`, `hidePrices(ctx, row)` | Vipul | Every route; scope filters on board, work orders, attendance |
+| `validate({ body, query, params })` → data in `req.valid` | Vipul | Every route |
+| `nextNumber(db, orgId, prefix)`, `audit(db, ctx, {...})` | Vipul | WO, TKT, ROLL, DSP, INV numbers; audit on overrides and wage approvals |
+| `bus.emit(event, payload)` (after commit) | Vipul | `workorder.*`, `production.logged`, `machine.breakdown`, `roll.created`, `qc.done`, `dispatch.confirmed`, `attendance.*`, `payment.recorded` |
+| `emitTo(room, event, data)` | Vipul | `machine.updated`, `qc.queue_changed`, `attendance.updated` |
+| `recomputeOrderStatus(sellerOrgId, orderId)` | Vipul | Triggered by Hrishikesh's events; not called directly |
+| `inventory.issueForWorkOrder(db, ctx, { workOrderId, orderId, items })` → `material_issues` rows | Vipul | Work order start (FIFO from reservations) |
+| `inventory.produce(db, ctx, { itemId, qty, lotNo, refType, refId })` | Vipul | Work order finish (WIP lot), scrap on QC reject |
+| `explode(db, itemId, qty, opts)` | Vipul | `POST /orders/:id/plan`: Hrishikesh's production module creates work orders from the tree |
+| `notify(db, { orgId, userId?, requiredPermission?, type, title, body, link })` | Vipul | Absent alerts, breakdowns, overdue invoices |
+| `pdf.invoice()`, `pdf.packingList()`, `pdf.rollLabel()`, `pdf.badge()`, `pdf.payslip()` | Hrishikesh | Vipul's transport module (freight invoice PDF) |
+| `email.send({ to, template, data })` | Hrishikesh | Vipul's staff invite, partner invite, order status emails |
+
+Also agree on the JSON shape of each endpoint with the frontend team before building (see [§10](#10-api-reference)).
+
+### 22.3 Build order and parallel tracks
+
+Both people work at the same time. **Sync** rows are points where both must finish before moving on.
+
+| Step | Vipul (lead) | Hrishikesh | Done when |
+|---|---|---|---|
+| **0. Setup** | Repo skeleton, env, `migrate.js`, Supabase project, buckets, `app_user` / `ai_reader`, `/health` deployed; apply the pre-coding fixes in [§22.6](#226-pre-coding-fixes-vipul-step-0) | Write SQL for `007` (production, maintenance), `008` (quality), `010` (workforce); `utils/textile.js` (conversions from overall plan §12.4); `pdf.js` skeleton | `/health` live and connected to the DB as `app_user` |
+| **1. Foundation** | Migrations `001`–`003`, `013`, `014`, `016`, `017`; `withTenant`, all middleware; `/me`, `/me/orgs` (list, create with default roles), `/me/orgs/:id/context`; staff invites + rank rule; roles CRUD; audit log; contract stubs from §22.2 | `orgs` module: `/org`, `/org/modules`, stages, stage losses, shifts, defect types, warehouses CRUD (on Vipul's stubs); `email.js` with console fallback | `rls.test.js` and `rbac.test.js` pass |
+| **🔄 Sync 1** | Review Hrishikesh's settings module; merge to `dev` | Rebase on the real middleware | Two orgs isolated; scoped supervisor sees only their scope |
+| **2. Masters** | Migration `004`; items + BOM CRUD; `explode()` with stock netting; `/bom/explode`, `/bom/convert`; `bom.test.js` | Machines CRUD, workers CRUD with `qr_token`, kiosk devices; **seed v1** (Everest, second mill, 2–3 buyer / supplier / transporter contacts, demo users, all masters) | Everest fully configured from the seed; 1-shirt BOM gives ≈ 387 g fibre |
+| **3. Stock + orders** | Migrations `005`, `006`; stock views; GRN draft → post; orders (mill side, offline buyer): create, get, requirements, confirm (reserve FIFO or `waiting_material`), cancel; POs to offline suppliers; `issueForWorkOrder`, `produce`; bus + status engine v1; notifier | Low-stock job; `POST /orders/:id/plan` → work orders per stage; assignments; work order service skeleton (uses `issueForWorkOrder`) | Order → shortage → PO → GRN → order turns `material_ready` automatically |
+| **4. Production** | `realtime/socket.js` (org / order / user rooms); `socketEmitter` listener; status engine v2 (in_production, progress %, ETA, risk) | Work order start / log / pause / resume / finish (WIP lot, waste); breakdown → ticket → resolve; `machine_events` downtime; `/production/board` (scope-filtered); `deadlineRisk` job; emit events | Operator logs → board, order % and buyer view update live in a second browser |
+| **🔄 Sync 2** | End-to-end test: order → plan → production | Same | Production flow green on seed data |
+| **5. QC + trace** | Status engine v3 (in_qc, ready_to_ship); `public` module (`/public/track/:token`, tracking link) | Migration `008`; `POST /rolls` with genealogy; roll label PDF; QC queue, inspections, pass / rework / reject, override; `/rolls/:rollNo/trace`; QC views | Rejected roll traces to machine, shift, worker, yarn lot, supplier |
+| **6. Dispatch** | Status engine v4 (partially_dispatched, dispatched, delivered); review `scanRoll` for race conditions | Migrations `009` (dispatch tables) + `011`; create dispatch, scan, remove roll, confirm; invoice from scanned rolls; invoice + packing-list PDFs; mill-side dispatch status; `dispatch.test.js` | Duplicate scan blocked (`ROLL_ALREADY_DISPATCHED`); invoice qty = roll lengths |
+| **7. Attendance + wages** | Partners module: connect code, email invite, accept / reject / block, contacts, `/partners/:orgId/catalog` | Kiosk punch, supervisor bulk grid, today board, register, corrections, leave, OT approval; absent + missing-checkout jobs; wage run prepare → approve → pay, payslip; `attendance.test.js` | Kiosk punch → today board → absent alert |
+| **8. Finance + reports** | Buyer-placed orders (`REQ-` → `ORD-`), buyer view with prices hidden; supplier side: PO respond, supplier dispatch with lots | Payments, expenses, receivables / payables; migration `015` (all views); report endpoints + CSV; `/reports/dashboard`; overdue + unmoved-stock jobs | P&L ties out to invoices, material issues, wages and expenses |
+| **🔄 Sync 3 (core done)** | Full demo dry run of all six PDF scenes | Same | ⭐ flow runs end to end with seed data |
+| **9. B2B + transport** | Transport module: trips, fleet, driver status, OTP delivery (hashed, lock after 5 tries), freight invoice → order cost; platform admin routes | Gate module (entries, `/gate/expected`, GRN pre-filled from supplier dispatch); buyer receive endpoint | Buyer → supplier → transporter → gate → GRN works across orgs |
+| **10. Seed v2** | Review consistency checks; run status engine + insights at the end | 90-day simulation that calls the real service functions; planted patterns (overall plan §20); consistency checks | Dashboards look real; checks pass |
+| **11. AI** | `aiPool`, view → permission map, `sqlGuard` + test, chat service, history, rate limit, insight rules job | Verify the 10 demo questions against seed data; fix view columns the AI needs | 10 demo questions answered correctly |
+| **12. Polish** | Security checklist (§21), rate limits, deployment, demo reset run | Error messages, PDFs on phone, demo reset script, Postman / Bruno collection | Demo runs cleanly 3 times in a row |
+
+Rough size: about 7 working days each. The steps are balanced so neither person waits on the other for long.
+
+### 22.4 If time is short (cut in this order)
+
+1. Transporter portal + driver app (Vipul): keep vehicle / driver fields on the dispatch.
+2. Gate module (Hrishikesh).
+3. Supplier portal (Vipul): keep offline suppliers as contacts.
+4. AI chat (Vipul): keep insight cards with template text.
+5. Leave, corrections, payslip PDF (Hrishikesh).
+6. 90-day seed (Hrishikesh): use a 2-week seed instead.
+
+**Never cut:** RLS isolation, BOM explosion, live machine board, QC with trace, scan-to-dispatch with duplicate block, order cost and P&L.
+
+### 22.5 Working rules for the pair
+
+- **Branches:** `main` (always demo-able) ← `dev` ← `vipul/<domain>` and `hrishikesh/<domain>`. Small PRs into `dev`.
+- **Reviews:** Vipul reviews every PR from Hrishikesh. Hrishikesh reviews Vipul's PRs that touch the shared contracts (§22.2) or migrations he depends on.
+- **Migrations:** each person edits only their own numbered files (§22.1). A new table after a file is merged goes into a **new** file (`018_...`, `019_...`); say in chat which number you are taking.
+- **Shared files** (`app.js`, `modules/index.js`, `017_seed_permissions.sql`, `defaultRoles.js`, the event catalog in §12) are owned by Vipul. Hrishikesh adds his lines in his PR; Vipul merges.
+- **New permission or event:** add it to §6.5 / §12 of this doc in the same PR.
+- **Definition of done:** route + zod validation + permission check + scope filter where needed + RLS-safe (runs inside `withTenant`) + event emitted after commit + works on seed data + added to the API collection.
+- **Daily 15-minute sync:** what was merged, what is blocked, is the end-to-end flow still green?
+
+### 22.6 Pre-coding fixes (Vipul, Step 0)
+
+Fix these in the code (and in this doc) before building on them:
+
+1. **Express 5:** `req.query` is read-only. `validate()` must write to `req.valid = { body, query, params }`, not `req[part]`. Express 5 also forwards async errors, so controllers do not need `try/catch`.
+2. **zod v4:** use `z.flattenError(err)` instead of `err.flatten()` (or pin `zod@3`).
+3. **`/me/orgs`:** the `roles` RLS hides other orgs' roles when no org is set. Add a SECURITY DEFINER function `my_orgs(p_user uuid)` in `014_functions.sql` that returns org, role name, rank and types.
+4. **AI and trips:** add `select` policies for `ai_reader` on `trips` and `trip_events`; otherwise `v_trip_status` is always empty for the AI.
+5. **`list_active_orgs()`:** define it in `014_functions.sql`; every cron job needs it.
+6. **Cron on free hosting:** free Render instances sleep. Use Railway or a paid instance, or add a platform-admin route `POST /admin/jobs/:name/run` to trigger jobs before the demo.
