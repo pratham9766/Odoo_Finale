@@ -1,3 +1,4 @@
+// Roles and permissions: create roles and tick exactly what each one may view, create, update and delete.
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tag, Tooltip, message } from 'antd';

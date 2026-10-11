@@ -1,3 +1,4 @@
+// HTTP handlers for machine breakdowns and repair tickets.
 import { crudHandlers } from '../../utils/crud/index.js';
 import { reportBreakdown, resolveTicket, startTicket, tickets } from './maintenance.service.js';
 

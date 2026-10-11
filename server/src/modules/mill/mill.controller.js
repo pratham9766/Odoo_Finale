@@ -1,3 +1,4 @@
+// HTTP handlers for the mill profile, modules, stages, losses, shifts, defect types and warehouses.
 import { crudHandlers } from '../../utils/crud/index.js';
 import * as svc from './mill.service.js';
 

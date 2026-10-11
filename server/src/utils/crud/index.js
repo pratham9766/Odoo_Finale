@@ -1,3 +1,4 @@
+// Entry point of the generic CRUD toolkit (service, HTTP handlers and SQL helpers).
 export { createCrud, assertExists, assertUploadPath, invalid } from './service.js';
 export { crudHandlers, mountCrud } from './http.js';
 export { Filter, insertClause, omit, pick, setClause } from './sql.js';

@@ -1,3 +1,5 @@
+// KPI cards, order-health donut, today's dispatch and attention widgets for the Orders page.
+// Every number comes from the server (see GET /orders/summary).
 import { Link } from 'react-router-dom';
 import { quantity } from '@/lib/format';
 

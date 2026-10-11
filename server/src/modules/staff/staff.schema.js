@@ -1,3 +1,4 @@
+// Input rules for invites, member changes and roles.
 import { z } from 'zod';
 import { pageQuery } from '../../middleware/validate.js';
 

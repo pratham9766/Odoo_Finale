@@ -1,3 +1,4 @@
+// Create-order page: a thin wrapper that submits the order form and opens the new order.
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Form, Input, InputNumber, Select, Space } from 'antd';

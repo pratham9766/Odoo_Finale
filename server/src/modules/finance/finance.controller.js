@@ -1,3 +1,4 @@
+// HTTP handlers for payments, receivables and payables.
 import { recordPayment, listPayments } from './payments.service.js';
 import { payables, receivables } from './receivables.service.js';
 

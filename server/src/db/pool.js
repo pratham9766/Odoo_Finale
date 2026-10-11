@@ -1,3 +1,4 @@
+// The shared PostgreSQL connection pool, with money, counts and dates converted to plain JavaScript values.
 import pg from 'pg';
 import { env } from '../config/env.js';
 

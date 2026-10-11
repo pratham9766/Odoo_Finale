@@ -1,3 +1,4 @@
+// Regression tests for bugs fixed earlier (for example the wage month query parameters).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { reverseRejectedScrap } from '../src/modules/quality/inspections.service.js';

@@ -1,3 +1,4 @@
+// Turns events (low stock, late order, breakdown...) into in-app notifications.
 import { on } from '../bus.js';
 import { withTx } from '../../db/tx.js';
 import { notify } from '../../modules/notifications/notify.js';

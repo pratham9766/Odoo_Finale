@@ -1,3 +1,4 @@
+// RFID card helpers: normalises a card UID, shows a worker's card as a tag, and the assign / replace / remove actions.
 import { useState } from 'react';
 import { Button, Form, Input, Modal, Popconfirm, Space, Tag, Tooltip } from 'antd';
 import { useSession } from '@/context/Session';

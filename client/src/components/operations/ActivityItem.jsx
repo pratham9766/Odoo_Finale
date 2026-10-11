@@ -1,3 +1,4 @@
+// One row of the dashboard activity feed: turns an audit-log entry into an icon, a sentence and a link.
 import { Link } from 'react-router-dom';
 import Icon from '@/components/Icons';
 

@@ -1,3 +1,4 @@
+// Password reset page opened from the emailed link.
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Form, Input, Result, Skeleton } from 'antd';
 import { Link } from 'react-router-dom';

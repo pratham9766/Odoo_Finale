@@ -1,3 +1,4 @@
+// HTTP handlers for wage runs and payslips.
 import { sendPdf } from '../../utils/pdf.js';
 import * as wages from './wages.service.js';
 

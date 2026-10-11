@@ -1,3 +1,4 @@
+// Bell in the top bar: lists the user's notifications (newest first, unread bold) and opens the linked screen on click.
 import { useState } from 'react';
 import { Badge, Button, Empty, List, Popover } from 'antd';
 import { useNavigate } from 'react-router-dom';

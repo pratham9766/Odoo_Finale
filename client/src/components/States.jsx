@@ -1,3 +1,4 @@
+// Small shared UI states: loading / error wrapper for queries, empty state, status tag and the page title bar.
 import { Alert, Button, Empty, Skeleton, Tag } from 'antd';
 import { usePageTitle } from '@/lib/title';
 export function QueryState({ query, children }) {

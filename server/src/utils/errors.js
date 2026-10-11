@@ -1,3 +1,4 @@
+// AppError (status, code, message) and small helpers: notFound, badState, must.
 export class AppError extends Error {
   constructor(status, code, message, details) {
     super(message);

@@ -1,3 +1,4 @@
+// My profile: view and edit the logged-in person's own details.
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Divider, Form, Input, Tag, message } from 'antd';

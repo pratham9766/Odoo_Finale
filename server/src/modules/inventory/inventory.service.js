@@ -1,3 +1,4 @@
+// Stock views, goods receipts (draft, post, cancel) and stock adjustments (request, approve, reject).
 import { withTx } from '../../db/tx.js';
 import { AppError, must, notFound } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';

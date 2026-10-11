@@ -1,3 +1,5 @@
+// Login session for the whole app: restores the Supabase session, loads the user's role and permissions from /me/access,
+// and exposes api(), download(), can() and signOut() through useSession().
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Spin, message } from 'antd';

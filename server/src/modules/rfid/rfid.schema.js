@@ -1,3 +1,4 @@
+// Input rules for RFID: scanner scans, the simulator, card assignment, scanners and the event filters.
 import { z } from 'zod';
 import { boolQuery, dateString, optionalText, uuid } from '../../utils/crud/schema.js';
 import { normalizeUid } from './rfid.rules.js';

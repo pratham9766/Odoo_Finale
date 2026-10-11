@@ -1,3 +1,4 @@
+// Cron job registry: loads every jobs/*.js file and runs them on their schedule (or on demand with runJob).
 import { readdir } from 'node:fs/promises';
 import cron from 'node-cron';
 import { env } from '../config/env.js';

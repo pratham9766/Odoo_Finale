@@ -1,3 +1,4 @@
+// Input rules for machines (status is not writable here).
 import { z } from 'zod';
 import { UOMS } from '../../utils/textile.js';
 import { boolQuery, optionalText, pageQuery, updateSchema, uuid } from '../../utils/crud/schema.js';

@@ -1,3 +1,4 @@
+// App entry: providers (query cache, antd theme, router, session) and the public routes (track, invite, reset password).
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';

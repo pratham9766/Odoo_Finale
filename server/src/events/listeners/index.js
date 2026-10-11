@@ -1,3 +1,4 @@
+// Registers every listener file in this folder at start-up. Add a file here and it is picked up.
 import { readdir } from 'node:fs/promises';
 import { registerNotifier } from './notifier.js';
 import { registerSocketEmitter } from './socketEmitter.js';

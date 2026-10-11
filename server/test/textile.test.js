@@ -1,3 +1,4 @@
+// Unit tests for the textile formulas: losses, GSM, yarn and fabric conversions, rolls.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

@@ -1,3 +1,4 @@
+// Quality control: the QC queue, inspecting a roll (pass / rework / reject with defects) and the roll trace page.
 import { useState } from 'react';
 import { Alert, Button, Descriptions, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Timeline } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';

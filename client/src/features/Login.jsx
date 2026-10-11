@@ -1,6 +1,8 @@
+// Login page: email and password sign-in beside a live preview of the mill's numbers (from /public/mill-stats).
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Form, Input } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { request } from '@/lib/api';
 import '@/styles/login.css';
@@ -112,6 +114,7 @@ export default function Login({ initialError }) {
   usePageTitle('Sign in');
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
   const [resetting, setResetting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [form] = Form.useForm();
@@ -123,6 +126,7 @@ export default function Login({ initialError }) {
     try {
       const result = await supabase.auth.signInWithPassword(values);
       if (result.error) throw result.error;
+      navigate('/', { replace: true });   // a fresh login always lands on the dashboard (or the floor screen for shop-floor roles), whatever page was open
     } catch (err) {
       setError(err.message);
     } finally {

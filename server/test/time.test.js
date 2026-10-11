@@ -1,3 +1,4 @@
+// Unit tests for the India-time helpers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TZ, formatDate, formatMonth, todayIST } from '../src/utils/time.js';

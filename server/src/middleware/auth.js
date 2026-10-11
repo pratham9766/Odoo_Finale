@@ -1,3 +1,4 @@
+// Checks the Supabase login token on each request and sets req.user.
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';

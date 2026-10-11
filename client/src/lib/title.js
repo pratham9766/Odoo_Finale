@@ -1,3 +1,4 @@
+// Browser tab title: the app title, or "<page> · Sameta" once a page sets its name with usePageTitle().
 import { useEffect } from 'react';
 
 export const APP_TITLE = 'Sameta · Textile mill operations';

@@ -1,3 +1,4 @@
+// Loads the logged-in person's role, permissions and scope into req.ctx; blocks disabled or unknown users.
 import { withTx } from '../db/tx.js';
 import { AppError } from '../utils/errors.js';
 

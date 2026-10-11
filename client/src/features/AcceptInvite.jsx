@@ -1,3 +1,4 @@
+// Public page for a staff invite: the invited person sets their details and password.
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';

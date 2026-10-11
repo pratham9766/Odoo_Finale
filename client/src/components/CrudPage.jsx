@@ -1,3 +1,5 @@
+// Generic list + add/edit/delete screen for simple master data (stages, shifts, machines, workers, expenses...).
+// Also exports RemoteSelect (a dropdown filled from the API) and yesNo (a tag renderer). Permissions decide which buttons show.
 import { useState } from 'react';
 import { Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag } from 'antd';
 import { useSession } from '@/context/Session';

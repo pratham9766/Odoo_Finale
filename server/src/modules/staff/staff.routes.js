@@ -1,3 +1,4 @@
+// Routes for staff members, invites, roles and the permission catalogue.
 import { Router } from 'express';
 import { can } from '../../middleware/rbac.js';
 import { validate, idParam } from '../../middleware/validate.js';

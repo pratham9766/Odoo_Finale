@@ -1,3 +1,4 @@
+// Shop-floor buttons for one work order: start, pause, resume, log output, finish and add a roll.
 import { useState } from 'react';
 import { Button, Form, Input, InputNumber, Modal, Space } from 'antd';
 import { useSession } from '@/context/Session';

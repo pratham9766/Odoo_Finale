@@ -1,3 +1,4 @@
+// Routes for items and BOMs.
 import { Router } from 'express';
 import { can } from '../../middleware/rbac.js';
 import { validate, idParam } from '../../middleware/validate.js';

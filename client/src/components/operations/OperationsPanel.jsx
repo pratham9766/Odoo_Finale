@@ -1,3 +1,4 @@
+// Right-hand column of the dashboard: quick actions, today's tasks and recent activity.
 import QuickActions from './QuickActions';
 import RecentActivity from './RecentActivity';
 import TodayTasks from './TodayTasks';

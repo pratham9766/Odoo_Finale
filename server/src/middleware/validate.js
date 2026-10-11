@@ -1,3 +1,4 @@
+// Validates request body / query / params with zod and shares pagination and id schemas.
 import { z } from 'zod';
 import { AppError } from '../utils/errors.js';
 

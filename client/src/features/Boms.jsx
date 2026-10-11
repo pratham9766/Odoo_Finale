@@ -1,3 +1,4 @@
+// Recipes (BOMs): list, create and edit recipes, plus a quick check of the yarn needed for a quantity of fabric.
 import { useState } from 'react';
 import { Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag } from 'antd';
 import { RemoteSelect } from '@/components/CrudPage';

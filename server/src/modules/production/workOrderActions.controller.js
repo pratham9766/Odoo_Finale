@@ -1,3 +1,4 @@
+// HTTP handlers for starting, pausing, logging output on and finishing a work order.
 import { logProduction } from './productionLogs.service.js';
 import { finishWorkOrder, pauseWorkOrder, startWorkOrder } from './workOrderActions.service.js';
 

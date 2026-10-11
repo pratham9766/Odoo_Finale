@@ -1,3 +1,4 @@
+// Smooth (inertia) page scrolling with Lenis. Areas that scroll on their own keep native wheel behaviour.
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Lenis from 'lenis';

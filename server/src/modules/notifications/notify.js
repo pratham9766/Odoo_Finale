@@ -1,3 +1,4 @@
+// notify(): creates a notification for one person or for everyone holding a permission, and pushes it over the socket.
 import { emitTo, emitToMill } from '../../realtime/socket.js';
 
 // notify(db, { userId?, requiredPermission?, type, title, body, link, data }) inside an open transaction.

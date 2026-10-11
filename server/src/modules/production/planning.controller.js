@@ -1,3 +1,4 @@
+// HTTP handler that plans a confirmed order into work orders.
 import { planOrder } from './planning.service.js';
 
 export const plan = async (req, res) =>

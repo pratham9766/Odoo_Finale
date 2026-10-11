@@ -1,3 +1,4 @@
+// Routes for purchase orders.
 import { Router } from 'express';
 import { can } from '../../middleware/rbac.js';
 import { validate, idParam } from '../../middleware/validate.js';

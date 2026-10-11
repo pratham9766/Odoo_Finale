@@ -1,3 +1,4 @@
+// Supervisor tablet page: who is on which machine and who turned up.
 import { Tabs } from 'antd';
 import Attendance from '@/features/Attendance';
 import { Assignments } from '@/features/Production';

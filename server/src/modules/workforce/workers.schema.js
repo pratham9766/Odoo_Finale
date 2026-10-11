@@ -1,3 +1,4 @@
+// Input rules for workers (code, phone, wage type and rates).
 import { z } from 'zod';
 import { boolQuery, optionalText, pageQuery, text, updateSchema, uuid } from '../../utils/crud/schema.js';
 

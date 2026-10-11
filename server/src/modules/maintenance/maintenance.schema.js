@@ -1,3 +1,4 @@
+// Input rules for breakdowns and tickets.
 import { z } from 'zod';
 import { optionalText, pageQuery, text, uuid } from '../../utils/crud/schema.js';
 

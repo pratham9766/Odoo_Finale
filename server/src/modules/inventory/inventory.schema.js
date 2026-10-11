@@ -1,3 +1,4 @@
+// Input rules for stock, receipts and adjustments (quantities are bounded).
 import { z } from 'zod';
 import { pageQuery, zBoolStr, zDate } from '../../middleware/validate.js';
 

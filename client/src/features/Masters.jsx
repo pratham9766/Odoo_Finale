@@ -1,3 +1,4 @@
+// Master-data screens built on CrudPage: buyers and suppliers, items, machines and workers.
 import { Button, Space, Tag } from 'antd';
 import CrudPage, { yesNo } from '@/components/CrudPage';
 import { RfidCardActions, RfidCardTag } from '@/components/RfidCard';

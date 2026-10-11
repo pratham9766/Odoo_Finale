@@ -1,3 +1,4 @@
+// Dashboard: alerts, order health, shop floor, workforce and finance numbers (all from /reports/dashboard) plus the operations panel.
 import { Table, Tag } from 'antd';
 import { Link } from 'react-router-dom';
 import Icon from '@/components/Icons';

@@ -1,3 +1,4 @@
+// Input rules for invoices, payments and expenses.
 import { z } from 'zod';
 import { boolQuery, dateString, optionalText, pageQuery, rangeQuery, updateSchema, uuid } from '../../utils/crud/schema.js';
 import { CATEGORIES } from './expenses.service.js';

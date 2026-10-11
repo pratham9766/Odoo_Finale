@@ -1,3 +1,4 @@
+// HTTP handlers for invoices: list, detail, create from a dispatch, PDF.
 import * as pdf from '../../utils/pdf.js';
 import { getInvoice, invoiceFromDispatch, invoicePdfData, listInvoices } from './invoices.service.js';
 

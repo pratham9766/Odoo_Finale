@@ -1,3 +1,4 @@
+// Wages: monthly runs (prepare, approve, pay) with a drawer of each worker's line and payslip.
 import { useState } from 'react';
 import { Button, Descriptions, Drawer, Input, Popconfirm, Space, Table, Tag } from 'antd';
 import { NoData, PageTitle, QueryState } from '@/components/States';

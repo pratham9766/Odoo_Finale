@@ -1,5 +1,6 @@
+// One order: status and progress, lines, material check, work orders, events, and the confirm / plan / cancel actions.
 import { useState } from 'react';
-import { Alert, Button, Descriptions, Input, Modal, Popconfirm, Progress, Space, Table, Tag, Timeline, Typography } from 'antd';
+import { Alert, Button, Descriptions, Form, Input, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Timeline, Typography } from 'antd';
 import { Link, useParams } from 'react-router-dom';
 import MaterialSummary from '@/components/MaterialSummary';
 import { PageTitle, QueryState, Status } from '@/components/States';
@@ -9,6 +10,26 @@ import { date, money, quantity } from '@/lib/format';
 
 const RISK = { red: 'red', amber: 'orange', green: 'green' };
 const PLANNABLE = ['confirmed', 'waiting_material', 'material_ready'];
+const EDITABLE = ['draft', ...PLANNABLE];   // the header can be changed until production starts
+const PRIORITIES = ['low', 'normal', 'high', 'urgent'].map((v) => ({ value: v, label: v }));
+
+/** change the deadline, priority, buyer reference, address or notes of an order that has not started production */
+function EditOrder({ order, onClose }) {
+  const act = useAction({ success: 'Order updated' });
+  return (
+    <Modal open title={`Edit ${order.order_no}`} onCancel={onClose} okText="Save" confirmLoading={act.isPending} onOk={() => document.getElementById('edit-order-form').requestSubmit()}>
+      <Form id="edit-order-form" layout="vertical" requiredMark={false}
+        initialValues={{ deadline: String(order.deadline).slice(0, 10), priority: order.priority, buyer_ref: order.buyer_ref ?? '', delivery_address: order.delivery_address ?? '', notes: order.notes ?? '' }}
+        onFinish={(v) => act.mutate({ method: 'PATCH', path: `/orders/${order.id}`, body: v }, { onSuccess: onClose })}>
+        <Form.Item name="deadline" label="Deadline" rules={[{ required: true }]}><Input type="date" min={new Date().toISOString().slice(0, 10)} /></Form.Item>
+        <Form.Item name="priority" label="Priority"><Select options={PRIORITIES} /></Form.Item>
+        <Form.Item name="buyer_ref" label="Buyer reference"><Input maxLength={60} /></Form.Item>
+        <Form.Item name="delivery_address" label="Delivery address"><Input.TextArea rows={2} maxLength={500} /></Form.Item>
+        <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} maxLength={2000} /></Form.Item>
+      </Form>
+    </Modal>
+  );
+}
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -16,6 +37,7 @@ export default function OrderDetail() {
   const act = useAction();
   const [link, setLink] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [reason, setReason] = useState('');
   const q = useGet(`/orders/${id}`, {}, { refetchInterval: 30000 });
   const o = q.payload;
@@ -42,10 +64,12 @@ export default function OrderDetail() {
               <Popconfirm title="Create the work orders for every stage of this order?" onConfirm={() => post('plan')}><Button type="primary" loading={act.isPending}>Plan production</Button></Popconfirm>
             )}
             {['confirmed', 'waiting_material'].includes(o.status) && session.can('orders.confirm') && <Button onClick={() => post('reserve')}>Reserve material</Button>}
+            {EDITABLE.includes(o.status) && session.can('orders.create') && <Button onClick={() => setEditing(true)}>Edit order</Button>}
             {session.can('orders.view') && o.status !== 'cancelled' && <Button onClick={() => post('tracking-link', undefined, { onSuccess: (res) => setLink(res.data) })}>Buyer tracking link</Button>}
             {!['cancelled', 'delivered', 'dispatched'].includes(o.status) && session.can('orders.cancel') && <Button danger onClick={() => setCancelling(true)}>Cancel order</Button>}
           </Space>
         )} />
+      {editing && o && <EditOrder order={o} onClose={() => setEditing(false)} />}
       <QueryState query={q}>
         {o && (
           <>

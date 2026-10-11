@@ -1,3 +1,4 @@
+// Token helpers: hashing, random tokens for invites and device keys, constant-time comparison.
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 export const sha256 = (s) => createHash('sha256').update(String(s)).digest('hex');

@@ -1,3 +1,4 @@
+// Card that answers "do we have enough material?" for an order: what is still to buy and what must be made first.
 import { Alert, Table } from 'antd';
 import { money, quantity } from '@/lib/format';
 

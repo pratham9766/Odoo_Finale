@@ -1,3 +1,4 @@
+// All signed-in routes (office /app/* and shop-floor /floor/*), each guarded by the permission it needs.
 import { lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Result } from 'antd';

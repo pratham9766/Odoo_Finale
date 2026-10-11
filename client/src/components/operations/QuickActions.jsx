@@ -1,3 +1,4 @@
+// Dashboard shortcut tiles (new order, receive material, plan, dispatch). Tiles the role cannot use are disabled.
 import { Link } from 'react-router-dom';
 import Icon from '@/components/Icons';
 import { useSession } from '@/context/Session';

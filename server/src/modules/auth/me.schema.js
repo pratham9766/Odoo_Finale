@@ -1,3 +1,4 @@
+// Input rules for the profile and for joining with an invite.
 import { z } from 'zod';
 
 export const phoneSchema = z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/, 'Enter a valid phone number');

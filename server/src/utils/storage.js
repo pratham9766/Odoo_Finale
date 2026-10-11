@@ -1,3 +1,4 @@
+// Supabase Storage helpers: signed upload / download URLs for photos and documents (service key stays on the server).
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '../config/env.js';

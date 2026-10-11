@@ -1,3 +1,4 @@
+// Turns errors into the API's JSON error format (validation, database constraint, size limit, unexpected).
 import { AppError } from '../utils/errors.js';
 
 const PG_MAP = {

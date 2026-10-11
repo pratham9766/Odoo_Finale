@@ -1,3 +1,4 @@
+// Office layout: sidebar navigation (filtered by permissions), top bar with mill name, bell, profile and sign out.
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Alert, Button, Drawer } from 'antd';

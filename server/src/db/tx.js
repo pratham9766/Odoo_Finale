@@ -1,3 +1,4 @@
+// withTx(): runs a function in one database transaction (commit on success, rollback on error) and retries flaky connects.
 import { pool } from './pool.js';
 
 const TRANSIENT = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED']);

@@ -1,3 +1,4 @@
+// Items (fibre, yarn, fabric, dye...): list, create, update and deactivate; costs are hidden from roles without price access.
 import { withTx } from '../../db/tx.js';
 import { must } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';

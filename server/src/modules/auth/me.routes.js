@@ -1,3 +1,4 @@
+// Routes for the logged-in person: profile, own access, accepting a staff invite.
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.js';
 import { authLimiter } from '../../middleware/rateLimit.js';

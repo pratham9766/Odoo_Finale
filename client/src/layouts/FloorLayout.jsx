@@ -1,3 +1,4 @@
+// Shop-floor layout: big tabs for a tablet, showing only what the person's role can do.
 import { Button } from 'antd';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import NotificationBell from '@/components/NotificationBell';

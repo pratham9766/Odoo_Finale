@@ -1,3 +1,4 @@
+// The mill's own details and setup: profile, enabled modules, stages with losses, shifts, defect types, warehouses.
 import { withTx } from '../../db/tx.js';
 import { audit } from '../../utils/audit.js';
 import { assertExists, createCrud, pick, setClause } from '../../utils/crud/index.js';

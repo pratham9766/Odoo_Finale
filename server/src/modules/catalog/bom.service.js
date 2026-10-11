@@ -1,3 +1,4 @@
+// Recipes (BOMs): the explosion that turns a quantity of fabric into the yarn, fibre and dye to buy or make, plus BOM CRUD.
 import { withTx } from '../../db/tx.js';
 import { AppError, must, notFound } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';

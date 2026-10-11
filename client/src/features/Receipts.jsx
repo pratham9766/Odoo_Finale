@@ -1,3 +1,4 @@
+// Goods receipts: list, create a receipt (draft) and post it into stock.
 import { useState } from 'react';
 import { Button, Descriptions, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';

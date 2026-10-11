@@ -1,3 +1,4 @@
+// Staff, invites and roles. The rank rule: nobody can hand out a role equal to or above their own.
 import { env } from '../../config/env.js';
 import { withTx } from '../../db/tx.js';
 import { AppError, must, notFound } from '../../utils/errors.js';

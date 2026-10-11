@@ -1,3 +1,4 @@
+// Machines: standard list / create / update / delete.
 import { AppError } from '../../utils/errors.js';
 import { createCrud } from '../../utils/crud/index.js';
 

@@ -1,3 +1,4 @@
+// Unit tests for turning a BOM explosion into work orders (stage order, quantities).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { workOrdersFromTree } from '../src/modules/production/planTree.js';

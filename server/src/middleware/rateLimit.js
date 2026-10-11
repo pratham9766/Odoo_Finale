@@ -1,3 +1,4 @@
+// Rate limits for the public endpoints (invites, tracking links, login-page stats).
 import rateLimit from 'express-rate-limit';
 
 const json = (code, message) => ({ error: { code, message } });

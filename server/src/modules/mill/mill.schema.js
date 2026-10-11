@@ -1,3 +1,4 @@
+// Input rules for the mill profile and its setup data (GSTIN, pincode, times, loss percentages).
 import { z } from 'zod';
 import { optionalText, text, updateSchema, uuid } from '../../utils/crud/schema.js';
 import { gstinField } from '../../utils/gstin.js';

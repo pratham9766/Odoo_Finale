@@ -1,3 +1,4 @@
+// In-process event bus. Modules emit events (order.updated, grn.posted...); listeners react without the modules knowing each other.
 import { EventEmitter } from 'node:events';
 
 export const bus = new EventEmitter();

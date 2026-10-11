@@ -1,3 +1,4 @@
+// Attendance screen: mark who is present per shift, see today's board, overtime approval and the monthly register.
 import { useState } from 'react';
 import { Button, Input, Popconfirm, Select, Space, Table, Tabs, Tag } from 'antd';
 import { NoData, PageTitle, QueryState } from '@/components/States';

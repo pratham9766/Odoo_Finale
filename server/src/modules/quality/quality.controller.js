@@ -1,3 +1,4 @@
+// HTTP handlers for rolls and quality: create a roll, trace, label, QC queue, inspect, override, summaries.
 import { crudHandlers } from '../../utils/crud/index.js';
 import { sendPdf } from '../../utils/pdf.js';
 import { inspectRoll, overrideResult } from './inspections.service.js';

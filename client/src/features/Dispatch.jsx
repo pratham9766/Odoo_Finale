@@ -1,3 +1,4 @@
+// Dispatch screens: list, create a dispatch, and the detail page where rolls are scanned and the dispatch is confirmed.
 import { useRef, useState } from 'react';
 import { Alert, Button, Descriptions, Form, Input, Modal, Popconfirm, Select, Space, Table } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';

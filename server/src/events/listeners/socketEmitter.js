@@ -1,3 +1,4 @@
+// Pushes events to browsers over the socket (ids and status only; clients refetch through the API).
 import { on } from '../bus.js';
 import { emitTo, emitToMill } from '../../realtime/socket.js';
 

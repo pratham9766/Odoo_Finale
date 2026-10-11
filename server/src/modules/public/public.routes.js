@@ -1,3 +1,4 @@
+// Routes that need no login: the buyer's order-tracking link, staff invite preview/accept, and the aggregate numbers on the login page.
 import { Router } from 'express';
 import { z } from 'zod';
 import { withTx } from '../../db/tx.js';

@@ -1,3 +1,4 @@
+// Input rules for buyers and suppliers (type, GSTIN, email).
 import { z } from 'zod';
 import { pageQuery } from '../../middleware/validate.js';
 import { gstinField } from '../../utils/gstin.js';

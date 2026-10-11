@@ -1,3 +1,4 @@
+// Fetch wrapper for the backend: adds the login token, unwraps {data}, turns failures into ApiError, and downloads files.
 import { cleanPath } from './contracts.js';
 
 export class ApiError extends Error {

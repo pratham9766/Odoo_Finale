@@ -1,3 +1,4 @@
+// audit(): writes one row to the audit log (who did what to which record, before and after).
 export async function audit(db, ctx, { action, table, id = null, before = null, after = null }) {
   await db.query(
     `insert into audit_logs (user_id, action, table_name, record_id, before, after)

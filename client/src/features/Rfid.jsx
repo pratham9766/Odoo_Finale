@@ -1,3 +1,4 @@
+// RFID attendance: live scan board, cards, scanners, scan history and the demo simulator.
 import { useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';

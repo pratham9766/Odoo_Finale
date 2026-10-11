@@ -1,3 +1,4 @@
+// Input rules for purchase orders and supplier responses.
 import { z } from 'zod';
 import { pageQuery } from '../../middleware/validate.js';
 

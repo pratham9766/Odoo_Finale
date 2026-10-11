@@ -1,3 +1,4 @@
+// Mounts every feature module's routes under /api/v1.
 import { Router } from 'express';
 import staff from './staff/staff.routes.js';
 import contacts from './contacts/contacts.routes.js';

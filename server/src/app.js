@@ -1,3 +1,4 @@
+// Builds the Express app: security headers, CORS, JSON parsing, public routes, then login + staff checks in front of the API.
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

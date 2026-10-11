@@ -1,3 +1,4 @@
+// Mill settings: profile, stages and losses, shifts, defect types and warehouses.
 import { useEffect, useState } from 'react';
 import { Button, Form, Input, InputNumber, Modal, Tabs, Tag } from 'antd';
 import CrudPage from '@/components/CrudPage';

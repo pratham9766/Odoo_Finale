@@ -1,3 +1,4 @@
+// Routes for stock, lots, movements, goods receipts and stock adjustments.
 import { Router } from 'express';
 import { can } from '../../middleware/rbac.js';
 import { validate, idParam } from '../../middleware/validate.js';

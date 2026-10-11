@@ -1,3 +1,4 @@
+// Unit tests for the shift, attendance, register and wage rules (late, overtime, night shift, grace period).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkInResult, checkOutResult, dayFromTimes } from '../src/modules/workforce/attendance.rules.js';

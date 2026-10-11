@@ -1,3 +1,4 @@
+// Buyers and suppliers: list, create, update and delete (a contact in use cannot be deleted).
 import { withTx } from '../../db/tx.js';
 import { must, notFound } from '../../utils/errors.js';
 import { paged, where } from '../../utils/paginate.js';

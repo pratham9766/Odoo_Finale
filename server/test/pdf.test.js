@@ -1,3 +1,4 @@
+// Tests that every PDF builder (invoice, packing list, payslip, labels) returns a valid PDF of the right size.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as pdf from '../src/utils/pdf.js';

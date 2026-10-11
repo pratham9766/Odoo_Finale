@@ -1,3 +1,4 @@
+// Lint rules for the db/ scripts (borrows eslint from the server package).
 import { createRequire } from 'node:module';
 const require = createRequire(new URL('../server/package.json', import.meta.url));
 const js = require('@eslint/js');

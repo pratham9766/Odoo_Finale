@@ -1,3 +1,4 @@
+// Accounts screen: invoices and payments, receivables and payables, and the expense list.
 import { useState } from 'react';
 import { Button, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag } from 'antd';
 import CrudPage from '@/components/CrudPage';

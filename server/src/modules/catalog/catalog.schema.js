@@ -1,3 +1,4 @@
+// Input rules for items and BOMs.
 import { z } from 'zod';
 import { pageQuery, zBoolStr } from '../../middleware/validate.js';
 

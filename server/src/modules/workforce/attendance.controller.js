@@ -1,3 +1,4 @@
+// HTTP handlers for attendance: save a shift, day view, today board, monthly register, overtime approval.
 import { approveOvertime, listDay, monthlyRegister, saveAttendance, todayBoard } from './attendance.service.js';
 
 const id = (req) => req.valid.params.id;

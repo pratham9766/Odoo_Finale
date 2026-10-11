@@ -1,3 +1,4 @@
+// Dashboard feed of the latest changes, read from the audit log (only roles that may view it see the feed).
 import { useSession } from '@/context/Session';
 import { useGet } from '@/lib/hooks';
 import ActivityItem from './ActivityItem';

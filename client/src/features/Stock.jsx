@@ -1,3 +1,4 @@
+// Inventory: stock per item, lots, movements, finished rolls and stock adjustments.
 import { useState } from 'react';
 import { Alert, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tabs, Tag } from 'antd';
 import { Link } from 'react-router-dom';

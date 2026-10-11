@@ -1,3 +1,4 @@
+// Dashboard checklist of pending work (drafts to post, work orders without a machine, QC queue...), each linking to its screen.
 import { Link } from 'react-router-dom';
 import Icon from '@/components/Icons';
 import { useSession } from '@/context/Session';

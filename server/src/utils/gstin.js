@@ -1,3 +1,4 @@
+// The one GSTIN rule, shared by the mill profile and by contacts.
 import { z } from 'zod';
 
 // 15 characters: 2 digit state code, 10 character PAN, entity number, "Z", check character (e.g. 27AAACE1234F1Z5)

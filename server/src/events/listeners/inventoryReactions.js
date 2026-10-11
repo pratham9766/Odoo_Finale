@@ -1,3 +1,4 @@
+// When goods are received: records the supplier bill and gives waiting orders another chance at the new stock.
 import { on, emit } from '../bus.js';
 import { withTx } from '../../db/tx.js';
 import { lowStockAmong } from '../../modules/inventory/inventory.core.js';

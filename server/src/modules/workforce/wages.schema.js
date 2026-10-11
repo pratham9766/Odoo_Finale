@@ -1,3 +1,4 @@
+// Input rules for wage runs and payslips.
 import { z } from 'zod';
 import { monthString, uuid } from '../../utils/crud/schema.js';
 

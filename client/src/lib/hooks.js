@@ -1,3 +1,4 @@
+// Data hooks: useGet (cached reads, keyed by user) and useAction (writes that refresh the cache and show the server's message).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { useSession } from '@/context/Session';

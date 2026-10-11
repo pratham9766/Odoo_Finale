@@ -1,3 +1,4 @@
+// HTTP handlers for dispatches (list, create, scan rolls, confirm, status, packing list).
 import * as pdf from '../../utils/pdf.js';
 import { confirmDispatch } from './confirm.service.js';
 import * as svc from './dispatches.service.js';

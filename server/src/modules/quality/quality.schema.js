@@ -1,3 +1,4 @@
+// Input rules for rolls, inspections (result + defects) and overrides (a reason is required).
 import { z } from 'zod';
 import { optionalText, pageQuery, rangeQuery, text, uuid } from '../../utils/crud/schema.js';
 import { DEFECT_GROUPS } from './qcReports.service.js';

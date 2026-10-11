@@ -7,6 +7,7 @@ import { minutesBetween } from '../../utils/time.js';
 import { loadShifts } from '../mill/mill.service.js';
 import { assertUsableMachine } from './machineRules.js';
 import { announce, lockWorkOrder, notRunning } from './workOrderSupport.js';
+import { assertOutputWithin } from './outputLimits.js';
 
 /** The shift this log belongs to: the one given, else the one running now. */
 async function logShift(db, ctx, shiftId, at) {
@@ -41,6 +42,7 @@ export async function logProduction(ctx, id, { qty, worker_id, shift_id }, { at 
   const { wo, ...result } = await withTx(async (db) => {
     const wo = await lockWorkOrder(db, ctx, id);
     if (wo.status !== 'running') throw notRunning(wo, 'log production');
+    assertOutputWithin(wo, { adding: qty });
     const machine = await assertUsableMachine(db, ctx, wo.machine_id);
 
     const { shift, date } = await logShift(db, ctx, shift_id, at);

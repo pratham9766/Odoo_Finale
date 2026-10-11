@@ -1,3 +1,4 @@
+// Unit tests for the SQL filter builder used by the generic CRUD.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Filter, insertClause, pick, setClause } from '../src/utils/crud/sql.js';

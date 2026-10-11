@@ -1,3 +1,4 @@
+// Buyer orders: create, confirm (reserves material, optionally drafts purchase orders), cancel, requirements and tracking links.
 import { withTx } from '../../db/tx.js';
 import { AppError, must } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';
@@ -255,6 +256,24 @@ export async function confirmOrder(ctx, id, { auto_po = false } = {}, { at = nul
     draft_pos: res.drafts.pos,
     unassigned_shortages: res.drafts.unassigned,
   };
+}
+
+/** Change the header of an order (deadline, priority, reference, address, notes) until production has started. */
+export async function updateOrder(ctx, id, input) {
+  await withTx(async (db) => {
+    const o = await loadOrderRow(db, id, { lock: true });
+    if (!['draft', ...PRE_PRODUCTION].includes(o.status)) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A ${o.status.replace(/_/g, ' ')} order can no longer be edited`);
+    }
+    if (input.deadline && input.deadline < new Date().toISOString().slice(0, 10)) throw new AppError(422, 'VALIDATION_FAILED', 'Deadline is in the past');
+    const fields = Object.entries(input);
+    await db.query(
+      `update orders set ${fields.map(([k], i) => `${k} = $${i + 2}`).join(', ')} where id = $1`,
+      [id, ...fields.map(([, v]) => v)]);
+    await audit(db, ctx, { action: 'update', table: 'orders', id, before: Object.fromEntries(fields.map(([k]) => [k, o[k]])), after: input });
+  });
+  bus.emit('order.updated', { orderId: id });
+  return getOrder(ctx, id);
 }
 
 export async function cancelOrder(ctx, id, { reason } = {}) {

@@ -1,3 +1,4 @@
+// Input rules for orders and the order list filters.
 import { z } from 'zod';
 import { pageQuery } from '../../middleware/validate.js';
 
@@ -28,6 +29,15 @@ export const orderQuery = z.object({
   priority: z.string().regex(/^[a-z,]+$/).optional(),
   q: z.string().trim().max(60).optional(),
 });
+
+// Header fields only: what is on the lines is changed by cancelling and re-entering the order.
+export const updateOrderSchema = z.object({
+  buyer_ref: z.string().trim().max(60).optional(),
+  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD').optional(),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+  delivery_address: z.string().max(500).optional(),
+  notes: z.string().max(2000).optional(),
+}).strict().refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 
 export const confirmSchema = z.object({
   auto_po: z.boolean().default(false), // draft POs for shortages, grouped by preferred supplier

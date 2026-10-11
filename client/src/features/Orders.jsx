@@ -1,3 +1,5 @@
+// Orders page: KPI cards, the filterable order register and the side widgets.
+// The table and filters talk to GET /orders; the cards use GET /orders/summary.
 import { Button, Dropdown, Input, Select, Table } from 'antd';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSession } from '@/context/Session';

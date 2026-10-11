@@ -1,3 +1,4 @@
+// Purchase orders: create, approve, send, record the supplier's answer, cancel, and draft POs for an order's shortage.
 import { withTx } from '../../db/tx.js';
 import { AppError, must, notFound } from '../../utils/errors.js';
 import { audit } from '../../utils/audit.js';

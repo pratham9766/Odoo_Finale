@@ -1,3 +1,4 @@
+// Permission checks: can(...), module switches, scope checks, and hiding price fields from roles that may not see them.
 import { AppError } from '../utils/errors.js';
 
 export const can = (...perms) => (req, _res, next) =>

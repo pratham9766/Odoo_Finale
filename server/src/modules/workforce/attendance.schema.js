@@ -1,3 +1,4 @@
+// Input rules for attendance entries (a worker once per request, times only on worked days).
 import { z } from 'zod';
 import { dateString, monthString, uuid } from '../../utils/crud/schema.js';
 

@@ -1,3 +1,4 @@
+// Display formatters: quantities, rupee amounts (Indian grouping) and dates.
 export const quantity = value => value == null ? '—' : new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 }).format(Number(value));
 export const money = value => value == null ? '—' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(value));
 export function date(value) {

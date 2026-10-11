@@ -1,3 +1,4 @@
+// Reads and validates environment variables once at start-up (the server refuses to run with a bad config).
 import dotenv from 'dotenv';
 import { z } from 'zod';
 

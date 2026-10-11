@@ -1,3 +1,4 @@
+// Unit tests for receivables ageing buckets and finance maths.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ageing, bucketOf } from '../src/modules/finance/receivables.service.js';

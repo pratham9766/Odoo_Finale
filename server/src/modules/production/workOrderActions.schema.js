@@ -1,3 +1,4 @@
+// Input rules for work-order actions.
 import { z } from 'zod';
 import { uuid } from '../../utils/crud/schema.js';
 

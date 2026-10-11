@@ -1,3 +1,4 @@
+// Public order-tracking page the buyer opens from the link the mill sends. No login, no prices.
 import { useQuery } from '@tanstack/react-query';
 import { Card, Descriptions, Progress, Result, Skeleton, Table, Timeline } from 'antd';
 import { useParams } from 'react-router-dom';

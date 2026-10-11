@@ -1,3 +1,4 @@
+// Notifications (list, mark read) filtered by the viewer's permissions, and signed upload URLs.
 import { Router } from 'express';
 import { z } from 'zod';
 import { withTx } from '../../db/tx.js';

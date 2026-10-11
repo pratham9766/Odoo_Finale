@@ -1,3 +1,4 @@
+// Server entry: starts HTTP, sockets, event listeners and the scheduled jobs.
 import http from 'node:http';
 import { app } from './app.js';
 import { env } from './config/env.js';

@@ -1,3 +1,4 @@
+// Reports page: pick a report and date range, see the table, download it as CSV.
 import { useState } from 'react';
 import { Button, Descriptions, Input, Select, Space, Table, Tabs } from 'antd';
 import { NoData, PageTitle, QueryState } from '@/components/States';

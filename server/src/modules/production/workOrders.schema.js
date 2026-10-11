@@ -1,3 +1,4 @@
+// Input rules for scheduling and listing work orders.
 import { z } from 'zod';
 import { boolQuery, pageQuery, updateSchema, uuid } from '../../utils/crud/schema.js';
 

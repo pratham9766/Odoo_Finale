@@ -1,3 +1,4 @@
+// Unit tests for RFID card UIDs, duplicate-scan windows and the attendance an RFID scan creates.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deviceKeyMatches, hashDeviceKey, newDeviceKey, normalizeUid, resolveCheckIn } from '../src/modules/rfid/rfid.rules.js';

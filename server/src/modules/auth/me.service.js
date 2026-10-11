@@ -1,3 +1,4 @@
+// Profile, "what may I do" (/me/access) and the staff-invite onboarding logic.
 import { withTx } from '../../db/tx.js';
 import { AppError, must } from '../../utils/errors.js';
 import { sha256 } from '../../utils/otp.js';

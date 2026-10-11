@@ -1,3 +1,4 @@
+// Input rules for dispatches and roll scans.
 import { z } from 'zod';
 import { optionalText, pageQuery, uuid } from '../../utils/crud/schema.js';
 

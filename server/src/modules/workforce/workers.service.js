@@ -1,3 +1,4 @@
+// Workers: CRUD with wage-type checks (a daily worker needs a rate) and the printable badge PDF.
 import { assertUploadPath, createCrud, invalid, omit } from '../../utils/crud/index.js';
 import * as pdf from '../../utils/pdf.js';
 import { withTx } from '../../db/tx.js';

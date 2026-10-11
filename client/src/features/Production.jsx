@@ -1,3 +1,4 @@
+// Production screens: machine board, work orders (assign machines), shift assignments and maintenance tickets.
 import { useState } from 'react';
 import { Button, Form, Input, Modal, Progress, Select, Space, Table, Tag } from 'antd';
 import { Link } from 'react-router-dom';

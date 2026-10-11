@@ -1,3 +1,4 @@
+// Re-computes an order's status, progress and risk after events that can change them (debounced).
 import { on } from '../bus.js';
 import { withTx } from '../../db/tx.js';
 import { recomputeOrderStatus } from '../../modules/orders/orderStatus.js';

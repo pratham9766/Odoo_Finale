@@ -1,3 +1,4 @@
+// Input rules for worker-to-machine assignments.
 import { z } from 'zod';
 import { dateString, updateSchema, uuid } from '../../utils/crud/schema.js';
 import { todayIST } from '../../utils/time.js';

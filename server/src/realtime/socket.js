@@ -1,3 +1,4 @@
+// Socket.io server: authenticates the browser, puts it in the mill room, and emits live updates to a person or to everyone.
 import { Server } from 'socket.io';
 import { verifyToken } from '../middleware/auth.js';
 import { withTx } from '../db/tx.js';

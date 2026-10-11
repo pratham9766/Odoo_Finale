@@ -1,3 +1,4 @@
+// Seed step: inserts the mill's own details (the single row of the mill table).
 import { insertRows } from '../lib/insert.js';
 
 /** Insert the mill's own details: the one row of the `mill` table. */
