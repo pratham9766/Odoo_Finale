@@ -14,6 +14,7 @@ import quality from './quality/quality.routes.js';
 import dispatch from './dispatch/dispatch.routes.js';
 import workforce from './workforce/workforce.routes.js';
 import rfid from './rfid/rfid.routes.js';
+import idempotency from './idempotency/idempotency.routes.js';
 import finance from './finance/finance.routes.js';
 import reports from './reports/reports.routes.js';
 
@@ -34,6 +35,7 @@ r.use(quality);
 r.use(dispatch);
 r.use(workforce);
 r.use(rfid);
+r.use(idempotency);
 r.use(finance);
 r.use(reports);
 

@@ -25,7 +25,9 @@ const schema = z.object({
   EMAIL_FROM: z.string().default('Everest Textile Mills <no-reply@example.com>'),
   PUBLIC_TRACK_BASE_URL: z.string().url(),
   JOBS_ENABLED: bool(true),
-  // RFID: the virtual scanner is a demo / development tool; unset = on everywhere except NODE_ENV=production
+  HOST: z.string().default('0.0.0.0'),                       // interface the API listens on (0.0.0.0 so a phone on the same Wi-Fi can reach it)
+  CORS_ORIGINS: z.string().optional(),                       // extra browser origins, comma separated, besides CLIENT_URL
+  // RFID: the virtual scanner is a demo / development tool and is OFF unless this is explicitly 'true'
   RFID_SIMULATOR_ENABLED: z.enum(['true', 'false', '1', '0', '']).optional(),
   RFID_DUPLICATE_WINDOW_SEC: z.coerce.number().int().min(1).max(3600).default(3),
 });
@@ -43,4 +45,5 @@ for (const k of ['SUPABASE_JWT_SECRET', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS']) 
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
-env.RFID_SIMULATOR_ENABLED = env.RFID_SIMULATOR_ENABLED ? ['true', '1'].includes(env.RFID_SIMULATOR_ENABLED) : !isProd;
+env.RFID_SIMULATOR_ENABLED = ['true', '1'].includes(env.RFID_SIMULATOR_ENABLED ?? '');
+if (env.RFID_SIMULATOR_ENABLED && isProd) console.warn('[rfid] WARNING: the virtual scanner is enabled while NODE_ENV=production; turn RFID_SIMULATOR_ENABLED off for real use');

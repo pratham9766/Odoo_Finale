@@ -4,6 +4,7 @@ import { withTx } from '../../db/tx.js';
 import { bus } from '../../events/bus.js';
 import { createCrud, invalid } from '../../utils/crud/index.js';
 import { AppError } from '../../utils/errors.js';
+import { withIdempotency } from '../../utils/idempotency.js';
 import * as pdf from '../../utils/pdf.js';
 import { randomToken } from '../../utils/tokens.js';
 import { getMill } from '../mill/mill.service.js';
@@ -19,7 +20,7 @@ const crud = createCrud({
           join work_orders w on w.id = t.work_order_id
           left join machines m on m.id = w.machine_id`,
   orderBy: 't.created_at, t.roll_no',
-  filters: (f, q) => f.eq('t.status', q.status).eq('t.order_id', q.order_id).eq('t.roll_no', q.roll_no).search(['t.roll_no', 'o.order_no'], q.q),
+  filters: (f, q) => f.eq('t.status', q.status).eq('t.order_id', q.order_id).eq('t.roll_no', q.roll_no).eq('t.qr_token', q.qr_token).search(['t.roll_no', 'o.order_no'], q.q),
 });
 // rolls are created by createRoll and change status through QC and dispatch
 export const rolls = { list: crud.list, get: crud.get };
@@ -34,9 +35,13 @@ async function nextRollNo(db, ctx, order) {
   return `${prefix}${String(n).padStart(3, '0')}`;
 }
 
-/** Create a roll from the final-stage work order, with its genealogy. Status starts at pending_qc. */
-export async function createRoll(ctx, { work_order_id, length_m, weight_kg, dye_batch }, { at = new Date() } = {}) {
-  const roll = await withTx(async (db) => {
+/**
+ * Create a roll from the final-stage work order, with its genealogy. Status starts at pending_qc.
+ * With an `idempotencyKey` a retried request returns the roll that was created the first time (see utils/idempotency.js).
+ */
+export async function createRoll(ctx, input, { at = new Date(), idempotencyKey } = {}) {
+  const { work_order_id, length_m, weight_kg, dye_batch } = input;
+  const exec = async (db) => {
     const wo = await lockWorkOrder(db, ctx, work_order_id);
     if (!['running', 'paused', 'done'].includes(wo.status)) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `Work order ${wo.wo_no} is ${wo.status}; start it before creating rolls`);
@@ -54,16 +59,22 @@ export async function createRoll(ctx, { work_order_id, length_m, weight_kg, dye_
       [await nextRollNo(db, ctx, order), randomToken(12), wo.order_id, wo.order_line_id, wo.output_item_id, wo.id,
        length_m, weight_kg ?? null, dye_batch ?? null, at, ctx.userId]);
     await recordGenealogy(db, ctx, row, wo, at);
-    return row;
-  });
-  bus.emit('roll.created', { rollId: roll.id });
-  await publishQcQueue();
-  return rolls.get(ctx, roll.id);
+    return { response: row };
+  };
+  const out = await withTx((db) => (idempotencyKey
+    ? withIdempotency(db, ctx, { operation: 'roll.create', key: idempotencyKey, payload: { work_order_id, length_m, weight_kg: weight_kg ?? null, dye_batch: dye_batch ?? null } }, exec)
+    : exec(db).then((r) => ({ ...r, replayed: false }))));
+  if (!out.replayed) {
+    bus.emit('roll.created', { rollId: out.response.id });
+    await publishQcQueue();
+  }
+  return { ...(await rolls.get(ctx, out.response.id)), replayed: out.replayed };
 }
 
-/** A roll by its number (what the label and the trace page carry). */
+/** A roll by its number (what the label and the trace page carry); a scanned QR token works too. */
 export async function rollByNo(ctx, rollNo) {
-  const { rows: [roll] } = await rolls.list(ctx, { roll_no: rollNo });
+  let { rows: [roll] } = await rolls.list(ctx, { roll_no: rollNo });
+  if (!roll) ({ rows: [roll] } = await rolls.list(ctx, { qr_token: rollNo }));
   if (!roll) throw new AppError(404, 'NOT_FOUND', `Roll ${rollNo} not found`);
   return roll;
 }

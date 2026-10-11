@@ -1,4 +1,4 @@
-// Input rules for the profile and for joining with an invite.
+// Input rules for the profile, the My work month and joining with an invite.
 import { z } from 'zod';
 
 export const phoneSchema = z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/, 'Enter a valid phone number');
@@ -10,6 +10,8 @@ export const updateProfileSchema = z.object({
   city: z.string().trim().max(80).optional(),
   emergency_contact: z.string().trim().max(200).optional(),
 });
+
+export const myWorkQuery = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM').optional() });
 
 export const tokenParam = z.object({ token: z.string().min(20).max(100) });
 

@@ -10,3 +10,11 @@ server/.demo-accounts.local.json
 
 # Vite dependency pre-bundle cache
 .vite/
+
+# Expo local state and caches (generated; some paths exceed the Windows path limit)
+.expo/
+mobile/.expo/
+*.tsbuildinfo
+
+# disposable scratch directories created by the db tests
+server/test/db/.tmp-*/

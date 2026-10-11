@@ -20,3 +20,14 @@ export const bulkSchema = z.object({
 
 export const dayQuery = z.object({ date: dateString.optional(), shift_id: uuid.optional(), stage_id: uuid.optional() });
 export const registerQuery = z.object({ month: monthString, stage_id: uuid.optional(), shift_id: uuid.optional() });
+
+// ---- unresolved rows and their correction ---------------------------------------------------------------------------------
+
+export const unresolvedQuery = z.object({ from: dateString.optional(), to: dateString.optional() });
+
+/** The corrected times are explicit: nothing is guessed from the shift end. check_out is required, check_in only when it was wrong. */
+export const correctSchema = z.object({
+  check_in: z.coerce.date().optional(),
+  check_out: z.coerce.date(),
+  reason: z.string().trim().min(5, 'Say why in a few words').max(300),
+});

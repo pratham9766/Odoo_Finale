@@ -2,6 +2,7 @@
 
 import { withTx } from '../../db/tx.js';
 import { isInScope } from '../../middleware/rbac.js';
+import { audit } from '../../utils/audit.js';
 import { Filter, assertExists, invalid } from '../../utils/crud/index.js';
 import { AppError } from '../../utils/errors.js';
 import { publish } from '../../utils/publish.js';
@@ -65,9 +66,12 @@ export async function saveAttendance(ctx, { date, shift_id: shiftId, entries }) 
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)
          on conflict (worker_id, date, shift_id) do update set check_in = excluded.check_in, check_out = excluded.check_out, worked_hours = excluded.worked_hours,
            late_min = excluded.late_min, early_leave_min = excluded.early_leave_min, ot_hours = excluded.ot_hours, status = excluded.status,
+           corrected_by = case when attendance.needs_correction and excluded.check_out is not null then $12::uuid else attendance.corrected_by end,
+           corrected_at = case when attendance.needs_correction and excluded.check_out is not null then now() else attendance.corrected_at end,
+           correction_reason = case when attendance.needs_correction and excluded.check_out is not null then 'Corrected in the attendance grid' else attendance.correction_reason end,
            needs_correction = case when excluded.check_out is not null then false else attendance.needs_correction end, source = excluded.source`,
         [e.worker_id, date, shiftId, day.check_in, day.check_out, day.worked_hours, day.late_min, day.early_leave_min, day.ot_hours, day.status,
-          scan?.source ?? 'manual']);
+          scan?.source ?? 'manual', ctx.userId]);
     }
   });
   await publish('attendance.updated', (db) => todayCounts(db, date));
@@ -164,4 +168,66 @@ export function approveOvertime(ctx, attendanceId) {
     const { rows: [row] } = await db.query(`update attendance set ot_approved = true, approved_by = $2 where id = $1 returning *`, [a.id, ctx.userId]);
     return row;
   });
+}
+
+// ---- unresolved attendance (a card check-in nobody has closed) ---------------------------------------------------------
+
+/** The longest day a correction may describe; anything beyond this is almost certainly a wrong date. */
+export const MAX_SHIFT_HOURS = 20;
+
+/** Rows that still need a person's look, newest first, with whether the month's wage run is already past draft. Scope-filtered. */
+export function listUnresolved(ctx, { from, to } = {}) {
+  return withTx(async (db) => {
+    const f = new Filter().eq('a.needs_correction', true)
+      .anyOf('w.stage_id', ctx.scope?.stage_ids).anyOf('a.shift_id', ctx.scope?.shift_ids);
+    if (from) f.where('a.date >= ?::date', from);
+    if (to) f.where('a.date <= ?::date', to);
+    const { rows } = await db.query(
+      `select a.id, a.date, a.check_in, a.check_out, a.status, a.late_min, a.source, a.worker_id, w.emp_code, w.name as worker,
+              a.shift_id, sh.name as shift, st.name as stage, wr.status as wage_run_status
+         from attendance a join workers w on w.id = a.worker_id join shifts sh on sh.id = a.shift_id left join stages st on st.id = w.stage_id
+         left join wage_runs wr on wr.month = date_trunc('month', a.date)::date
+        where ${f.sql} order by a.date desc, sh.start_time, w.emp_code limit 500`, f.params);
+    return rows.map((r) => ({ ...r, payroll_locked: !!r.wage_run_status && r.wage_run_status !== 'draft' }));
+  });
+}
+
+/**
+ * The supervisor closes an unresolved row with explicit times and a reason. Hours, overtime and early leave are recalculated by
+ * the same rules as the attendance grid. Refused once the month's wage run is approved or paid, so paid data never changes quietly.
+ */
+export async function correctAttendance(ctx, id, { check_in: newIn, check_out: out, reason }, { now = new Date() } = {}) {
+  const row = await withTx(async (db) => {
+    const { rows: [a] } = await db.query(
+      `select a.*, w.stage_id, w.name as worker_name from attendance a join workers w on w.id = a.worker_id where a.id = $1 for update of a`, [id]);
+    if (!a) throw new AppError(404, 'NOT_FOUND', 'Attendance record not found');
+    if (!isInScope(ctx, 'stage', a.stage_id) || !isInScope(ctx, 'shift', a.shift_id)) throw new AppError(403, 'OUT_OF_SCOPE', 'This worker is outside your assigned area');
+    if (!a.needs_correction) throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This attendance record does not need a correction');
+
+    const { rows: [run] } = await db.query(`select status from wage_runs where month = date_trunc('month', $1::date)::date`, [a.date]);
+    if (run && run.status !== 'draft') throw new AppError(409, 'PAYROLL_LOCKED', `The ${String(a.date).slice(0, 7)} wage run is already ${run.status}; it has to be reopened before this record can change`);
+
+    const checkIn = newIn ?? a.check_in;
+    if (!checkIn) throw invalid('check_in', 'This record has no check-in time; give one');
+    if (out <= checkIn) throw invalid('check_out', 'Check-out must be after check-in');
+    if (out > new Date(now.getTime() + 5 * 60_000)) throw invalid('check_out', 'Check-out cannot be in the future');
+    if (checkIn > new Date(now.getTime() + 5 * 60_000)) throw invalid('check_in', 'Check-in cannot be in the future');
+    if ((out - checkIn) / 3_600_000 > MAX_SHIFT_HOURS) throw invalid('check_out', `That is more than ${MAX_SHIFT_HOURS} hours after check-in; check the date and time`);
+
+    const { rows: [shift] } = await db.query(`select id, name, start_time, end_time, grace_min from shifts where id = $1`, [a.shift_id]);
+    const day = dayFromTimes(shift, a.date, { check_in: checkIn, check_out: out });
+    const { rows: [updated] } = await db.query(
+      `update attendance set check_in = $2, check_out = $3, worked_hours = $4, late_min = $5, early_leave_min = $6, ot_hours = $7, status = $8,
+              needs_correction = false, corrected_by = $9, corrected_at = $10, correction_reason = $11
+        where id = $1 returning *`,
+      [id, day.check_in, day.check_out, day.worked_hours, day.late_min, day.early_leave_min, day.ot_hours, day.status, ctx.userId, now, reason]);
+    await audit(db, ctx, {
+      action: 'attendance_correct', table: 'attendance', id,
+      before: { check_in: a.check_in, check_out: a.check_out, status: a.status, worked_hours: a.worked_hours },
+      after: { check_in: updated.check_in, check_out: updated.check_out, status: updated.status, worked_hours: updated.worked_hours, reason },
+    });
+    return updated;
+  });
+  await publish('attendance.updated', (db) => todayCounts(db, row.date));
+  return row;
 }

@@ -63,6 +63,8 @@ async function checkIn(db, { worker, plan, at, source, eventId }) {
     return { action: 'checked_in', attendance: row };
   }
   if (existing.check_in) return { action: 'already_checked_in', attendance: existing };
+  // the virtual scanner may create demo rows but must never rewrite a row a person (or a real card) already decided
+  if (source === 'simulator') return { action: 'manual_record_kept', attendance: existing };
   if (existing.status === 'absent') {          // marked absent before the worker arrived: the card is the better evidence
     const { rows: [row] } = await db.query(
       `update attendance set check_in = $2, late_min = $3, status = $4, needs_correction = true, source = $5, check_in_event_id = $6

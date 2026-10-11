@@ -16,6 +16,8 @@ const Stock = lazy(() => import('@/features/Stock'));
 const Boms = lazy(() => import('@/features/Boms'));
 const Settings = lazy(() => import('@/features/Settings'));
 const Attendance = lazy(() => import('@/features/Attendance'));
+const MyWork = lazy(() => import('@/features/MyWork'));
+const Purchases = lazy(() => import('@/features/Purchases'));
 const Rfid = lazy(() => import('@/features/Rfid'));
 const Wages = lazy(() => import('@/features/Wages'));
 const Finance = lazy(() => import('@/features/Finance'));
@@ -51,7 +53,7 @@ function Gate({ permission, children }) {
     : <Result status="403" title="Access restricted" subTitle="Your role does not include this. Ask the mill owner to update your role in Roles & permissions." />;
 }
 
-/** after login: floor staff go to their tablet screen, everyone else to the dashboard */
+/** after login: office staff go to the dashboard, floor staff to their tablet screen, an employee with neither to My work */
 function Home() {
   const s = useSession();
   const office = s.can('orders.view') || s.can('stock.view') || s.can('invoice.view') || s.can('production.plan');
@@ -61,6 +63,7 @@ function Home() {
     else if (s.can('qc.inspect')) to = '/floor/qc';
     else if (s.can('assignment.create') || s.can('attendance.mark')) to = '/floor/supervisor';
     else if (s.can('dispatch.create')) to = '/floor/dispatch';
+    else to = '/app/my-work';
   }
   return <Navigate to={to} replace />;
 }
@@ -92,6 +95,8 @@ export default function AppRoutes() {
         <Route path="dispatch" element={G('dispatch.view', <Dispatches />)} />
         <Route path="dispatch/new" element={G('dispatch.create', <NewDispatch />)} />
         <Route path="dispatch/:id" element={G('dispatch.view', <DispatchDetail />)} />
+        <Route path="purchases" element={G('po.view', <Purchases />)} />
+        <Route path="my-work" element={<MyWork />} />
         <Route path="attendance" element={G('attendance.view', <Attendance />)} />
         <Route path="rfid" element={G('rfid.view', <Rfid />)} />
         <Route path="workers" element={G(['workers.view', 'attendance.view'], <Workers />)} />

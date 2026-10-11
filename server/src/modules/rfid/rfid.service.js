@@ -60,11 +60,19 @@ export async function simulateScan(ctx, { card_uid: cardUid, worker_id: workerId
   return out;
 }
 
-/** Remove what the virtual scanner created (its scans and the attendance rows it checked in). Real data is never touched. */
+/**
+ * Remove what the virtual scanner created: its scans and the attendance rows it created. A row a supervisor corrected is kept, and
+ * nothing is removed from a month whose wage run is already approved or paid. Real card scans and manual rows are never touched.
+ */
 export async function resetDemo(ctx) {
   if (!env.RFID_SIMULATOR_ENABLED) throw new AppError(403, 'SIMULATOR_DISABLED', 'The virtual RFID scanner is turned off on this server');
   const out = await withTx(async (db) => {
-    const { rowCount: attendance } = await db.query(`delete from attendance where source = 'simulator'`);
+    const { rows: locked } = await db.query(
+      `select distinct to_char(a.date, 'YYYY-MM') as month from attendance a
+         join wage_runs r on r.month = date_trunc('month', a.date)::date and r.status <> 'draft'
+        where a.source = 'simulator' and a.corrected_at is null`);
+    if (locked.length) throw new AppError(409, 'PAYROLL_LOCKED', `Demo attendance exists in ${locked.map((l) => l.month).join(', ')}, whose wage run is already approved or paid, so it will not be deleted`);
+    const { rowCount: attendance } = await db.query(`delete from attendance where source = 'simulator' and corrected_at is null`);
     const { rowCount: scans } = await db.query(`delete from rfid_scan_events where source = 'simulator'`);
     await audit(db, ctx, { action: 'rfid.demo_reset', table: 'rfid_scan_events', after: { attendance, scans } });
     return { attendance_deleted: attendance, scans_deleted: scans };
