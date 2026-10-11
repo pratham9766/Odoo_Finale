@@ -99,7 +99,7 @@ Supabase Postgres (via Supavisor pooler) + Supabase Storage (files)
 │   │   └── utils/          pdf, csv, email, storage, numbering, money, time …
 │   └── test/
 ├── db/
-│   ├── migrations/         001–019 numbered SQL files, applied once each
+│   ├── migrations/         001–022 SQL files, applied once each by full file name (019 and 020 exist twice: see docs/MIGRATIONS.md)
 │   └── seed/               masters + simulated history, run through the real services
 └── docs/                   plans, contracts and verification notes
 ```
@@ -238,12 +238,16 @@ The field-level contract the frontend relies on is in [`docs/05_FRONTEND_CONTRAC
 ## Testing
 
 ```bash
-cd server && npm test        # real Supabase auth and database; tests clean up after themselves
+cd server && npm run lint
+cd server && npm test        # offline: rules, schemas, PDFs, planning (needs a server/.env only to satisfy the environment check; touches no database)
+cd server && SAMETA_TEST_ADMIN_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres npm run test:db
+                             # database-backed: real transactions, locks, idempotency, dispatch races, attendance + payroll, migrations, seed
 cd client && npm test        # api client, contracts and order helpers
 cd client && npm run build   # production build check
+cd mobile && npm run check && npm test   # mobile: imports resolve, token refresh, pending entries, attendance times
 ```
 
-Server tests need a configured `server/.env` and a migrated database.
+`test:db` needs a **local, disposable** PostgreSQL superuser URL (never Supabase or a shared database: the harness refuses non-local hosts). It creates a new database per test file, migrates it with the real `db/migrate.js`, and drops it afterwards. Without `SAMETA_TEST_ADMIN_URL` those tests are skipped.
 
 ## Deployment
 
@@ -255,6 +259,11 @@ Server tests need a configured `server/.env` and a migrated database.
 
 | File | Contents |
 |---|---|
+| [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) | The routes the apps use, verified from source: request, response, permission, state changes. |
+| [`docs/MIGRATIONS.md`](docs/MIGRATIONS.md) | How the migration runner works, the 019/020 overlap, and the three supported upgrade histories. |
+| [`docs/SAMETA_INTEGRATION_REPORT.md`](docs/SAMETA_INTEGRATION_REPORT.md) | What was integrated and fixed, evidence, readiness, setup, SWOT, backlog. |
+| [`docs/SAMETA_REVIEWER_GUIDE.md`](docs/SAMETA_REVIEWER_GUIDE.md) | Design choices explained, with likely questions. |
+| [`mobile/docs/MOBILE_SETUP.md`](mobile/docs/MOBILE_SETUP.md) | Running the phone app, live vs preview mode. |
 | [`docs/01_OVERALL_PLAN.md`](docs/01_OVERALL_PLAN.md) | Original product plan and scenes. |
 | [`docs/02_BACKEND_EXECUTION.md`](docs/02_BACKEND_EXECUTION.md) | Backend design reference. |
 | [`docs/03_FRONTEND_EXECUTION.md`](docs/03_FRONTEND_EXECUTION.md) | Frontend design reference. |

@@ -165,8 +165,13 @@ test('unknown, deactivated and inactive-worker cards never touch attendance', as
 
 test('a supervisor\'s absent mark is replaced by the card, a leave entry is kept', async () => {
   const absent = fakeDb({ cards: [ravi], attendance: [{ id: 'att-x', worker_id: 'w-ravi', date: '2026-10-11', shift_id: 'A', check_in: null, status: 'absent' }] });
-  assert.equal((await scan(absent)).attendance_action, 'checked_in');
+  assert.equal((await scan(absent, { source: 'hardware' })).attendance_action, 'checked_in');
   assert.equal(absent.state.attendance[0].status, 'present');
+
+  // the virtual scanner is a demo tool: it must never rewrite a row a person already decided
+  const demo = fakeDb({ cards: [ravi], attendance: [{ id: 'att-d', worker_id: 'w-ravi', date: '2026-10-11', shift_id: 'A', check_in: null, status: 'absent' }] });
+  assert.equal((await scan(demo, { source: 'simulator' })).attendance_action, 'manual_record_kept');
+  assert.equal(demo.state.attendance[0].status, 'absent');
 
   const leave = fakeDb({ cards: [ravi], attendance: [{ id: 'att-y', worker_id: 'w-ravi', date: '2026-10-11', shift_id: 'A', check_in: null, status: 'leave' }] });
   assert.equal((await scan(leave)).attendance_action, 'manual_record_kept');

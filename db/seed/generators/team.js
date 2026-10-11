@@ -23,9 +23,11 @@ export async function seedTeam(db, profile, { createUser }) {
 
   const roleId = new Map();
   for (const r of team.roles) {
-    const { rows: [row] } = await db.query(`insert into roles (name, rank) values ($1, $2) returning id`, [r.name, r.rank]);
+    // A role of this name may already exist (the built-in defaults, or migration 019_default_role_permissions): reuse it and add this
+    // demo team's permissions to it, instead of failing on the unique role name.
+    const { rows: [row] } = await db.query(`insert into roles (name, rank) values ($1, $2) on conflict (name) do update set rank = excluded.rank returning id`, [r.name, r.rank]);
     roleId.set(r.name, row.id);
-    await db.query(`insert into role_permissions (role_id, permission_key) select $1, k from unnest($2::text[]) k`, [row.id, expand(r.perms, allKeys)]);
+    await db.query(`insert into role_permissions (role_id, permission_key) select $1, k from unnest($2::text[]) k on conflict do nothing`, [row.id, expand(r.perms, allKeys)]);
   }
 
   for (const u of team.users) {

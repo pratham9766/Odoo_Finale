@@ -20,6 +20,36 @@ const runs = createCrud({
 
 const monthFirst = (month) => `${month}-01`;
 
+/**
+ * A wage run must not be built on days whose hours are unknown, because the pay would look exact and be wrong. A shift that may still
+ * be running (checked in within the last 20 hours, the longest a correction may describe) is not counted: it cannot be resolved yet.
+ *   ATTENDANCE_UNRESOLVED  card check-ins nobody has closed (needs_correction)
+ *   HOURS_MISSING          an hourly-paid worker marked present with no check-out, so their hours are 0
+ * @throws 409 with how many rows, and a few names so the supervisor knows where to start
+ */
+export async function assertNoUnresolvedAttendance(db, from, to) {
+  const month = String(from).slice(0, 7);
+  const sample = (rows) => rows.slice(0, 5).map((r) => ({ worker: r.name, date: r.date }));
+  const { rows: open } = await db.query(
+    `select w.name, a.date from attendance a join workers w on w.id = a.worker_id
+      where a.needs_correction and a.date >= $1::date and a.date < $2::date
+        and (a.check_in is null or a.check_in < now() - interval '20 hours') order by a.date, w.emp_code`, [from, to]);
+  if (open.length) {
+    throw new AppError(409, 'ATTENDANCE_UNRESOLVED',
+      `${open.length} attendance record${open.length === 1 ? '' : 's'} in ${month} still need a check-out correction. Resolve them before the wage run can continue.`,
+      { count: open.length, sample: sample(open) });
+  }
+  const { rows: noHours } = await db.query(
+    `select w.name, a.date from attendance a join workers w on w.id = a.worker_id
+      where w.wage_type = 'hourly' and a.status in ('present', 'late', 'half_day') and a.check_out is null
+        and a.date >= $1::date and a.date < $2::date and (a.check_in is null or a.check_in < now() - interval '20 hours') order by a.date, w.emp_code`, [from, to]);
+  if (noHours.length) {
+    throw new AppError(409, 'HOURS_MISSING',
+      `${noHours.length} day${noHours.length === 1 ? '' : 's'} in ${month} belong to hourly-paid workers with no check-out time, so their hours are unknown. Enter the times in the attendance grid first.`,
+      { count: noHours.length, sample: sample(noHours) });
+  }
+}
+
 /** Per worker: the month's days (half day = 0.5), hours, approved OT hours and pieces (production output) — everything grossPay needs. */
 export async function monthTotals(db, from, to) {
   const { rows } = await db.query(
@@ -45,6 +75,7 @@ export async function prepareRun(ctx, { month }, { at = new Date() } = {}) {
 
   const id = await withTx(async (db) => {
     let { rows: [run] } = await db.query(`select * from wage_runs where month = $1 for update`, [from]);
+    await assertNoUnresolvedAttendance(db, from, to);
     if (run && run.status !== 'draft') throw new AppError(409, 'INVALID_STATE_TRANSITION', `The ${month} wage run is already ${run.status}`);
     if (run) {                                                              // re-prepare: start the lines again
       await db.query(`delete from wage_lines where wage_run_id = $1`, [run.id]);
@@ -92,6 +123,7 @@ async function moveRun(ctx, id, from, to, action, fields) {
     const { rows: [run] } = await db.query(`select * from wage_runs where id = $1 for update`, [id]);
     if (!run) throw new AppError(404, 'NOT_FOUND', 'Wage run not found');
     if (run.status !== from) throw new AppError(409, 'INVALID_STATE_TRANSITION', `This wage run is ${run.status}; only a ${from} run can be ${to}`);
+    if (to === 'approved' || to === 'paid') await assertNoUnresolvedAttendance(db, run.month, nextMonthStart(run.month));
     if (to === 'approved' && run.prepared_by === ctx.userId && await anotherApprover(db, ctx.userId)) {
       throw new AppError(403, 'FORBIDDEN', 'A different person has to approve a wage run that you prepared');
     }

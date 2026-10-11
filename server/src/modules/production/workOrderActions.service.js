@@ -11,7 +11,7 @@ import { assertUsableMachine } from './machineRules.js';
 import { setMachineStatus } from './machineStatus.js';
 import { announce, lockWorkOrder, notRunning } from './workOrderSupport.js';
 import { workOrders } from './workOrders.service.js';
-import { assertOutputWithin } from './outputLimits.js';
+import { assertOutputWithin, overTargetPct } from './outputLimits.js';
 
 /** Inputs this work order consumes: the output item's default BOM scaled to the target, one entry per item (warp and weft add up). */
 async function materialFor(db, ctx, wo) {
@@ -85,7 +85,7 @@ export async function finishWorkOrder(ctx, id, input, { at = new Date() } = {}) 
     if (!['running', 'paused'].includes(row.status)) {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', `Work order ${row.wo_no} is ${row.status}; only running or paused work can be finished`);
     }
-    assertOutputWithin(row, { good: input.good_qty, waste: input.waste_qty });
+    assertOutputWithin(row, { good: input.good_qty, waste: input.waste_qty }, overTargetPct(ctx));
     if (input.waste_item_id) {
       await assertExists(db, 'items', input.waste_item_id, 'Waste item');
       const { rows: [item] } = await db.query(`select kind from items where id = $1`, [input.waste_item_id]);

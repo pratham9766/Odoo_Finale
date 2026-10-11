@@ -69,10 +69,10 @@ export const listPos = (ctx, q) =>
     const { rows, meta } = await paged(
       db,
       `select p.id, p.po_no, p.status, p.need_by, p.promise_date, p.created_at, p.for_order_id,
-              c.name as supplier_name,
+              c.name as supplier_name, o.order_no as for_order_no,
               (select count(*)::int from po_lines l where l.po_id = p.id) as line_count,
               (select coalesce(sum(l.qty * l.rate), 0) from po_lines l where l.po_id = p.id) as total
-         from purchase_orders p left join contacts c on c.id = p.supplier_contact_id ${w.sql}`,
+         from purchase_orders p left join contacts c on c.id = p.supplier_contact_id left join orders o on o.id = p.for_order_id ${w.sql}`,
       w.params, q, 'created_at desc');
     return { data: rows.map((r) => hidePrices(ctx, r)), meta };
   });

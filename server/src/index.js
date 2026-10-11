@@ -10,6 +10,6 @@ const server = http.createServer(app);
 initSocket(server);
 await registerListeners();
 await startJobs();
-server.listen(env.PORT, () => console.log(`API on :${env.PORT}`));
+server.listen(env.PORT, env.HOST, () => console.log(`API on ${env.HOST}:${env.PORT}`));
 
 process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err));

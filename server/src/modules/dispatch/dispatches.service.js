@@ -81,7 +81,14 @@ export async function scanRoll(ctx, dispatchId, { code }, { at = new Date() } = 
     if (!roll) throw new AppError(404, 'NOT_FOUND', `No roll matches "${code}"`);
     if (roll.order_id !== d.order_id) throw new AppError(409, 'ROLL_WRONG_ORDER', `Roll ${roll.roll_no} belongs to another order`);
     const { rows: [taken] } = await db.query(
-      `select d2.dispatch_no from dispatch_rolls dr join dispatches d2 on d2.id = dr.dispatch_id where dr.roll_id = $1`, [roll.id]);
+      `select d2.id, d2.dispatch_no from dispatch_rolls dr join dispatches d2 on d2.id = dr.dispatch_id where dr.roll_id = $1`, [roll.id]);
+    if (taken?.id === d.id) {                                // the same roll again, e.g. a retry after a lost response: already done, not an error
+      const now = await dispatchTotals(db, d);
+      return {
+        roll_no: roll.roll_no, length_m: Number(roll.length_m), scanned_total: now.scanned,
+        ordered: now.ordered, remaining: now.ordered - now.earlier - now.scanned, already_scanned: true,
+      };
+    }
     if (roll.status === 'dispatched' || taken) {
       throw new AppError(409, 'ROLL_ALREADY_DISPATCHED', `Roll ${roll.roll_no} is already in dispatch ${taken?.dispatch_no ?? 'a confirmed dispatch'}`);
     }

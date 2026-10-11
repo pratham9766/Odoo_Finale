@@ -18,7 +18,10 @@ export function LogoWeaveIcon({ size = 26 }) {
 
 // An entry shows when the person holds any one of its permissions. `perms: null` = everyone.
 const NAV = [
-  { items: [{ to: '/app', label: 'Dashboard', icon: 'home', end: true }] },
+  { items: [
+    { to: '/app', label: 'Dashboard', icon: 'home', end: true },
+    { to: '/app/my-work', label: 'My work', icon: 'person' },
+  ] },
   { caption: 'SALES', items: [
     { to: '/app/orders', label: 'Orders', icon: 'orders', perms: ['orders.view'] },
     { to: '/app/contacts', label: 'Buyers & suppliers', icon: 'people', perms: ['contacts.view'] },
@@ -26,6 +29,7 @@ const NAV = [
   { caption: 'STORES', items: [
     { to: '/app/stock', label: 'Inventory', icon: 'box', perms: ['stock.view'] },
     { to: '/app/receipts', label: 'Goods receipts', icon: 'receipt', perms: ['receipt.view', 'receipt.create'] },
+    { to: '/app/purchases', label: 'Purchase orders', icon: 'clipboard', perms: ['po.view'] },
     { to: '/app/items', label: 'Items', icon: 'box', perms: ['items.view'] },
     { to: '/app/boms', label: 'Recipes (BOM)', icon: 'layers', perms: ['bom.view'] },
   ] },

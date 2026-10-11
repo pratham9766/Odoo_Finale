@@ -30,6 +30,9 @@ export const updateMillSchema = z.object({
     timezone: z.string().refine(isTimeZone, 'Unknown time zone').optional(),
     currency: z.string().regex(/^[A-Z]{3}$/, 'ISO currency code, e.g. INR').optional(),
     invoice_prefix: z.string().regex(/^[A-Z0-9-]{1,10}$/, 'Up to 10 capital letters, digits or -').optional(),
+    // how far above a work order's target one stage may log output (default 25); above it the entry is refused.
+    // allow_over_target_override (default off) lets someone who plans production confirm such an entry with a reason.
+    production: z.object({ over_target_pct: z.number().min(0).max(200).optional(), allow_over_target_override: z.boolean().optional() }).optional(),
   }).optional(),
 }).refine((b) => Object.keys(b).length > 0, 'Nothing to update');
 
